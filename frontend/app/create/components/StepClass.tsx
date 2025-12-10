@@ -64,7 +64,9 @@ export default function StepClass({ selectedClassId, onSelect, selectedSubclassI
                             }}
                         >
                             <h3 style={{ fontWeight: 'bold', fontSize: '1.25rem', marginBottom: '0.5rem' }}>{cls.name}</h3>
-                            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>{cls.description}</p>
+                            {cls.description && (
+                                <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>{cls.description}</p>
+                            )}
 
                             <div style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>
                                 <strong>Hit Die:</strong> d{cls.hitDie}

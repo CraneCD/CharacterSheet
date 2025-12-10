@@ -103,6 +103,7 @@ export interface Race {
 export interface ClassInfo {
     id: string;
     name: string;
+    description?: string;
     hitDie: number;
     primaryAbility: string[];
     savingThrows: string[];
