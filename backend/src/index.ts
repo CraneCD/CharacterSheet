@@ -11,6 +11,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Debug: Log database connection info (without password)
+if (process.env.DATABASE_URL) {
+    const dbUrl = process.env.DATABASE_URL;
+    const maskedUrl = dbUrl.replace(/:[^:@]+@/, ':****@'); // Mask password
+    console.log('DATABASE_URL is set:', maskedUrl);
+    console.log('Database host:', dbUrl.match(/@([^:]+):/)?.[1] || 'unknown');
+} else {
+    console.error('⚠️ DATABASE_URL is NOT set!');
+}
+
 // CORS configuration
 const allowedOrigins = [
     'http://localhost:3000',
