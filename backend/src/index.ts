@@ -18,23 +18,43 @@ const allowedOrigins = [
     process.env.FRONTEND_URL
 ].filter(Boolean); // Remove undefined values
 
+// Log allowed origins for debugging
+console.log('Allowed CORS origins:', allowedOrigins);
+
 app.use(cors({
     origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
+        if (!origin) {
+            console.log('CORS: Request with no origin, allowing');
+            return callback(null, true);
+        }
         
-        if (allowedOrigins.includes(origin)) {
+        // Normalize origin (remove trailing slash)
+        const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+        
+        console.log('CORS: Checking origin:', normalizedOrigin);
+        
+        // Check exact match or if origin starts with any allowed origin
+        const isAllowed = allowedOrigins.some(allowed => {
+            const normalizedAllowed = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
+            return normalizedOrigin === normalizedAllowed || normalizedOrigin.startsWith(normalizedAllowed);
+        });
+        
+        if (isAllowed) {
+            console.log('CORS: Origin allowed');
             callback(null, true);
         } else {
-            console.log('CORS blocked origin:', origin);
-            callback(new Error('Not allowed by CORS'));
+            console.log('CORS: Origin blocked:', normalizedOrigin, 'Allowed origins:', allowedOrigins);
+            // For OPTIONS preflight, we still need to send CORS headers
+            callback(null, false);
         }
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     preflightContinue: false,
-    optionsSuccessStatus: 204
+    optionsSuccessStatus: 204,
+    maxAge: 86400 // Cache preflight for 24 hours
 }));
 app.use(express.json());
 
@@ -50,10 +70,7 @@ app.get('/', (req, res) => {
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    // Handle CORS errors specifically
-    if (err.message === 'Not allowed by CORS') {
-        return res.status(403).json({ error: 'CORS: Origin not allowed' });
-    }
+    console.error('Error:', err.message);
     console.error(err.stack);
     res.status(500).json({ error: 'Something went wrong!' });
 });
