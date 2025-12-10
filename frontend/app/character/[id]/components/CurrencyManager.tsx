@@ -1,0 +1,168 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { api } from '@/lib/api';
+import { Currency } from '@/lib/types';
+
+interface CurrencyManagerProps {
+    characterId: string;
+    initialCurrency?: Currency;
+    onUpdate: (currency: Currency) => void;
+}
+
+export default function CurrencyManager({ characterId, initialCurrency, onUpdate }: CurrencyManagerProps) {
+    const [currency, setCurrency] = useState<Currency>(initialCurrency || { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 });
+    const [editing, setEditing] = useState<{ [key: string]: boolean }>({});
+
+    useEffect(() => {
+        setCurrency(initialCurrency || { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 });
+    }, [initialCurrency]);
+
+    const currencyTypes = [
+        { key: 'pp', label: 'Platinum', short: 'pp', color: '#E5E4E2' },
+        { key: 'gp', label: 'Gold', short: 'gp', color: '#FFD700' },
+        { key: 'ep', label: 'Electrum', short: 'ep', color: '#C9B037' },
+        { key: 'sp', label: 'Silver', short: 'sp', color: '#C0C0C0' },
+        { key: 'cp', label: 'Copper', short: 'cp', color: '#B87333' }
+    ];
+
+    const handleCurrencyChange = async (type: keyof Currency, value: number) => {
+        const newCurrency = { ...currency, [type]: Math.max(0, Math.floor(value)) };
+        setCurrency(newCurrency);
+        
+        try {
+            // Get current character data first
+            const character = await api.get(`/characters/${characterId}`);
+            await api.put(`/characters/${characterId}`, {
+                ...character,
+                data: { ...character.data, currency: newCurrency }
+            });
+            onUpdate(newCurrency);
+        } catch (err) {
+            console.error('Failed to update currency', err);
+            // Revert on error
+            setCurrency(currency);
+        }
+    };
+
+    const startEditing = (type: string) => {
+        setEditing({ ...editing, [type]: true });
+    };
+
+    const stopEditing = (type: string) => {
+        setEditing({ ...editing, [type]: false });
+    };
+
+    const convertToGold = (): number => {
+        const cpValue = (currency.cp || 0) / 100;
+        const spValue = (currency.sp || 0) / 10;
+        const epValue = (currency.ep || 0) / 2;
+        const gpValue = currency.gp || 0;
+        const ppValue = (currency.pp || 0) * 10;
+        return cpValue + spValue + epValue + gpValue + ppValue;
+    };
+
+    return (
+        <div className="card">
+            <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>
+                Currency
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '0.75rem' }}>
+                {currencyTypes.map(({ key, label, short, color }) => {
+                    const value = currency[key as keyof Currency] || 0;
+                    const isEditing = editing[key];
+                    
+                    return (
+                        <div key={key} style={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            alignItems: 'center',
+                            padding: '0.5rem',
+                            backgroundColor: 'var(--surface)',
+                            borderRadius: '4px',
+                            border: '1px solid var(--border)'
+                        }}>
+                            <div style={{ 
+                                fontSize: '0.75rem', 
+                                color: 'var(--text-muted)', 
+                                marginBottom: '0.25rem',
+                                textAlign: 'center'
+                            }}>
+                                {label}
+                            </div>
+                            {isEditing ? (
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={value}
+                                    onChange={(e) => {
+                                        const newValue = parseInt(e.target.value) || 0;
+                                        setCurrency({ ...currency, [key]: newValue });
+                                    }}
+                                    onBlur={() => {
+                                        handleCurrencyChange(key as keyof Currency, currency[key as keyof Currency] || 0);
+                                        stopEditing(key);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleCurrencyChange(key as keyof Currency, currency[key as keyof Currency] || 0);
+                                            stopEditing(key);
+                                        } else if (e.key === 'Escape') {
+                                            setCurrency(initialCurrency || { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 });
+                                            stopEditing(key);
+                                        }
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        textAlign: 'center',
+                                        fontSize: '1rem',
+                                        fontWeight: 'bold',
+                                        border: '1px solid var(--primary)',
+                                        borderRadius: '4px',
+                                        padding: '0.25rem',
+                                        backgroundColor: 'var(--surface)',
+                                        color: 'var(--text)'
+                                    }}
+                                    autoFocus
+                                />
+                            ) : (
+                                <div
+                                    onClick={() => startEditing(key)}
+                                    style={{
+                                        fontSize: '1rem',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer',
+                                        padding: '0.25rem 0.5rem',
+                                        borderRadius: '4px',
+                                        transition: 'background-color 0.2s',
+                                        width: '100%',
+                                        textAlign: 'center',
+                                        color: color
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--background)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                    title="Click to edit"
+                                >
+                                    {value.toLocaleString()}
+                                </div>
+                            )}
+                            <div style={{ fontSize: '0.625rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                {short}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+            <div style={{ 
+                marginTop: '0.75rem', 
+                paddingTop: '0.75rem', 
+                borderTop: '1px solid var(--border)',
+                textAlign: 'center',
+                fontSize: '0.875rem',
+                color: 'var(--text-muted)'
+            }}>
+                Total: {convertToGold().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} gp
+            </div>
+        </div>
+    );
+}

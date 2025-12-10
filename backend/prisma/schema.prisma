@@ -1,0 +1,87 @@
+// backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  characters   Character[]
+  campaigns    Campaign[] // Campaigns this user DMs
+  campaignMemberships CampaignMember[]
+  items        Item[]     // Homebrew items created by this user
+}
+
+model Character {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  campaignId  String?
+  campaign    Campaign? @relation(fields: [campaignId], references: [id])
+  
+  name        String
+  race        String
+  class       String
+  level       Int      @default(1)
+  
+  // Core Stats (JSON for flexibility in MVP)
+  // Includes: abilityScores, skills, combatStats (HP, AC), features, spells, equipment
+  data        Json
+  
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([campaignId])
+}
+
+model Campaign {
+  id          String   @id @default(uuid())
+  dmId        String
+  dm          User     @relation(fields: [dmId], references: [id])
+  name        String
+  description String?
+  joinCode    String   @unique // Simple code for players to join
+  
+  characters  Character[]
+  members     CampaignMember[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CampaignMember {
+  id          String   @id @default(uuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  joinedAt    DateTime @default(now())
+
+  @@unique([campaignId, userId])
+}
+
+model Item {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  properties  Json?    // Damage, weight, cost, etc.
+  isHomebrew  Boolean  @default(false)
+  ownerId     String?  // If homebrew, who created it
+  owner       User?    @relation(fields: [ownerId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
