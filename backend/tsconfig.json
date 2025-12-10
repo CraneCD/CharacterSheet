@@ -11,10 +11,12 @@
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
         "resolveJsonModule": true,
-        "noImplicitAny": false
+        "noImplicitAny": false,
+        "typeRoots": ["./node_modules/@types", "../node_modules/@types"]
     },
     "include": [
-        "src/**/*"
+        "src/**/*",
+        "src/global.d.ts"
     ],
     "exclude": [
         "node_modules",
