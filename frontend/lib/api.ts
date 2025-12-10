@@ -1,4 +1,30 @@
-const API_URL = 'http://localhost:3001/api';
+// Get API URL - check both build-time and runtime
+const getApiUrl = () => {
+    // In browser, check if we have a runtime override
+    if (typeof window !== 'undefined') {
+        // Check for runtime config (useful for debugging)
+        const runtimeUrl = (window as any).__API_URL__;
+        if (runtimeUrl) return runtimeUrl;
+    }
+    
+    // Use environment variable (set at build time in Vercel)
+    const envUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (envUrl) return envUrl;
+    
+    // Fallback to localhost for local development
+    return 'http://localhost:3001/api';
+};
+
+const API_URL = getApiUrl();
+
+// Debug: Log the API URL (only in browser, not during SSR)
+if (typeof window !== 'undefined') {
+    console.log('🔗 API_URL:', API_URL);
+    console.log('🔗 NEXT_PUBLIC_API_URL env var:', process.env.NEXT_PUBLIC_API_URL);
+    if (!process.env.NEXT_PUBLIC_API_URL) {
+        console.warn('⚠️ NEXT_PUBLIC_API_URL is not set! Using fallback:', API_URL);
+    }
+}
 
 export const api = {
     async get(endpoint: string) {
