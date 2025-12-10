@@ -15,20 +15,20 @@ Render's free tier can have connection limits, and Supabase's connection pooler 
 
 It will look like:
 ```
-postgresql://postgres.zowurcekczkdpfaocphs:[YOUR-PASSWORD]@aws-0-us-west-1.pooler.supabase.com:6543/postgres
+postgresql://postgres.zowurcekczkdpfaocphs:[YOUR-PASSWORD]@aws-0-us-west-2.pooler.supabase.com:5432/postgres
 ```
 
 Or:
 ```
-postgresql://postgres.xxxxx:[YOUR-PASSWORD]@aws-0-us-west-1.pooler.supabase.com:6543/postgres
+postgresql://postgres.xxxxx:[YOUR-PASSWORD]@aws-0-us-west-X.pooler.supabase.com:5432/postgres
 ```
 
 ## Differences from Direct Connection
 
 | Direct Connection | Connection Pooler |
 |-------------------|-------------------|
-| Port: `5432` | Port: `6543` |
-| Host: `db.xxxxx.supabase.co` | Host: `aws-0-us-west-1.pooler.supabase.com` |
+| Port: `5432` | Port: `5432` (same) |
+| Host: `db.xxxxx.supabase.co` | Host: `aws-0-us-west-X.pooler.supabase.com` |
 | Username: `postgres` | Username: `postgres.xxxxx` (with project ref) |
 
 ## Update Render
@@ -42,7 +42,7 @@ postgresql://postgres.xxxxx:[YOUR-PASSWORD]@aws-0-us-west-1.pooler.supabase.com:
 
 With your password `Henaolemos890`, it should look like:
 ```
-postgresql://postgres.zowurcekczkdpfaocphs:Henaolemos890@aws-0-us-west-1.pooler.supabase.com:6543/postgres
+postgresql://postgres.zowurcekczkdpfaocphs:Henaolemos890@aws-0-us-west-2.pooler.supabase.com:5432/postgres
 ```
 
 **Note**: The exact pooler host and username format may vary. Use what Supabase shows you in the dashboard.
@@ -51,7 +51,7 @@ postgresql://postgres.zowurcekczkdpfaocphs:Henaolemos890@aws-0-us-west-1.pooler.
 
 After updating, test the connection:
 ```bash
-psql "postgresql://postgres.zowurcekczkdpfaocphs:Henaolemos890@aws-0-us-west-1.pooler.supabase.com:6543/postgres" -c "SELECT 1;"
+psql "postgresql://postgres.zowurcekczkdpfaocphs:Henaolemos890@aws-0-us-west-2.pooler.supabase.com:5432/postgres" -c "SELECT 1;"
 ```
 
 ## If Pooler Doesn't Work
