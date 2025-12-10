@@ -172,6 +172,31 @@ export default function CharacterSheet() {
         }));
     };
 
+    const handleToggleSkillProficiency = async (skillName: string) => {
+        const currentSkills = data.skills || [];
+        const isCurrentlyProficient = currentSkills.includes(skillName);
+        
+        let updatedSkills: string[];
+        if (isCurrentlyProficient) {
+            // Remove proficiency
+            updatedSkills = currentSkills.filter(s => s !== skillName);
+        } else {
+            // Add proficiency
+            updatedSkills = [...currentSkills, skillName];
+        }
+
+        try {
+            await api.put(`/characters/${character.id}`, {
+                ...character,
+                data: { ...character.data, skills: updatedSkills }
+            });
+            handleUpdateCharacter({ skills: updatedSkills });
+        } catch (err) {
+            console.error('Failed to update skill proficiency', err);
+            alert('Failed to update skill proficiency');
+        }
+    };
+
     const handleAbilityScoreChange = async (stat: string, newValue: number) => {
         if (newValue < 1 || newValue > 30) {
             alert('Ability scores must be between 1 and 30');
@@ -641,7 +666,17 @@ export default function CharacterSheet() {
                             {skills.map(skill => (
                                 <div key={skill.name} className="skill-row">
                                     <span style={{ display: 'flex', alignItems: 'center' }}>
-                                        <span className="proficient-dot" style={{ backgroundColor: skill.isProficient ? 'var(--primary)' : 'transparent', border: '1px solid var(--text-muted)' }}></span>
+                                        <span 
+                                            className="proficient-dot" 
+                                            onClick={() => handleToggleSkillProficiency(skill.name)}
+                                            style={{ 
+                                                backgroundColor: skill.isProficient ? 'var(--primary)' : 'transparent', 
+                                                border: '1px solid var(--text-muted)',
+                                                cursor: 'pointer',
+                                                transition: 'background-color 0.2s'
+                                            }}
+                                            title={skill.isProficient ? 'Click to remove proficiency' : 'Click to add proficiency'}
+                                        ></span>
                                         {skill.name} <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginLeft: '0.25rem' }}>({skill.stat.toUpperCase()})</span>
                                     </span>
                                     <span style={{ fontWeight: 'bold' }}>{formatMod(skill.total)}</span>
