@@ -179,7 +179,7 @@ export default function CharacterSheet() {
         let updatedSkills: string[];
         if (isCurrentlyProficient) {
             // Remove proficiency
-            updatedSkills = currentSkills.filter(s => s !== skillName);
+            updatedSkills = currentSkills.filter((s: string) => s !== skillName);
         } else {
             // Add proficiency
             updatedSkills = [...currentSkills, skillName];
