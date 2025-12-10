@@ -35,10 +35,15 @@ router.post('/register', async (req, res) => {
 
         res.status(201).json({ message: 'User registered successfully', userId: user.id });
     } catch (error) {
+        console.error('Registration error:', error);
         if (error instanceof z.ZodError) {
             return res.status(400).json({ error: error.errors });
         }
-        res.status(500).json({ error: 'Internal server error' });
+        // Log the full error for debugging
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorStack = error instanceof Error ? error.stack : String(error);
+        console.error('Registration error details:', { errorMessage, errorStack });
+        res.status(500).json({ error: 'Internal server error', details: process.env.NODE_ENV === 'development' ? errorMessage : undefined });
     }
 });
 
@@ -64,7 +69,10 @@ router.post('/login', async (req, res) => {
 
         res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
     } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Login error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error('Login error details:', { errorMessage, stack: error instanceof Error ? error.stack : undefined });
+        res.status(500).json({ error: 'Internal server error', details: process.env.NODE_ENV === 'development' ? errorMessage : undefined });
     }
 });
 
