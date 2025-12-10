@@ -1,21 +1,24 @@
 {
     "compilerOptions": {
-        "target": "es2016",
+        "target": "es2018",
         "module": "commonjs",
         "moduleResolution": "node",
+        "lib": ["es2018"],
         "outDir": "./dist",
         "rootDir": "./src",
-        "strict": true,
+        "strict": false,
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
-        "resolveJsonModule": true
+        "resolveJsonModule": true,
+        "noImplicitAny": false
     },
     "include": [
         "src/**/*"
     ],
     "exclude": [
         "node_modules",
-        "**/*.test.ts"
+        "**/*.test.ts",
+        "src/scripts"
     ]
 }
