@@ -3187,6 +3187,18 @@ export const spells: Spell[] = [
         description: 'You touch a willing creature and put it into a cataleptic state that is indistinguishable from death.\nFor the spell\'s duration, or until you use an action to touch the target and dismiss the spell, the target appears dead to all outward inspection and to spells used to determine the target\'s status. The target is blinded and incapacitated, and its speed is 0. The target has resistance to all damage except psychic damage. If the target is diseased or poisoned when you cast the spell, or becomes diseased or poisoned while under the spell\'s effect, the disease and poison have no effect until the spell ends.'
     },
     {
+        id: 'fireball',
+        level: 3,
+        name: 'Fireball',
+        school: 'Evocation',
+        castingTime: '1 action',
+        range: '150 feet',
+        components: 'V, S, M (a tiny ball of bat guano and sulfur)',
+        duration: 'Instantaneous',
+        classes: ['sorcerer', 'wizard'],
+        description: 'A bright streak flashes from your pointing finger to a point you choose within range and then blossoms with a low roar into an explosion of flame. Each creature in a 20-foot-radius sphere centered on that point must make a Dexterity saving throw. A target takes 8d6 fire damage on a failed save, or half as much damage on a successful one.\nThe fire spreads around corners. It ignites flammable objects in the area that aren\'t being worn or carried.\n\nAt Higher Levels. When you cast this spell using a spell slot of 4th level or higher, the damage increases by 1d6 for each slot level above 3rd.'
+    },
+    {
         id: 'flame-arrows',
         level: 3,
         name: 'Flame Arrows',
