@@ -50,6 +50,18 @@ export interface HitDice {
     dieType: number; // The die type (6, 8, 10, or 12)
 }
 
+export interface ClassResource {
+    name: string; // e.g., "Sorcery Points", "Ki Points", "Action Surge"
+    current: number; // Current available uses/points
+    max: number; // Maximum uses/points
+    resetType: 'short' | 'long' | 'none'; // When resource resets
+    description?: string; // Optional description
+}
+
+export interface ClassResources {
+    [resourceName: string]: ClassResource;
+}
+
 export interface Currency {
     cp?: number; // Copper
     sp?: number; // Silver
@@ -61,6 +73,7 @@ export interface Currency {
 export interface CharacterData {
     hp: HP;
     hitDice?: HitDice; // Hit dice tracking
+    classResources?: ClassResources; // Class-specific resources (sorcery points, ki, etc.)
     ac?: number; // Optional - if not set, will be calculated
     speed?: number; // Optional - if not set, will use race default
     abilityScores: {

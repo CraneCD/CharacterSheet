@@ -7,6 +7,7 @@ import StepAbilities from './StepAbilities';
 import StepDetails from './StepDetails';
 import StepReview from './StepReview';
 import { Race, ClassInfo, Subclass, CharacterItem, ItemCategory } from '@/lib/types';
+import { calculateClassResources } from '@/lib/classResources';
 
 export default function WizardContainer() {
     const router = useRouter();
@@ -112,6 +113,11 @@ export default function WizardContainer() {
     const handleCreate = async () => {
         setLoading(true);
         try {
+            // Calculate class resources for level 1
+            const classResources = selectedClass 
+                ? calculateClassResources(selectedClass.id, 1, formData.abilityScores)
+                : {};
+
             const data: any = {
                 abilityScores: formData.abilityScores,
                 backgroundId: formData.backgroundId,
@@ -122,6 +128,7 @@ export default function WizardContainer() {
                     spent: 0, 
                     dieType: selectedClass?.hitDie || 8 
                 },
+                classResources: classResources,
                 equipment: [] // Start with empty equipment - users can add items manually
             };
 

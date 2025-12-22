@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import Link from 'next/link';
 import HPManager from './components/HPManager';
 import HitDiceManager from './components/HitDiceManager';
+import ClassResourcesManager from './components/ClassResourcesManager';
 import EquipmentManager from './components/EquipmentManager';
 import SpellManager from './components/SpellManager';
 import LevelUpWizard from './components/LevelUpWizard';
@@ -13,6 +14,7 @@ import ActionManager from './components/ActionManager';
 import FeatureManager from './components/FeatureManager';
 import CurrencyManager from './components/CurrencyManager';
 import { CharacterData, CharacterItem } from '@/lib/types';
+import { calculateClassResources } from '@/lib/classResources';
 
 interface GameData {
     races: any[];
@@ -646,6 +648,37 @@ export default function CharacterSheet() {
                             conModifier={modifiers.con}
                         />
                     </div>
+
+                    {/* Class Resources */}
+                    {(() => {
+                        // Initialize resources for existing characters that don't have them
+                        let resources = data.classResources;
+                        if (!resources || Object.keys(resources).length === 0) {
+                            resources = calculateClassResources(character.class.toLowerCase(), level, abilityScores);
+                            if (Object.keys(resources).length > 0) {
+                                // Update character with initialized resources (async, won't block render)
+                                setTimeout(() => {
+                                    handleUpdateCharacter({ classResources: resources });
+                                }, 0);
+                            }
+                        }
+                        
+                        return (
+                            <div style={{ marginBottom: '0.5rem' }}>
+                                <ClassResourcesManager
+                                    characterId={character.id}
+                                    initialResources={resources}
+                                    onUpdate={(newResources) => handleUpdateCharacter({ classResources: newResources })}
+                                    onShortRest={() => {
+                                        // Also reset hit dice on short rest if needed
+                                    }}
+                                    onLongRest={() => {
+                                        // Also reset hit dice on long rest
+                                    }}
+                                />
+                            </div>
+                        );
+                    })()}
 
                     {/* Attacks */}
                     <div style={{ marginBottom: '0.5rem' }}>

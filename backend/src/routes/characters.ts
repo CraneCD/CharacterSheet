@@ -63,7 +63,124 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
             }
         }
 
-        // Return character with potentially initialized hit dice
+        // Initialize class resources for existing characters that don't have them
+        // Note: Full calculation should be done on frontend, but we can initialize basic ones here
+        if (!data.classResources || Object.keys(data.classResources).length === 0) {
+            const classId = character.class.toLowerCase();
+            const abilityScores = data.abilityScores || {};
+            
+            // Simple initialization for common resources
+            if (classId === 'sorcerer') {
+                data.classResources = {
+                    'Sorcery Points': {
+                        name: 'Sorcery Points',
+                        current: character.level,
+                        max: character.level,
+                        resetType: 'long',
+                        description: 'You can use sorcery points to create spell slots or use Metamagic.'
+                    }
+                };
+            } else if (classId === 'monk') {
+                data.classResources = {
+                    'Ki Points': {
+                        name: 'Ki Points',
+                        current: character.level,
+                        max: character.level,
+                        resetType: 'short',
+                        description: 'You can spend ki points to fuel various ki features.'
+                    }
+                };
+            } else if (classId === 'fighter') {
+                data.classResources = {
+                    'Action Surge': {
+                        name: 'Action Surge',
+                        current: character.level >= 17 ? 2 : 1,
+                        max: character.level >= 17 ? 2 : 1,
+                        resetType: 'short',
+                        description: 'On your turn, you can take one additional action.'
+                    },
+                    'Second Wind': {
+                        name: 'Second Wind',
+                        current: 1,
+                        max: 1,
+                        resetType: 'short',
+                        description: 'Use a bonus action to regain 1d10 + fighter level hit points.'
+                    }
+                };
+            } else if (classId === 'barbarian') {
+                let rageUses = 2;
+                if (character.level >= 3) rageUses = 3;
+                if (character.level >= 6) rageUses = 4;
+                if (character.level >= 12) rageUses = 5;
+                if (character.level >= 17) rageUses = 6;
+                if (character.level >= 20) rageUses = 999;
+                
+                data.classResources = {
+                    'Rage': {
+                        name: 'Rage',
+                        current: rageUses === 999 ? 999 : rageUses,
+                        max: rageUses === 999 ? 999 : rageUses,
+                        resetType: 'long',
+                        description: 'Enter a rage as a bonus action. Gain advantage on Strength checks and saves, bonus damage, and resistance to bludgeoning, piercing, and slashing damage.'
+                    }
+                };
+            } else if (classId === 'cleric') {
+                let channelUses = 1;
+                if (character.level >= 6) channelUses = 2;
+                if (character.level >= 18) channelUses = 3;
+                
+                data.classResources = {
+                    'Channel Divinity': {
+                        name: 'Channel Divinity',
+                        current: channelUses,
+                        max: channelUses,
+                        resetType: 'short',
+                        description: 'Channel divine energy to fuel magical effects.'
+                    }
+                };
+            } else if (classId === 'paladin') {
+                const chaMod = abilityScores.cha ? Math.max(1, Math.floor((abilityScores.cha - 10) / 2)) : 1;
+                data.classResources = {
+                    'Channel Divinity': {
+                        name: 'Channel Divinity',
+                        current: character.level >= 6 ? 2 : 1,
+                        max: character.level >= 6 ? 2 : 1,
+                        resetType: 'short',
+                        description: 'Channel divine energy to fuel magical effects.'
+                    },
+                    'Lay on Hands': {
+                        name: 'Lay on Hands',
+                        current: character.level * 5,
+                        max: character.level * 5,
+                        resetType: 'long',
+                        description: `Pool of healing power. Restore a total of ${character.level * 5} hit points.`
+                    }
+                };
+            } else if (classId === 'bard') {
+                const chaMod = abilityScores.cha ? Math.max(1, Math.floor((abilityScores.cha - 10) / 2)) : 1;
+                data.classResources = {
+                    'Bardic Inspiration': {
+                        name: 'Bardic Inspiration',
+                        current: chaMod,
+                        max: chaMod,
+                        resetType: character.level >= 5 ? 'short' : 'long',
+                        description: 'Inspire others through stirring words or music.'
+                    }
+                };
+            } else if (classId === 'druid') {
+                data.classResources = {
+                    'Wild Shape': {
+                        name: 'Wild Shape',
+                        current: 2,
+                        max: 2,
+                        resetType: 'short',
+                        description: 'Use your action to magically assume the shape of a beast you have seen before.'
+                    }
+                };
+            }
+        }
+
+        // Return character with potentially initialized hit dice and resources
         const result = { ...character, data };
         res.json(result);
     } catch (error) {
@@ -213,6 +330,55 @@ router.patch('/:id/hit-dice', authenticateToken, async (req: AuthRequest, res) =
         res.json(updated);
     } catch (error) {
         res.status(500).json({ error: 'Failed to update hit dice' });
+    }
+});
+
+// Update Character Class Resources
+router.patch('/:id/class-resources', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const characterId = req.params.id;
+        const userId = req.user!.id;
+        const { resourceName, current, resetType, resources } = req.body;
+
+        const character = await prisma.character.findUnique({ where: { id: characterId } });
+        if (!character || character.userId !== userId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const data = character.data as any;
+        let classResources = data.classResources || {};
+
+        // If resetType is provided, reset all resources of that type
+        if (resetType) {
+            for (const [name, resource] of Object.entries(classResources)) {
+                const res = resource as any;
+                if ((resetType === 'short' && res.resetType === 'short') ||
+                    (resetType === 'long' && (res.resetType === 'long' || res.resetType === 'short'))) {
+                    res.current = res.max;
+                }
+            }
+        }
+        // If resources object is provided, replace all resources
+        else if (resources) {
+            classResources = resources;
+        }
+        // If resourceName and current are provided, update a specific resource
+        else if (resourceName && current !== undefined) {
+            if (classResources[resourceName]) {
+                classResources[resourceName].current = Math.max(0, Math.min(current, classResources[resourceName].max));
+            }
+        }
+
+        data.classResources = classResources;
+
+        const updated = await prisma.character.update({
+            where: { id: characterId },
+            data: { data }
+        });
+
+        res.json(updated);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update class resources' });
     }
 });
 
@@ -464,6 +630,40 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
                 }
             }
             data.abilityScores = scores;
+        }
+
+        // Update Class Resources - if provided in request, use it; otherwise recalculate
+        // Note: Frontend should calculate and send updated resources, but we can also handle it here
+        if (req.body.classResources) {
+            data.classResources = req.body.classResources;
+        } else {
+            // Simple backend recalculation for common resources
+            // Full calculation should be done on frontend, but this handles basic cases
+            const existingResources = data.classResources || {};
+            const classId = character.class.toLowerCase();
+            
+            // Update resources that scale with level
+            if (classId === 'sorcerer' && existingResources['Sorcery Points']) {
+                existingResources['Sorcery Points'].max = newLevel;
+                existingResources['Sorcery Points'].current = Math.min(existingResources['Sorcery Points'].current + 1, newLevel);
+            }
+            if (classId === 'monk' && existingResources['Ki Points']) {
+                existingResources['Ki Points'].max = newLevel;
+                existingResources['Ki Points'].current = Math.min(existingResources['Ki Points'].current + 1, newLevel);
+            }
+            if (classId === 'fighter' && existingResources['Action Surge']) {
+                const newMax = newLevel >= 17 ? 2 : 1;
+                if (existingResources['Action Surge'].max < newMax) {
+                    existingResources['Action Surge'].max = newMax;
+                    existingResources['Action Surge'].current = newMax;
+                }
+            }
+            if (classId === 'paladin' && existingResources['Lay on Hands']) {
+                existingResources['Lay on Hands'].max = newLevel * 5;
+                existingResources['Lay on Hands'].current = newLevel * 5;
+            }
+            
+            data.classResources = existingResources;
         }
 
         // Store level-up history for potential undo

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Subclass } from '@/lib/types';
+import { updateClassResourcesForLevel } from '@/lib/classResources';
 
 interface LevelUpWizardProps {
     character: any;
@@ -259,11 +260,20 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
             // Note: Class and subclass features for the new level are automatically
             // added by the backend, so we don't need to send them here
 
+            // Update class resources for the new level
+            const updatedClassResources = updateClassResourcesForLevel(
+                classId,
+                nextLevel,
+                character.data.classResources,
+                character.data.abilityScores
+            );
+
             const res = await api.post(`/characters/${character.id}/level-up`, {
                 hpIncrease,
                 subclassId: payload.subclassId,
                 newFeatures: payload.newFeatures,
-                abilityScoreImprovement: payload.abilityScoreImprovement
+                abilityScoreImprovement: payload.abilityScoreImprovement,
+                classResources: updatedClassResources
             });
 
             onComplete(res);
