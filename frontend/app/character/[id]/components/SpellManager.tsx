@@ -4,6 +4,65 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Spell, CharacterSpell, CharacterData } from '@/lib/types';
 
+// Tooltip component for spell descriptions
+const SpellTooltip = ({ spell, children }: { spell: Spell | null, children: React.ReactNode }) => {
+    const [showTooltip, setShowTooltip] = useState(false);
+    
+    if (!spell) return <>{children}</>;
+    
+    return (
+        <div 
+            style={{ position: 'relative', display: 'inline-block', width: '100%' }}
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+        >
+            {children}
+            {showTooltip && (
+                <div style={{
+                    position: 'absolute',
+                    bottom: '100%',
+                    left: '0',
+                    marginBottom: '0.5rem',
+                    width: '350px',
+                    maxWidth: '90vw',
+                    backgroundColor: 'var(--background)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '4px',
+                    padding: '0.75rem',
+                    fontSize: '0.875rem',
+                    zIndex: 10000,
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                    pointerEvents: 'none'
+                }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: 'var(--primary)' }}>
+                        {spell.name}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                        Level {spell.level} {spell.school}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
+                        <div><strong>Casting Time:</strong> {spell.castingTime}</div>
+                        <div><strong>Range:</strong> {spell.range}</div>
+                        <div><strong>Components:</strong> {spell.components}</div>
+                        <div><strong>Duration:</strong> {spell.duration}</div>
+                        {spell.ritual && <div style={{ color: 'var(--primary)', marginTop: '0.25rem' }}><strong>Ritual</strong></div>}
+                    </div>
+                    <div style={{ 
+                        borderTop: '1px solid var(--border)', 
+                        paddingTop: '0.5rem', 
+                        marginTop: '0.5rem',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        lineHeight: '1.4'
+                    }}>
+                        {spell.description}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 interface SpellManagerProps {
     characterId: string;
     classId: string;
@@ -503,7 +562,9 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                         onClick={() => shouldLearn ? learnSpell(spell) : prepareSpellDirectly(spell)}
                                     >
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
+                                            <SpellTooltip spell={spell}>
+                                                <div style={{ fontWeight: 'bold', cursor: 'help' }}>{spell.name}</div>
+                                            </SpellTooltip>
                                             {preparedCaster && !shouldLearn && isPrepared && (
                                                 <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 'bold' }}>Prepared</span>
                                             )}
@@ -617,10 +678,15 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             const isKnown = preparedCaster ? (spell as any).isKnown !== false : true;
                             const spellPrepared = spell.prepared || false;
                             
+                            // Get full spell data for tooltip
+                            const fullSpell = allSpells.find(s => s.id === spell.id);
+                            
                             return (
                                 <div key={spell.id} className="spell-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--surface)', padding: '0.5rem', borderRadius: '4px' }}>
-                                    <div>
-                                        <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <SpellTooltip spell={fullSpell || null}>
+                                            <div style={{ fontWeight: 'bold', cursor: fullSpell ? 'help' : 'default' }}>{spell.name}</div>
+                                        </SpellTooltip>
                                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{spell.school}</div>
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
