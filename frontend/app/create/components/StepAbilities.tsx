@@ -34,8 +34,14 @@ export default function StepAbilities({ initialScores, onUpdate }: StepAbilities
     // Point Buy State
     const [pointsRemaining, setPointsRemaining] = useState(27);
 
+    // Manual input editing state
+    const [editingScores, setEditingScores] = useState<{ [key: string]: string }>({});
+
     // Initialize point buy if needed
     useEffect(() => {
+        // Clear editing state when switching methods
+        setEditingScores({});
+        
         if (method === 'pointBuy') {
             // Reset to base 8s
             const baseScores = { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 };
@@ -187,10 +193,37 @@ export default function StepAbilities({ initialScores, onUpdate }: StepAbilities
                                 <div key={ability} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <label style={{ fontWeight: 'bold', width: '3rem', textTransform: 'uppercase' }}>{ability}</label>
                                     <input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
                                         className="input"
-                                        value={scores[ability]}
-                                        onChange={(e) => handleManualChange(ability, parseInt(e.target.value) || 0)}
+                                        value={editingScores[ability] !== undefined 
+                                            ? editingScores[ability] 
+                                            : (scores[ability] === 0 ? '' : scores[ability].toString())}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (val === '' || /^\d+$/.test(val)) {
+                                                setEditingScores({ ...editingScores, [ability]: val });
+                                            }
+                                        }}
+                                        onBlur={(e) => {
+                                            const val = e.target.value;
+                                            const numValue = val === '' ? 0 : (parseInt(val) || 0);
+                                            handleManualChange(ability, numValue);
+                                            const newEditing = { ...editingScores };
+                                            delete newEditing[ability];
+                                            setEditingScores(newEditing);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.currentTarget.blur();
+                                            } else if (e.key === 'Escape') {
+                                                const newEditing = { ...editingScores };
+                                                delete newEditing[ability];
+                                                setEditingScores(newEditing);
+                                                e.currentTarget.blur();
+                                            }
+                                        }}
                                         style={{ width: '100px' }}
                                     />
                                 </div>
