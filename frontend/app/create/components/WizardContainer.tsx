@@ -140,16 +140,8 @@ export default function WizardContainer() {
             // Add Subclass Data
             if (selectedSubclass) {
                 data.subclassId = selectedSubclass.id;
-                // Add Level 1 Subclass features with proper source field
-                const subFeatures = selectedSubclass.features
-                    .filter(f => f.level === 1)
-                    .map(f => ({
-                        name: f.name,
-                        description: f.description,
-                        source: `Subclass: ${selectedSubclass.name}`,
-                        level: f.level
-                    }));
-                data.features = subFeatures;
+                // Don't add subclass features to data.features - they're displayed automatically as static features
+                // based on the subclass data and character level
             }
 
             const payload = {

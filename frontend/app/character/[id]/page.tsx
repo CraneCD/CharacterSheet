@@ -892,7 +892,17 @@ export default function CharacterSheet() {
                     <div>
                         <FeatureManager
                             characterId={character.id}
-                            initialFeatures={data.features || []}
+                            initialFeatures={(data.features || []).filter(f => {
+                                // Filter out subclass features that are already shown as static features
+                                // to avoid duplicates
+                                if (subclass && f.source?.startsWith('Subclass:')) {
+                                    const staticSubclassFeatureNames = new Set(
+                                        subclassFeaturesList.map(sf => sf.name.toLowerCase())
+                                    );
+                                    return !staticSubclassFeatureNames.has(f.name.toLowerCase());
+                                }
+                                return true;
+                            })}
                             staticFeatures={[
                                 ...(race.traits?.map((trait: string) => {
                                     // Try exact match first, then try without parentheses content
