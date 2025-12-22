@@ -27,17 +27,27 @@ export default function CurrencyManager({ characterId, initialCurrency, onUpdate
     ];
 
     const handleCurrencyChange = async (type: keyof Currency, value: number) => {
-        const newCurrency = { ...currency, [type]: Math.max(0, Math.floor(value)) };
+        const numValue = Math.max(0, Math.floor(value));
+        const newCurrency = { ...currency, [type]: numValue };
         setCurrency(newCurrency);
+        
+        // Convert to proper Currency type (all numbers)
+        const currencyForUpdate: Currency = {
+            cp: typeof newCurrency.cp === 'number' ? newCurrency.cp : (newCurrency.cp === '' ? 0 : parseInt(newCurrency.cp as string) || 0),
+            sp: typeof newCurrency.sp === 'number' ? newCurrency.sp : (newCurrency.sp === '' ? 0 : parseInt(newCurrency.sp as string) || 0),
+            ep: typeof newCurrency.ep === 'number' ? newCurrency.ep : (newCurrency.ep === '' ? 0 : parseInt(newCurrency.ep as string) || 0),
+            gp: typeof newCurrency.gp === 'number' ? newCurrency.gp : (newCurrency.gp === '' ? 0 : parseInt(newCurrency.gp as string) || 0),
+            pp: typeof newCurrency.pp === 'number' ? newCurrency.pp : (newCurrency.pp === '' ? 0 : parseInt(newCurrency.pp as string) || 0),
+        };
         
         try {
             // Get current character data first
             const character = await api.get(`/characters/${characterId}`);
             await api.put(`/characters/${characterId}`, {
                 ...character,
-                data: { ...character.data, currency: newCurrency }
+                data: { ...character.data, currency: currencyForUpdate }
             });
-            onUpdate(newCurrency);
+            onUpdate(currencyForUpdate);
         } catch (err) {
             console.error('Failed to update currency', err);
             // Revert on error
@@ -115,7 +125,9 @@ export default function CurrencyManager({ characterId, initialCurrency, onUpdate
                                     }}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
-                                            handleCurrencyChange(key as keyof Currency, currency[key as keyof Currency] || 0);
+                                            const finalValue = currency[key];
+                                            const numValue = typeof finalValue === 'number' ? finalValue : (finalValue === '' ? 0 : parseInt(finalValue as string) || 0);
+                                            handleCurrencyChange(key as keyof Currency, numValue);
                                             stopEditing(key);
                                         } else if (e.key === 'Escape') {
                                             setCurrency(initialCurrency || { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 });
