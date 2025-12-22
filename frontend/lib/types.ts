@@ -134,6 +134,7 @@ export interface ClassInfo {
     skillOptions?: string[];
     spellcaster?: boolean;
     spellcastingAbility?: string;
+    preparedCaster?: boolean; // If true, class knows all spells and prepares a subset each day (Cleric, Druid, Paladin, Ranger)
     subclassLevel?: number;
 }
 

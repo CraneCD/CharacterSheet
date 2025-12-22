@@ -11,6 +11,8 @@ interface SpellManagerProps {
     initialSpells: CharacterSpell[];
     initialSlotsUsed: { [level: number]: number };
     spellcastingAbility: string;
+    preparedCaster?: boolean; // If true, class knows all spells and prepares a subset
+    abilityScores?: { [key: string]: number }; // For calculating prepared spells limit
     onUpdate: (data: Partial<CharacterData>) => void;
     existingActions?: any[];
     onCreateAction?: (action: any) => Promise<void>;
@@ -57,7 +59,7 @@ const getSlotsForClass = (classId: string, level: number) => {
     return slots;
 };
 
-export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, onUpdate, existingActions = [], onCreateAction, onDeleteAction }: SpellManagerProps) {
+export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction }: SpellManagerProps) {
     const [mySpells, setMySpells] = useState<CharacterSpell[]>(initialSpells || []);
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
     const [allSpells, setAllSpells] = useState<Spell[]>([]);
@@ -203,6 +205,44 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         setSpellToDelete(null);
     };
 
+    const prepareSpellDirectly = async (spell: Spell) => {
+        // For prepared casters: add spell and prepare it in one action
+        try {
+            // Check if spell already exists
+            const existingSpell = mySpells.find(s => s.id === spell.id);
+            if (existingSpell) {
+                // Just toggle preparation
+                await togglePrepared(spell.id, existingSpell.prepared);
+                return;
+            }
+
+            // Add spell and prepare it
+            await api.post(`/characters/${characterId}/spells`, {
+                spellId: spell.id,
+                name: spell.name,
+                level: spell.level,
+                school: spell.school,
+                prepared: true
+            });
+            const newSpell: CharacterSpell = {
+                id: spell.id,
+                name: spell.name,
+                level: spell.level,
+                school: spell.school,
+                prepared: true
+            };
+            const updated = [...mySpells, newSpell];
+            setMySpells(updated);
+            updateParent(updated, slotsUsed);
+            
+            // Create bonus action for prepared spell
+            await createSpellAction(newSpell, 'bonus');
+        } catch (err) {
+            console.error('Failed to prepare spell', err);
+            alert('Failed to prepare spell');
+        }
+    };
+
     const togglePrepared = async (spellId: string, currentStatus: boolean) => {
         try {
             const spell = mySpells.find(s => s.id === spellId);
@@ -242,11 +282,23 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     // Calculation
     const maxSlots = getSlotsForClass(classId, level);
 
-    // Filter spells available to adding
+    // Calculate prepared spells limit (level + spellcasting ability modifier)
+    const getPreparedSpellsLimit = (): number => {
+        if (!preparedCaster || !abilityScores || !spellcastingAbility) return 0;
+        const abilityScore = abilityScores[spellcastingAbility] || 10;
+        const modifier = Math.floor((abilityScore - 10) / 2);
+        return level + modifier;
+    };
+
+    const preparedSpellsLimit = getPreparedSpellsLimit();
+    const currentPreparedCount = mySpells.filter(s => s.prepared && s.level > 0).length;
+
+    // For prepared casters: show all available spells (they know all spells)
+    // For known casters: only show spells not yet learned
     const availableSpells = allSpells.filter(s =>
         s.classes.includes(classId) &&
         (s.level === 0 || s.level <= Math.ceil(level / 2)) &&
-        !mySpells.find(ms => ms.id === s.id)
+        (preparedCaster ? true : !mySpells.find(ms => ms.id === s.id))
     );
 
     // Filter available spells by search term
@@ -264,26 +316,72 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         );
     });
 
-    // Group my spells by level
-    const spellsByLevel = Array.from({ length: 10 }, (_, i) => i).map(lvl => ({
-        level: lvl,
-        spells: mySpells.filter(s => s.level === lvl),
-        slots: lvl > 0 ? (maxSlots[lvl - 1] || 0) : 0
-    })).filter(group => group.spells.length > 0 || group.slots > 0);
+    // Group spells by level
+    // For prepared casters: show all available spells
+    // For known casters: only show learned spells
+    const spellsByLevel = Array.from({ length: 10 }, (_, i) => i).map(lvl => {
+        let spellsAtLevel: any[] = [];
+        
+        if (preparedCaster) {
+            // For prepared casters: show all available spells at this level
+            const availableAtLevel = allSpells.filter(s => 
+                s.classes.includes(classId) &&
+                s.level === lvl &&
+                (s.level === 0 || s.level <= Math.ceil(level / 2))
+            );
+            
+            spellsAtLevel = availableAtLevel.map(spell => {
+                const knownSpell = mySpells.find(ms => ms.id === spell.id);
+                return {
+                    id: spell.id,
+                    name: spell.name,
+                    level: spell.level,
+                    school: spell.school,
+                    prepared: knownSpell?.prepared || false,
+                    isKnown: !!knownSpell
+                };
+            });
+        } else {
+            // For known casters: only show learned spells
+            spellsAtLevel = mySpells.filter(ms => ms.level === lvl);
+        }
+
+        return {
+            level: lvl,
+            spells: spellsAtLevel,
+            slots: lvl > 0 ? (maxSlots[lvl - 1] || 0) : 0
+        };
+    }).filter(group => group.spells.length > 0 || group.slots > 0);
 
     return (
         <div className="card">
             <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                Spellbook
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {preparedCaster ? 'Spellbook (Prepare Spells)' : 'Spellbook'}
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    {preparedCaster && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            Prepared: {currentPreparedCount} / {preparedSpellsLimit}
+                        </span>
+                    )}
                     <button className="button secondary" onClick={() => setSlotsUsed({})} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>Rest (Reset Slots)</button>
-                    <button
-                        className="button primary"
-                        style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
-                        onClick={() => setIsAdding(true)}
-                    >
-                        + Learn Spell
-                    </button>
+                    {!preparedCaster && (
+                        <button
+                            className="button primary"
+                            style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
+                            onClick={() => setIsAdding(true)}
+                        >
+                            + Learn Spell
+                        </button>
+                    )}
+                    {preparedCaster && (
+                        <button
+                            className="button primary"
+                            style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
+                            onClick={() => setIsAdding(true)}
+                        >
+                            + Prepare Spell
+                        </button>
+                    )}
                 </div>
             </h3>
 
@@ -303,7 +401,12 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             {isAdding && (
                 <div className="modal-overlay" onClick={() => setIsAdding(false)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-                        <h3>Learn New Spell</h3>
+                        <h3>{preparedCaster ? 'Prepare Spell' : 'Learn New Spell'}</h3>
+                        {preparedCaster && (
+                            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                                You know all spells of your class. Select a spell to prepare it. Prepared: {currentPreparedCount} / {preparedSpellsLimit}
+                            </p>
+                        )}
                         <input
                             type="text"
                             placeholder="Search spells by name, school, description, casting time, range, components, or duration..."
@@ -323,15 +426,34 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             autoFocus
                         />
                         <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.5rem', overflowY: 'auto', flex: 1 }}>
-                            {filteredSpells.map(spell => (
-                                <div key={spell.id} className="spell-row" style={{ cursor: 'pointer', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '4px' }} onClick={() => learnSpell(spell)}>
-                                    <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                        Level {spell.level} {spell.school} • {spell.castingTime}
+                            {filteredSpells.map(spell => {
+                                const isPrepared = mySpells.find(ms => ms.id === spell.id)?.prepared || false;
+                                return (
+                                    <div 
+                                        key={spell.id} 
+                                        className="spell-row" 
+                                        style={{ 
+                                            cursor: 'pointer', 
+                                            padding: '0.5rem', 
+                                            border: '1px solid var(--border)', 
+                                            borderRadius: '4px',
+                                            backgroundColor: isPrepared ? 'var(--surface)' : 'transparent'
+                                        }} 
+                                        onClick={() => preparedCaster ? prepareSpellDirectly(spell) : learnSpell(spell)}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
+                                            {preparedCaster && isPrepared && (
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 'bold' }}>Prepared</span>
+                                            )}
+                                        </div>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                            Level {spell.level} {spell.school} • {spell.castingTime}
+                                        </div>
+                                        <div style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>{spell.description.substring(0, 100)}...</div>
                                     </div>
-                                    <div style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>{spell.description.substring(0, 100)}...</div>
-                                </div>
-                            ))}
+                                );
+                            })}
                             {filteredSpells.length === 0 && availableSpells.length > 0 && (
                                 <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No spells match your search.</p>
                             )}
@@ -353,7 +475,9 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             )}
 
             {spellsByLevel.length === 0 && (
-                <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.875rem' }}>No spells known.</p>
+                <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.875rem' }}>
+                    {preparedCaster ? 'No spells available at your level.' : 'No spells known.'}
+                </p>
             )}
 
             {spellsByLevel.map(group => (
@@ -401,39 +525,55 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' }}>
-                        {group.spells.map(spell => (
-                            <div key={spell.id} className="spell-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--surface)', padding: '0.5rem', borderRadius: '4px' }}>
-                                <div>
-                                    <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{spell.school}</div>
+                        {group.spells.map(spell => {
+                            // For prepared casters, spell might have isKnown property
+                            const isKnown = preparedCaster ? (spell as any).isKnown !== false : true;
+                            const spellPrepared = spell.prepared || false;
+                            
+                            return (
+                                <div key={spell.id} className="spell-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--surface)', padding: '0.5rem', borderRadius: '4px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{spell.school}</div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                        {spell.level > 0 && (
+                                            <button
+                                                className={`button ${spellPrepared ? 'primary' : 'secondary'}`}
+                                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                                onClick={() => {
+                                                    if (preparedCaster && !isKnown) {
+                                                        const fullSpell = allSpells.find(s => s.id === spell.id);
+                                                        if (fullSpell) prepareSpellDirectly(fullSpell);
+                                                    } else {
+                                                        togglePrepared(spell.id, spellPrepared);
+                                                    }
+                                                }}
+                                                disabled={preparedCaster && !spellPrepared && currentPreparedCount >= preparedSpellsLimit}
+                                            >
+                                                {spellPrepared ? 'Prepared' : 'Prepare'}
+                                            </button>
+                                        )}
+                                        {!preparedCaster && (
+                                            <button
+                                                type="button"
+                                                className="button plain"
+                                                style={{ color: 'var(--error)', fontSize: '1.25rem', lineHeight: 1 }}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    console.log('Remove button clicked for spell:', spell.id);
+                                                    removeSpell(spell.id);
+                                                }}
+                                                title="Remove Spell"
+                                            >
+                                                &times;
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                    {spell.level > 0 && (
-                                        <button
-                                            className={`button ${spell.prepared ? 'primary' : 'secondary'}`}
-                                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                                            onClick={() => togglePrepared(spell.id, spell.prepared)}
-                                        >
-                                            {spell.prepared ? 'Prepared' : 'Prepare'}
-                                        </button>
-                                    )}
-                                    <button
-                                        type="button"
-                                        className="button plain"
-                                        style={{ color: 'var(--error)', fontSize: '1.25rem', lineHeight: 1 }}
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            console.log('Remove button clicked for spell:', spell.id);
-                                            removeSpell(spell.id);
-                                        }}
-                                        title="Remove Spell"
-                                    >
-                                        &times;
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             ))}

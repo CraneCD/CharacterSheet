@@ -894,6 +894,8 @@ export default function CharacterSheet() {
                             initialSpells={data.spells || []}
                             initialSlotsUsed={data.spellSlotsUsed || {}}
                             spellcastingAbility={charClass.spellcastingAbility}
+                            preparedCaster={charClass.preparedCaster}
+                            abilityScores={effectiveAbilityScores}
                             onUpdate={(updates) => handleUpdateCharacter(updates)}
                             existingActions={data.actions || []}
                             onCreateAction={async (action) => {

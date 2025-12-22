@@ -12,6 +12,7 @@ export interface ClassInfo {
     startingEquipment: string[];
     spellcaster: boolean;
     spellcastingAbility?: string;
+    preparedCaster?: boolean; // If true, class knows all spells and prepares a subset each day (Cleric, Druid, Paladin, Ranger)
     subclassLevel?: number;
 }
 
@@ -76,6 +77,7 @@ export const classes: ClassInfo[] = [
         startingEquipment: ['Mace or warhammer', 'Scale mail or leather armor or chain mail', 'Light crossbow and 20 bolts or any simple weapon', 'Priest\'s pack or Explorer\'s pack', 'Shield and holy symbol'],
         spellcaster: true,
         spellcastingAbility: 'wis',
+        preparedCaster: true,
         subclassLevel: 1
     },
     {
@@ -92,6 +94,7 @@ export const classes: ClassInfo[] = [
         startingEquipment: ['Scale mail or leather armor', 'Two shortswords or two simple melee weapons', 'Dungeoneer\'s pack or Explorer\'s pack', 'Longbow and quiver of 20 arrows'],
         spellcaster: true,
         spellcastingAbility: 'wis',
+        preparedCaster: true,
         subclassLevel: 3
     },
     {
@@ -139,6 +142,7 @@ export const classes: ClassInfo[] = [
         startingEquipment: ['Wooden shield or any simple weapon', 'Scimitar or any simple melee weapon', 'Leather armor, explorer\'s pack, druidic focus'],
         spellcaster: true,
         spellcastingAbility: 'wis',
+        preparedCaster: true,
         subclassLevel: 2
     },
     {
@@ -170,6 +174,7 @@ export const classes: ClassInfo[] = [
         startingEquipment: ['Martial weapon and shield or two martial weapons', 'Five javelins or any simple melee weapon', 'Priest\'s pack or Explorer\'s pack', 'Chain mail and holy symbol'],
         spellcaster: true,
         spellcastingAbility: 'cha',
+        preparedCaster: true,
         subclassLevel: 3
     },
     {
