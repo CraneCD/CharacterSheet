@@ -276,10 +276,10 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 Spellbook
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button className="button plain" onClick={() => setSlotsUsed({})} style={{ fontSize: '0.75rem' }}>Rest (Reset Slots)</button>
+                    <button className="button secondary" onClick={() => setSlotsUsed({})} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>Rest (Reset Slots)</button>
                     <button
-                        className="button plain"
-                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                        className="button primary"
+                        style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
                         onClick={() => setIsAdding(true)}
                     >
                         + Learn Spell

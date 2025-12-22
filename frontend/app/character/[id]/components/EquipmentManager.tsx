@@ -306,8 +306,8 @@ export default function EquipmentManager({
             <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 Equipment
                 <button
-                    className="button plain"
-                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                    className="button primary"
+                    style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
                     onClick={() => setIsAdding(true)}
                 >
                     + Add Item
@@ -505,16 +505,16 @@ export default function EquipmentManager({
                                                         {itemObj.category === 'magic-item' && (
                                                             <>
                                                                 <button
-                                                                    className="button plain"
-                                                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                                                    className="button secondary"
+                                                                    style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
                                                                     onClick={() => handleCreateMagicItemAction(itemObj, actualIndex)}
                                                                     title="Create Action"
                                                                 >
                                                                     + Action
                                                                 </button>
                                                                 <button
-                                                                    className="button plain"
-                                                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                                                    className="button secondary"
+                                                                    style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
                                                                     onClick={() => handleCreateMagicItemBonusAction(itemObj, actualIndex)}
                                                                     title="Create Bonus Action"
                                                                 >

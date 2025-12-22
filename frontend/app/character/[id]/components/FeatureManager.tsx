@@ -78,8 +78,8 @@ export default function FeatureManager({ characterId, initialFeatures, staticFea
             <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 Features & Traits
                 <button
-                    className="button plain"
-                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                    className="button primary"
+                    style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
                     onClick={() => setIsAdding(true)}
                 >
                     + Add Trait
