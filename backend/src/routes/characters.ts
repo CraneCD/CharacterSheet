@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { classFeatures } from '../data/classFeatures';
 import { subclasses } from '../data/subclasses';
+import { classes } from '../data/classes';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -47,7 +48,24 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
             return res.status(403).json({ error: 'Access denied' });
         }
 
-        res.json(character);
+        // Initialize hit dice for existing characters that don't have it
+        const data = character.data as any;
+        if (!data.hitDice) {
+            const classInfo = classes.find(c => c.id === character.class.toLowerCase());
+            if (classInfo) {
+                data.hitDice = {
+                    total: character.level,
+                    spent: 0,
+                    dieType: classInfo.hitDie
+                };
+                // Save the initialization (optional - could be done lazily)
+                // For now, we'll just return it with the initialized value
+            }
+        }
+
+        // Return character with potentially initialized hit dice
+        const result = { ...character, data };
+        res.json(result);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch character' });
     }
@@ -161,6 +179,40 @@ router.patch('/:id/hp', authenticateToken, async (req: AuthRequest, res) => {
         res.json(updated);
     } catch (error) {
         res.status(500).json({ error: 'Failed to update HP' });
+    }
+});
+
+// Update Character Hit Dice
+router.patch('/:id/hit-dice', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const characterId = req.params.id;
+        const userId = req.user!.id;
+        const { spent, total, dieType } = req.body;
+
+        const character = await prisma.character.findUnique({ where: { id: characterId } });
+        if (!character || character.userId !== userId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const data = character.data as any;
+        const hitDice = data.hitDice || { total: character.level, spent: 0, dieType: 8 };
+
+        if (spent !== undefined) {
+            hitDice.spent = Math.max(0, Math.min(spent, hitDice.total)); // Ensure spent is between 0 and total
+        }
+        if (total !== undefined) hitDice.total = total;
+        if (dieType !== undefined) hitDice.dieType = dieType;
+
+        data.hitDice = hitDice;
+
+        const updated = await prisma.character.update({
+            where: { id: characterId },
+            data: { data }
+        });
+
+        res.json(updated);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update hit dice' });
     }
 });
 
@@ -300,6 +352,16 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
             data.hp = hp;
         }
 
+        // Update Hit Dice - add 1 hit die per level
+        const classInfo = classes.find(c => c.id === classId);
+        if (classInfo) {
+            const hitDice = data.hitDice || { total: currentLevel, spent: 0, dieType: classInfo.hitDie };
+            hitDice.total = newLevel; // Total hit dice equals character level
+            // Keep spent count, but ensure dieType matches class
+            hitDice.dieType = classInfo.hitDie;
+            data.hitDice = hitDice;
+        }
+
         // Update Subclass
         if (subclassId) {
             data.subclassId = subclassId;
@@ -413,6 +475,7 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
             newSpells: newSpells || [],
             newFeatures: allNewFeatures.map((f: any) => ({ name: f.name, level: f.level })),
             abilityScoreImprovement: abilityScoreImprovement || null,
+            hitDiceAdded: true, // Track that we added a hit die
             timestamp: new Date().toISOString()
         });
         data.levelHistory = levelHistory;
@@ -471,6 +534,15 @@ router.post('/:id/level-down', authenticateToken, async (req: AuthRequest, res) 
             hp.max = Math.max(0, (Number(hp.max) || 0) - dec);
             hp.current = Math.max(0, Math.min(hp.current, hp.max)); // Ensure current doesn't exceed new max
             data.hp = hp;
+        }
+
+        // Reverse Hit Dice - remove 1 hit die
+        if (lastLevelUp.hitDiceAdded) {
+            const hitDice = data.hitDice || { total: currentLevel, spent: 0, dieType: 8 };
+            hitDice.total = Math.max(1, newLevel); // Minimum 1 hit die at level 1
+            // Ensure spent doesn't exceed total
+            hitDice.spent = Math.min(hitDice.spent, hitDice.total);
+            data.hitDice = hitDice;
         }
 
         // Reverse subclass (only if it was set at this level)

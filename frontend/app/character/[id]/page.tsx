@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 import HPManager from './components/HPManager';
+import HitDiceManager from './components/HitDiceManager';
 import EquipmentManager from './components/EquipmentManager';
 import SpellManager from './components/SpellManager';
 import LevelUpWizard from './components/LevelUpWizard';
@@ -633,6 +634,16 @@ export default function CharacterSheet() {
                             characterId={character.id}
                             initialHP={data.hp || { current: 0, max: 0, temp: 0 }}
                             onUpdate={(newHP) => handleUpdateCharacter({ hp: newHP })}
+                        />
+                    </div>
+
+                    {/* Hit Dice */}
+                    <div style={{ marginBottom: '0.5rem' }}>
+                        <HitDiceManager
+                            characterId={character.id}
+                            initialHitDice={data.hitDice}
+                            onUpdate={(newHitDice) => handleUpdateCharacter({ hitDice: newHitDice })}
+                            conModifier={modifiers.con}
                         />
                     </div>
 

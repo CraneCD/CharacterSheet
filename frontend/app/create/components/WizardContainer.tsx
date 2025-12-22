@@ -117,6 +117,11 @@ export default function WizardContainer() {
                 backgroundId: formData.backgroundId,
                 alignment: formData.alignment,
                 hp: { current: selectedClass?.hitDie, max: selectedClass?.hitDie, temp: 0 }, // Basic HP init
+                hitDice: { 
+                    total: 1, // Level 1 character starts with 1 hit die
+                    spent: 0, 
+                    dieType: selectedClass?.hitDie || 8 
+                },
                 equipment: [] // Start with empty equipment - users can add items manually
             };
 

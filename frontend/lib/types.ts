@@ -44,6 +44,12 @@ export interface HP {
     temp: number;
 }
 
+export interface HitDice {
+    total: number; // Total number of hit dice available
+    spent: number; // Number of hit dice spent (for short rest healing)
+    dieType: number; // The die type (6, 8, 10, or 12)
+}
+
 export interface Currency {
     cp?: number; // Copper
     sp?: number; // Silver
@@ -54,6 +60,7 @@ export interface Currency {
 
 export interface CharacterData {
     hp: HP;
+    hitDice?: HitDice; // Hit dice tracking
     ac?: number; // Optional - if not set, will be calculated
     speed?: number; // Optional - if not set, will use race default
     abilityScores: {
