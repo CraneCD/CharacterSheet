@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Subclass } from '@/lib/types';
 import { updateClassResourcesForLevel } from '@/lib/classResources';
+import { getAbilityScoreIncreasesFromFeatures } from '@/lib/featureStatModifiers';
 
 interface LevelUpWizardProps {
     character: any;
@@ -268,11 +269,24 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                 character.data.abilityScores
             );
 
+            // Calculate ability score increases from features (e.g., Primal Champion)
+            const allFeaturesAfterLevelUp = [
+                ...(character.data.features || []),
+                ...(payload.newFeatures || [])
+            ];
+            const featureAbilityIncreases = getAbilityScoreIncreasesFromFeatures(allFeaturesAfterLevelUp);
+            
+            // Merge feature ability increases with ASI
+            let finalAbilityScoreImprovement = payload.abilityScoreImprovement || {};
+            for (const [ability, increase] of Object.entries(featureAbilityIncreases)) {
+                finalAbilityScoreImprovement[ability] = (finalAbilityScoreImprovement[ability] || 0) + increase;
+            }
+
             const res = await api.post(`/characters/${character.id}/level-up`, {
                 hpIncrease,
                 subclassId: payload.subclassId,
                 newFeatures: payload.newFeatures,
-                abilityScoreImprovement: payload.abilityScoreImprovement,
+                abilityScoreImprovement: Object.keys(finalAbilityScoreImprovement).length > 0 ? finalAbilityScoreImprovement : undefined,
                 classResources: updatedClassResources
             });
 

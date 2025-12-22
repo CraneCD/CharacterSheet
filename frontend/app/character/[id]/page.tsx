@@ -15,6 +15,12 @@ import FeatureManager from './components/FeatureManager';
 import CurrencyManager from './components/CurrencyManager';
 import { CharacterData, CharacterItem } from '@/lib/types';
 import { calculateClassResources } from '@/lib/classResources';
+import { 
+    calculateSpeedBonusFromFeatures, 
+    getACCalculationFromFeatures,
+    getAbilityScoreIncreasesFromFeatures,
+    getSavingThrowProficienciesFromFeatures
+} from '@/lib/featureStatModifiers';
 
 interface GameData {
     races: any[];
@@ -79,17 +85,33 @@ export default function CharacterSheet() {
 
 
     const abilityScores = data.abilityScores || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
-    const modifiers: any = {
-        str: mod(abilityScores.str),
-        dex: mod(abilityScores.dex),
-        con: mod(abilityScores.con),
-        int: mod(abilityScores.int),
-        wis: mod(abilityScores.wis),
-        cha: mod(abilityScores.cha),
+    // Note: modifiers will be calculated after feature ability increases are applied
+
+    // Get all features
+    const allFeatures = data.features || [];
+    
+    // Get ability score increases from features
+    const featureAbilityIncreases = getAbilityScoreIncreasesFromFeatures(allFeatures);
+    const effectiveAbilityScores = {
+        str: abilityScores.str + (featureAbilityIncreases.str || 0),
+        dex: abilityScores.dex + (featureAbilityIncreases.dex || 0),
+        con: abilityScores.con + (featureAbilityIncreases.con || 0),
+        int: abilityScores.int + (featureAbilityIncreases.int || 0),
+        wis: abilityScores.wis + (featureAbilityIncreases.wis || 0),
+        cha: abilityScores.cha + (featureAbilityIncreases.cha || 0),
+    };
+    const effectiveModifiers: any = {
+        str: mod(effectiveAbilityScores.str),
+        dex: mod(effectiveAbilityScores.dex),
+        con: mod(effectiveAbilityScores.con),
+        int: mod(effectiveAbilityScores.int),
+        wis: mod(effectiveAbilityScores.wis),
+        cha: mod(effectiveAbilityScores.cha),
     };
 
     // Calculate AC (use manual override if set, otherwise calculate)
-    let calculatedAC = 10 + modifiers.dex;
+    const acCalculationMethod = getACCalculationFromFeatures(allFeatures, character.class.toLowerCase());
+    let calculatedAC = 10 + effectiveModifiers.dex;
 
     // Check equipped items
     const equipment: (string | CharacterItem)[] = data.equipment || [];
@@ -100,18 +122,28 @@ export default function CharacterSheet() {
     const armor = equippedItems.find(i => (i.category === 'armor' || i.type === 'armor'));
     const shield = equippedItems.find(i => (i.category === 'shield' || i.type === 'shield'));
 
+    // Check if unarmored (no armor equipped)
+    const isUnarmored = !armor;
+
     if (armor && armor.baseAC) {
         if (armor.armorMethod === 'heavy') {
             calculatedAC = armor.baseAC;
         } else if (armor.armorMethod === 'medium') {
-            calculatedAC = armor.baseAC + Math.min(modifiers.dex, 2);
+            calculatedAC = armor.baseAC + Math.min(effectiveModifiers.dex, 2);
         } else {
             // Light or undefined -> Base + Dex
-            calculatedAC = armor.baseAC + modifiers.dex;
+            calculatedAC = armor.baseAC + effectiveModifiers.dex;
         }
     } else {
-        // Unarmored Defense (Barbarian/Monk) could go here if implemented
-        // For now, stick to 10 + Dex
+        // Unarmored Defense calculations
+        if (acCalculationMethod === 'unarmored-monk' && isUnarmored && !shield) {
+            calculatedAC = 10 + effectiveModifiers.dex + effectiveModifiers.wis;
+        } else if (acCalculationMethod === 'unarmored-barbarian' && isUnarmored) {
+            calculatedAC = 10 + effectiveModifiers.dex + effectiveModifiers.con;
+        } else {
+            // Standard unarmored: 10 + Dex
+            calculatedAC = 10 + effectiveModifiers.dex;
+        }
     }
 
     if (shield && shield.baseAC) {
@@ -124,13 +156,22 @@ export default function CharacterSheet() {
     // Use manual AC override if set, otherwise use calculated
     const ac = data.ac !== undefined ? data.ac : calculatedAC;
     
-    // Speed: use manual override if set, otherwise use race default
-    const speed = data.speed !== undefined ? data.speed : (race.speed || 30);
+    // Speed: calculate base speed, then add feature bonuses
+    const baseSpeed = data.speed !== undefined ? data.speed : (race.speed || 30);
+    const speedBonus = calculateSpeedBonusFromFeatures(allFeatures, character.class.toLowerCase(), level);
+    const speed = baseSpeed + speedBonus;
+    
+    // Store speedBonus for display
+    const speedBonusDisplay = speedBonus;
 
-    // Saving Throws
+    // Saving Throws - include feature-granted proficiencies
+    const savingThrowProficiencies = getSavingThrowProficienciesFromFeatures(
+        allFeatures,
+        charClass.savingThrows || []
+    );
     const saves = ['str', 'dex', 'con', 'int', 'wis', 'cha'].map(stat => {
-        const isProficient = charClass.savingThrows?.includes(stat);
-        const total = modifiers[stat] + (isProficient ? pb : 0);
+        const isProficient = savingThrowProficiencies.includes(stat);
+        const total = effectiveModifiers[stat] + (isProficient ? pb : 0);
         return { stat, total, isProficient };
     });
 
@@ -164,7 +205,7 @@ export default function CharacterSheet() {
 
     const skills = skillsList.map(skill => {
         const isProficient = proficientSkills.includes(skill.name);
-        const total = modifiers[skill.stat] + (isProficient ? pb : 0);
+        const total = effectiveModifiers[skill.stat] + (isProficient ? pb : 0);
         return { ...skill, total, isProficient };
     });
 
@@ -433,13 +474,20 @@ export default function CharacterSheet() {
                                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                 title="Click to edit"
                             >
-                                {speed} ft.
+                                <div>
+                                    {speed} ft.
+                                    {speedBonusDisplay > 0 && (
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--primary)', marginLeft: '0.25rem', display: 'block' }}>
+                                            (+{speedBonusDisplay} from features)
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
                     <div className="stat-box">
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Initiative</div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{formatMod(modifiers.dex)}</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{formatMod(effectiveModifiers.dex)}</div>
                     </div>
                     <div className="stat-box highlight">
                         <div style={{ fontSize: '0.75rem', color: 'var(--primary)', textTransform: 'uppercase' }}>AC</div>
@@ -602,7 +650,7 @@ export default function CharacterSheet() {
                                         )}
                                     </div>
                                     <div style={{ fontWeight: 'bold', fontSize: '1.25rem', width: '3rem', textAlign: 'center', backgroundColor: 'var(--surface)', borderRadius: '0.25rem', padding: '0.25rem 0' }}>
-                                        {formatMod(modifiers[stat])}
+                                        {formatMod(effectiveModifiers[stat])}
                                     </div>
                                 </div>
                             ))}
@@ -684,8 +732,8 @@ export default function CharacterSheet() {
                     <div style={{ marginBottom: '0.5rem' }}>
                         <CombatManager
                             equipment={equipment}
-                            strMod={modifiers.str}
-                            dexMod={modifiers.dex}
+                            strMod={effectiveModifiers.str}
+                            dexMod={effectiveModifiers.dex}
                             profBonus={pb}
                         />
                     </div>
@@ -808,11 +856,11 @@ export default function CharacterSheet() {
                                 </div>
                                 <div>
                                     <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Save DC</div>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{8 + pb + modifiers[charClass.spellcastingAbility]}</div>
+                                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{8 + pb + effectiveModifiers[charClass.spellcastingAbility]}</div>
                                 </div>
                                 <div>
                                     <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Attack Mod</div>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>+{pb + modifiers[charClass.spellcastingAbility]}</div>
+                                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>+{pb + effectiveModifiers[charClass.spellcastingAbility]}</div>
                                 </div>
                             </div>
                         </div>
