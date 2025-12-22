@@ -4,61 +4,77 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Spell, CharacterSpell, CharacterData } from '@/lib/types';
 
-// Tooltip component for spell descriptions
-const SpellTooltip = ({ spell, children }: { spell: Spell | null, children: React.ReactNode }) => {
-    const [showTooltip, setShowTooltip] = useState(false);
-    
-    if (!spell) return <>{children}</>;
+// Spell Details Modal Component
+const SpellDetailsModal = ({ spell, isOpen, onClose }: { spell: Spell | null, isOpen: boolean, onClose: () => void }) => {
+    if (!isOpen || !spell) return null;
     
     return (
-        <div 
-            style={{ position: 'relative', display: 'inline-block', width: '100%' }}
-            onMouseEnter={() => setShowTooltip(true)}
-            onMouseLeave={() => setShowTooltip(false)}
-        >
-            {children}
-            {showTooltip && (
-                <div style={{
-                    position: 'absolute',
-                    bottom: '100%',
-                    left: '0',
-                    marginBottom: '0.5rem',
-                    width: '350px',
-                    maxWidth: '90vw',
-                    backgroundColor: 'var(--background)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '4px',
-                    padding: '0.75rem',
-                    fontSize: '0.875rem',
-                    zIndex: 10000,
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                    pointerEvents: 'none'
-                }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: 'var(--primary)' }}>
-                        {spell.name}
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                    <div>
+                        <h3 style={{ margin: 0, color: 'var(--primary)' }}>{spell.name}</h3>
+                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                            Level {spell.level} {spell.school}
+                        </div>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                        Level {spell.level} {spell.school}
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem', lineHeight: '1.5' }}>
-                        <div><strong>Casting Time:</strong> {spell.castingTime}</div>
-                        <div><strong>Range:</strong> {spell.range}</div>
-                        <div><strong>Components:</strong> {spell.components}</div>
-                        <div><strong>Duration:</strong> {spell.duration}</div>
-                        {spell.ritual && <div style={{ color: 'var(--primary)', marginTop: '0.25rem' }}><strong>Ritual</strong></div>}
-                    </div>
-                    <div style={{ 
-                        borderTop: '1px solid var(--border)', 
-                        paddingTop: '0.5rem', 
-                        marginTop: '0.5rem',
-                        maxHeight: '200px',
-                        overflowY: 'auto',
-                        lineHeight: '1.4'
-                    }}>
-                        {spell.description}
-                    </div>
+                    <button
+                        className="button plain"
+                        onClick={onClose}
+                        style={{ fontSize: '1.5rem', lineHeight: 1, padding: '0.25rem 0.5rem', color: 'var(--text-muted)' }}
+                    >
+                        &times;
+                    </button>
                 </div>
-            )}
+                
+                <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                    gap: '0.75rem',
+                    marginBottom: '1rem',
+                    paddingBottom: '1rem',
+                    borderBottom: '1px solid var(--border)'
+                }}>
+                    <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Casting Time</div>
+                        <div style={{ fontWeight: 'bold' }}>{spell.castingTime}</div>
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Range</div>
+                        <div style={{ fontWeight: 'bold' }}>{spell.range}</div>
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Components</div>
+                        <div style={{ fontWeight: 'bold' }}>{spell.components}</div>
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Duration</div>
+                        <div style={{ fontWeight: 'bold' }}>{spell.duration}</div>
+                    </div>
+                    {spell.ritual && (
+                        <div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Ritual</div>
+                            <div style={{ fontWeight: 'bold', color: 'var(--primary)' }}>Yes</div>
+                        </div>
+                    )}
+                </div>
+                
+                <div style={{ 
+                    flex: 1,
+                    overflowY: 'auto',
+                    lineHeight: '1.6',
+                    paddingRight: '0.5rem'
+                }}>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Description</div>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{spell.description}</div>
+                </div>
+                
+                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                    <button className="button primary" onClick={onClose} style={{ width: '100%' }}>
+                        Close
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };
@@ -134,6 +150,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         }
         return expanded;
     });
+    const [spellDetailsModal, setSpellDetailsModal] = useState<{ isOpen: boolean, spell: Spell | null }>({ isOpen: false, spell: null });
 
     useEffect(() => {
         setMySpells(initialSpells || []);
@@ -487,6 +504,13 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 </div>
             </h3>
 
+            {/* Spell Details Modal */}
+            <SpellDetailsModal 
+                spell={spellDetailsModal.spell}
+                isOpen={spellDetailsModal.isOpen}
+                onClose={() => setSpellDetailsModal({ isOpen: false, spell: null })}
+            />
+
             {spellToDelete && (
                 <div className="modal-overlay" onClick={cancelDeleteSpell}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -562,12 +586,23 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                         onClick={() => shouldLearn ? learnSpell(spell) : prepareSpellDirectly(spell)}
                                     >
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <SpellTooltip spell={spell}>
-                                                <div style={{ fontWeight: 'bold', cursor: 'help' }}>{spell.name}</div>
-                                            </SpellTooltip>
-                                            {preparedCaster && !shouldLearn && isPrepared && (
-                                                <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 'bold' }}>Prepared</span>
-                                            )}
+                                            <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
+                                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                {preparedCaster && !shouldLearn && isPrepared && (
+                                                    <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 'bold' }}>Prepared</span>
+                                                )}
+                                                <button
+                                                    className="button secondary"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSpellDetailsModal({ isOpen: true, spell });
+                                                    }}
+                                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                                    title="View spell details"
+                                                >
+                                                    View
+                                                </button>
+                                            </div>
                                         </div>
                                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                                             Level {spell.level} {spell.school} • {spell.castingTime}
@@ -678,18 +713,29 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             const isKnown = preparedCaster ? (spell as any).isKnown !== false : true;
                             const spellPrepared = spell.prepared || false;
                             
-                            // Get full spell data for tooltip
+                            // Get full spell data for details modal
                             const fullSpell = allSpells.find(s => s.id === spell.id);
                             
                             return (
                                 <div key={spell.id} className="spell-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--surface)', padding: '0.5rem', borderRadius: '4px' }}>
                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                        <SpellTooltip spell={fullSpell || null}>
-                                            <div style={{ fontWeight: 'bold', cursor: fullSpell ? 'help' : 'default' }}>{spell.name}</div>
-                                        </SpellTooltip>
+                                        <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
                                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{spell.school}</div>
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                        {fullSpell && (
+                                            <button
+                                                className="button secondary"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSpellDetailsModal({ isOpen: true, spell: fullSpell });
+                                                }}
+                                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                                title="View spell details"
+                                            >
+                                                View
+                                            </button>
+                                        )}
                                         {spell.level > 0 && (
                                             <button
                                                 className={`button ${spellPrepared ? 'primary' : 'secondary'}`}
