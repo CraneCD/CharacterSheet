@@ -29,6 +29,11 @@ export default function WizardContainer() {
 
     const handleNext = () => setStep(step + 1);
     const handleBack = () => setStep(step - 1);
+    const handleExit = () => {
+        if (confirm('Are you sure you want to exit character creation? All progress will be lost.')) {
+            router.push('/dashboard');
+        }
+    };
 
     // Helper function to categorize an item by name
     const categorizeItem = async (itemName: string): Promise<CharacterItem> => {
@@ -179,7 +184,19 @@ export default function WizardContainer() {
     };
 
     return (
-        <div className="container" style={{ maxWidth: '800px', margin: '2rem auto' }}>
+        <div className="container" style={{ maxWidth: '800px', margin: '2rem auto', paddingBottom: '100px' }}>
+            {/* Header with Exit Button */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h1 className="heading" style={{ margin: 0 }}>Create New Character</h1>
+                <button
+                    className="button secondary"
+                    onClick={handleExit}
+                    style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                >
+                    Exit Wizard
+                </button>
+            </div>
+
             {/* Progress Bar */}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem', position: 'relative' }}>
                 <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '2px', backgroundColor: 'var(--border)', zIndex: 0 }}></div>
@@ -200,7 +217,7 @@ export default function WizardContainer() {
             </div>
 
             {/* Step Content */}
-            <div style={{ minHeight: '400px', marginBottom: '2rem' }}>
+            <div style={{ minHeight: '400px', marginBottom: '100px' }}>
                 {step === 1 && (
                     <StepRace
                         selectedRaceId={formData.raceId}
@@ -247,34 +264,66 @@ export default function WizardContainer() {
                 )}
             </div>
 
-            {/* Navigation Actions */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-                <button
-                    className="button plain"
-                    onClick={handleBack}
-                    disabled={step === 1 || loading}
-                    style={{ visibility: step === 1 ? 'hidden' : 'visible' }}
-                >
-                    &larr; Back
-                </button>
+            {/* Navigation Actions - Fixed at Bottom */}
+            <div style={{ 
+                position: 'fixed',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                backgroundColor: 'var(--background)',
+                borderTop: '1px solid var(--border)',
+                padding: '1rem',
+                display: 'flex',
+                justifyContent: 'center',
+                zIndex: 1000,
+                boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.1)'
+            }}>
+                <div style={{ 
+                    maxWidth: '800px', 
+                    width: '100%', 
+                    display: 'flex', 
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                }}>
+                    <button
+                        className="button secondary"
+                        onClick={handleBack}
+                        disabled={step === 1 || loading}
+                        style={{ 
+                            visibility: step === 1 ? 'hidden' : 'visible',
+                            padding: '0.75rem 1.5rem',
+                            fontSize: '1rem'
+                        }}
+                    >
+                        &larr; Back
+                    </button>
 
-                {step < 5 ? (
-                    <button
-                        className="button primary"
-                        onClick={handleNext}
-                        disabled={!isStepValid()}
-                    >
-                        Next &rarr;
-                    </button>
-                ) : (
-                    <button
-                        className="button primary"
-                        onClick={handleCreate}
-                        disabled={loading}
-                    >
-                        {loading ? 'Creating...' : 'Create Character'}
-                    </button>
-                )}
+                    {step < 5 ? (
+                        <button
+                            className="button primary"
+                            onClick={handleNext}
+                            disabled={!isStepValid()}
+                            style={{
+                                padding: '0.75rem 1.5rem',
+                                fontSize: '1rem'
+                            }}
+                        >
+                            Next &rarr;
+                        </button>
+                    ) : (
+                        <button
+                            className="button primary"
+                            onClick={handleCreate}
+                            disabled={loading}
+                            style={{
+                                padding: '0.75rem 1.5rem',
+                                fontSize: '1rem'
+                            }}
+                        >
+                            {loading ? 'Creating...' : 'Create Character'}
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
