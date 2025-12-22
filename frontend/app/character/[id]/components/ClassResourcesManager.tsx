@@ -195,13 +195,21 @@ export default function ClassResourcesManager({
                                 +1
                             </button>
                             <input
-                                type="number"
-                                min="0"
-                                max={resource.max}
-                                value={resource.current}
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={resource.current === 0 ? '' : resource.current.toString()}
                                 onChange={(e) => {
-                                    const value = parseInt(e.target.value) || 0;
-                                    handleResourceChange(name, value);
+                                    const val = e.target.value;
+                                    if (val === '' || /^\d+$/.test(val)) {
+                                        const value = val === '' ? 0 : parseInt(val);
+                                        handleResourceChange(name, value);
+                                    }
+                                }}
+                                onBlur={(e) => {
+                                    if (e.target.value === '') {
+                                        handleResourceChange(name, 0);
+                                    }
                                 }}
                                 style={{
                                     width: '4rem',

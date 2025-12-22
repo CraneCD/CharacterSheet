@@ -273,9 +273,11 @@ export default function CharacterSheet() {
 
     const saveAbilityScore = (stat: string) => {
         const value = parseInt(abilityEditValue);
-        if (!isNaN(value)) {
+        if (!isNaN(value) && abilityEditValue.trim() !== '') {
             handleAbilityScoreChange(stat, value);
         } else {
+            // Restore original value if empty or invalid
+            setAbilityEditValue(abilityScores[stat].toString());
             cancelEditingAbility();
         }
     };
@@ -330,18 +332,22 @@ export default function CharacterSheet() {
 
     const saveSpeed = () => {
         const value = parseInt(speedEditValue);
-        if (!isNaN(value)) {
+        if (!isNaN(value) && speedEditValue.trim() !== '') {
             handleSpeedChange(value);
         } else {
+            // Restore original value if empty or invalid
+            setSpeedEditValue(speed.toString());
             setEditingSpeed(false);
         }
     };
 
     const saveAC = () => {
         const value = parseInt(acEditValue);
-        if (!isNaN(value)) {
+        if (!isNaN(value) && acEditValue.trim() !== '') {
             handleACChange(value);
         } else {
+            // Restore original value if empty or invalid
+            setAcEditValue(ac.toString());
             setEditingAC(false);
         }
     };
@@ -433,11 +439,17 @@ export default function CharacterSheet() {
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Speed</div>
                         {editingSpeed ? (
                             <input
-                                type="number"
-                                min="0"
-                                max="200"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
                                 value={speedEditValue}
-                                onChange={(e) => setSpeedEditValue(e.target.value)}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    // Allow empty string or valid numbers
+                                    if (val === '' || /^\d+$/.test(val)) {
+                                        setSpeedEditValue(val);
+                                    }
+                                }}
                                 onBlur={saveSpeed}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
@@ -493,11 +505,17 @@ export default function CharacterSheet() {
                         <div style={{ fontSize: '0.75rem', color: 'var(--primary)', textTransform: 'uppercase' }}>AC</div>
                         {editingAC ? (
                             <input
-                                type="number"
-                                min="0"
-                                max="50"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
                                 value={acEditValue}
-                                onChange={(e) => setAcEditValue(e.target.value)}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    // Allow empty string or valid numbers
+                                    if (val === '' || /^\d+$/.test(val)) {
+                                        setAcEditValue(val);
+                                    }
+                                }}
                                 onBlur={saveAC}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
@@ -603,11 +621,17 @@ export default function CharacterSheet() {
                                         {editingAbility === stat ? (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center' }}>
                                                 <input
-                                                    type="number"
-                                                    min="1"
-                                                    max="30"
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    pattern="[0-9]*"
                                                     value={abilityEditValue}
-                                                    onChange={(e) => setAbilityEditValue(e.target.value)}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        // Allow empty string or valid numbers
+                                                        if (val === '' || /^\d+$/.test(val)) {
+                                                            setAbilityEditValue(val);
+                                                        }
+                                                    }}
                                                     onBlur={() => saveAbilityScore(stat)}
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') {

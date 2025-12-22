@@ -560,10 +560,26 @@ export default function EquipmentManager({
                                                                 <div>
                                                                     <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Base AC</label>
                                                                     <input
-                                                                        type="number"
+                                                                        type="text"
+                                                                        inputMode="numeric"
+                                                                        pattern="[0-9]*"
                                                                         className="input"
-                                                                        value={itemObj.baseAC || (itemObj.category === 'shield' ? 2 : 11)}
-                                                                        onChange={e => handleUpdateItem(actualIndex, { baseAC: parseInt(e.target.value) || 0 })}
+                                                                        value={(() => {
+                                                                            const ac = itemObj.baseAC || (itemObj.category === 'shield' ? 2 : 11);
+                                                                            return ac === 0 ? '' : ac.toString();
+                                                                        })()}
+                                                                        onChange={e => {
+                                                                            const val = e.target.value;
+                                                                            if (val === '' || /^\d+$/.test(val)) {
+                                                                                const baseAC = val === '' ? 0 : parseInt(val);
+                                                                                handleUpdateItem(actualIndex, { baseAC });
+                                                                            }
+                                                                        }}
+                                                                        onBlur={(e) => {
+                                                                            if (e.target.value === '') {
+                                                                                handleUpdateItem(actualIndex, { baseAC: itemObj.category === 'shield' ? 2 : 11 });
+                                                                            }
+                                                                        }}
                                                                     />
                                                                 </div>
                                                             )}

@@ -11,7 +11,7 @@ interface CurrencyManagerProps {
 }
 
 export default function CurrencyManager({ characterId, initialCurrency, onUpdate }: CurrencyManagerProps) {
-    const [currency, setCurrency] = useState<Currency>(initialCurrency || { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 });
+    const [currency, setCurrency] = useState<{ [key: string]: number | string }>(initialCurrency || { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 });
     const [editing, setEditing] = useState<{ [key: string]: boolean }>({});
 
     useEffect(() => {
@@ -54,11 +54,15 @@ export default function CurrencyManager({ characterId, initialCurrency, onUpdate
     };
 
     const convertToGold = (): number => {
-        const cpValue = (currency.cp || 0) / 100;
-        const spValue = (currency.sp || 0) / 10;
-        const epValue = (currency.ep || 0) / 2;
-        const gpValue = currency.gp || 0;
-        const ppValue = (currency.pp || 0) * 10;
+        const getNumValue = (val: number | string | undefined): number => {
+            if (val === undefined || val === '') return 0;
+            return typeof val === 'number' ? val : parseInt(val) || 0;
+        };
+        const cpValue = getNumValue(currency.cp) / 100;
+        const spValue = getNumValue(currency.sp) / 10;
+        const epValue = getNumValue(currency.ep) / 2;
+        const gpValue = getNumValue(currency.gp);
+        const ppValue = getNumValue(currency.pp) * 10;
         return cpValue + spValue + epValue + gpValue + ppValue;
     };
 
@@ -69,7 +73,7 @@ export default function CurrencyManager({ characterId, initialCurrency, onUpdate
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '0.75rem' }}>
                 {currencyTypes.map(({ key, label, short, color }) => {
-                    const value = currency[key as keyof Currency] || 0;
+                    const value = typeof currency[key] === 'number' ? currency[key] : (currency[key] || 0);
                     const isEditing = editing[key];
                     
                     return (
@@ -92,15 +96,21 @@ export default function CurrencyManager({ characterId, initialCurrency, onUpdate
                             </div>
                             {isEditing ? (
                                 <input
-                                    type="number"
-                                    min="0"
-                                    value={value}
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    value={value === 0 ? '' : value}
                                     onChange={(e) => {
-                                        const newValue = parseInt(e.target.value) || 0;
-                                        setCurrency({ ...currency, [key]: newValue });
+                                        const val = e.target.value;
+                                        if (val === '' || /^\d+$/.test(val)) {
+                                            const newValue = val === '' ? '' : parseInt(val);
+                                            setCurrency({ ...currency, [key]: newValue });
+                                        }
                                     }}
                                     onBlur={() => {
-                                        handleCurrencyChange(key as keyof Currency, currency[key as keyof Currency] || 0);
+                                        const finalValue = currency[key];
+                                        const numValue = typeof finalValue === 'number' ? finalValue : (finalValue === '' ? 0 : parseInt(finalValue as string) || 0);
+                                        handleCurrencyChange(key as keyof Currency, numValue);
                                         stopEditing(key);
                                     }}
                                     onKeyDown={(e) => {
@@ -143,7 +153,7 @@ export default function CurrencyManager({ characterId, initialCurrency, onUpdate
                                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                     title="Click to edit"
                                 >
-                                    {value.toLocaleString()}
+                                    {typeof value === 'number' ? value.toLocaleString() : (value === '' ? '0' : value)}
                                 </div>
                             )}
                             <div style={{ fontSize: '0.625rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>

@@ -13,24 +13,38 @@ interface HPManagerProps {
 export default function HPManager({ characterId, initialHP, onUpdate }: HPManagerProps) {
     const [hp, setHp] = useState<HP>(initialHP || { current: 0, max: 0, temp: 0 });
     const [isEditing, setIsEditing] = useState(false);
-    const [editValues, setEditValues] = useState<HP>(hp);
+    const [editValues, setEditValues] = useState<{ current: number | string; max: number | string; temp: number | string }>({
+        current: hp.current,
+        max: hp.max,
+        temp: hp.temp
+    });
 
     useEffect(() => {
         if (initialHP) {
             setHp(initialHP);
-            setEditValues(initialHP);
+            setEditValues({
+                current: initialHP.current,
+                max: initialHP.max,
+                temp: initialHP.temp
+            });
         }
     }, [initialHP]);
 
     const handleSave = async () => {
         try {
+            // Validate and ensure no empty values
+            const validatedValues = {
+                current: editValues.current || 0,
+                max: editValues.max || 0,
+                temp: editValues.temp || 0
+            };
             const updated = await api.patch(`/characters/${characterId}/hp`, {
-                current: Number(editValues.current),
-                max: Number(editValues.max),
-                temp: Number(editValues.temp || 0)
+                current: Number(validatedValues.current),
+                max: Number(validatedValues.max),
+                temp: Number(validatedValues.temp)
             });
-            setHp(editValues);
-            onUpdate(editValues);
+            setHp(validatedValues);
+            onUpdate(validatedValues);
             setIsEditing(false);
         } catch (err) {
             console.error('Failed to update HP', err);
@@ -61,28 +75,64 @@ export default function HPManager({ characterId, initialHP, onUpdate }: HPManage
                     <div>
                         <label style={{ fontSize: '0.75rem', textTransform: 'uppercase' }}>Current</label>
                         <input
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             className="input"
-                            value={editValues.current}
-                            onChange={e => setEditValues({ ...editValues, current: Number(e.target.value) })}
+                            value={typeof editValues.current === 'string' ? editValues.current : (editValues.current === 0 ? '' : editValues.current.toString())}
+                            onChange={e => {
+                                const val = e.target.value;
+                                if (val === '' || /^\d+$/.test(val)) {
+                                    setEditValues({ ...editValues, current: val === '' ? '' : Number(val) });
+                                }
+                            }}
+                            onBlur={(e) => {
+                                if (e.target.value === '') {
+                                    setEditValues({ ...editValues, current: 0 });
+                                }
+                            }}
                         />
                     </div>
                     <div>
                         <label style={{ fontSize: '0.75rem', textTransform: 'uppercase' }}>Max</label>
                         <input
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             className="input"
-                            value={editValues.max}
-                            onChange={e => setEditValues({ ...editValues, max: Number(e.target.value) })}
+                            value={typeof editValues.max === 'string' ? editValues.max : (editValues.max === 0 ? '' : editValues.max.toString())}
+                            onChange={e => {
+                                const val = e.target.value;
+                                if (val === '' || /^\d+$/.test(val)) {
+                                    setEditValues({ ...editValues, max: val === '' ? '' : Number(val) });
+                                }
+                            }}
+                            onBlur={(e) => {
+                                if (e.target.value === '') {
+                                    setEditValues({ ...editValues, max: 0 });
+                                }
+                            }}
                         />
                     </div>
                     <div>
                         <label style={{ fontSize: '0.75rem', textTransform: 'uppercase' }}>Temp</label>
                         <input
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             className="input"
-                            value={editValues.temp}
-                            onChange={e => setEditValues({ ...editValues, temp: Number(e.target.value) })}
+                            value={typeof editValues.temp === 'string' ? editValues.temp : (editValues.temp === 0 ? '' : editValues.temp.toString())}
+                            onChange={e => {
+                                const val = e.target.value;
+                                if (val === '' || /^\d+$/.test(val)) {
+                                    setEditValues({ ...editValues, temp: val === '' ? '' : Number(val) });
+                                }
+                            }}
+                            onBlur={(e) => {
+                                if (e.target.value === '') {
+                                    setEditValues({ ...editValues, temp: 0 });
+                                }
+                            }}
                         />
                     </div>
                 </div>
@@ -96,7 +146,10 @@ export default function HPManager({ characterId, initialHP, onUpdate }: HPManage
 
     return (
         <div className="card" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <div className="health-box" style={{ cursor: 'pointer', flex: '1 1 auto', minWidth: 0 }} onClick={() => { setEditValues(hp); setIsEditing(true); }}>
+            <div className="health-box" style={{ cursor: 'pointer', flex: '1 1 auto', minWidth: 0 }} onClick={() => { 
+                setEditValues({ current: hp.current, max: hp.max, temp: hp.temp }); 
+                setIsEditing(true); 
+            }}>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Current HP</div>
                 <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: 'var(--success)', wordBreak: 'break-word' }}>
                     {hp.current} <span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/ {hp.max}</span>
