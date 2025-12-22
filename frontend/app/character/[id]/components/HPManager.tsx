@@ -32,16 +32,16 @@ export default function HPManager({ characterId, initialHP, onUpdate }: HPManage
 
     const handleSave = async () => {
         try {
-            // Validate and ensure no empty values
-            const validatedValues = {
-                current: editValues.current || 0,
-                max: editValues.max || 0,
-                temp: editValues.temp || 0
+            // Validate and ensure no empty values - convert to proper HP type (all numbers)
+            const validatedValues: HP = {
+                current: typeof editValues.current === 'number' ? editValues.current : (editValues.current === '' ? 0 : Number(editValues.current) || 0),
+                max: typeof editValues.max === 'number' ? editValues.max : (editValues.max === '' ? 0 : Number(editValues.max) || 0),
+                temp: typeof editValues.temp === 'number' ? editValues.temp : (editValues.temp === '' ? 0 : Number(editValues.temp) || 0)
             };
             const updated = await api.patch(`/characters/${characterId}/hp`, {
-                current: Number(validatedValues.current),
-                max: Number(validatedValues.max),
-                temp: Number(validatedValues.temp)
+                current: validatedValues.current,
+                max: validatedValues.max,
+                temp: validatedValues.temp
             });
             setHp(validatedValues);
             onUpdate(validatedValues);
