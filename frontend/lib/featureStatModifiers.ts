@@ -31,7 +31,7 @@ export const featureStatModifiers: FeatureStatModifiers = {
         // This doesn't modify speed further, but adds movement capabilities
         // Speed bonus is cumulative with base Unarmored Movement
     ],
-    'Unarmored Defense': [
+    'Unarmored Defense (Monk)': [
         {
             type: 'ac',
             value: 0, // AC calculation changes to 10 + Dex + Wis (handled in calculation)
@@ -49,7 +49,7 @@ export const featureStatModifiers: FeatureStatModifiers = {
             description: 'Speed increases by 10 feet'
         }
     ],
-    'Unarmored Defense': [
+    'Unarmored Defense (Barbarian)': [
         {
             type: 'ac',
             value: 0, // AC calculation changes to 10 + Dex + Con (handled in calculation)
