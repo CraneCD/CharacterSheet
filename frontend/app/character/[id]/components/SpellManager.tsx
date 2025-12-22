@@ -67,6 +67,14 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     const [isCantripMode, setIsCantripMode] = useState(false); // For prepared casters: true = learn cantrip, false = prepare spell
     const [searchTerm, setSearchTerm] = useState('');
     const [spellToDelete, setSpellToDelete] = useState<string | null>(null);
+    const [expandedLevels, setExpandedLevels] = useState<{ [level: number]: boolean }>(() => {
+        // Initialize all levels as expanded by default
+        const expanded: { [level: number]: boolean } = {};
+        for (let i = 0; i <= 9; i++) {
+            expanded[i] = true;
+        }
+        return expanded;
+    });
 
     useEffect(() => {
         setMySpells(initialSpells || []);
@@ -534,14 +542,38 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 </p>
             )}
 
-            {spellsByLevel.map(group => (
+            {spellsByLevel.map(group => {
+                const isExpanded = expandedLevels[group.level] !== false; // Default to true
+                return (
                 <div key={group.level} style={{ marginBottom: '1rem' }}>
-                    <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.25rem', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.875rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>{group.level === 0 ? 'Cantrips' : `Level ${group.level}`}</span>
+                    <div 
+                        style={{ 
+                            borderBottom: '1px solid var(--border)', 
+                            paddingBottom: '0.25rem', 
+                            marginBottom: '0.5rem', 
+                            fontWeight: 'bold', 
+                            fontSize: '0.875rem', 
+                            color: 'var(--text-muted)', 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            cursor: 'pointer'
+                        }}
+                        onClick={() => setExpandedLevels({ ...expandedLevels, [group.level]: !isExpanded })}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '0.75rem', userSelect: 'none' }}>
+                                {isExpanded ? '▼' : '▶'}
+                            </span>
+                            <span>{group.level === 0 ? 'Cantrips' : `Level ${group.level}`}</span>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--text-muted)' }}>
+                                ({group.spells.length})
+                            </span>
+                        </div>
 
                         {/* Spell Slots UI */}
                         {group.level > 0 && group.slots > 0 && (
-                            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
                                 <span style={{ marginRight: '0.5rem', fontSize: '0.75rem' }}>Slots:</span>
                                 {Array.from({ length: group.slots }).map((_, slotIdx) => {
                                     const isUsed = slotIdx < (slotsUsed[group.level] || 0);
@@ -578,8 +610,9 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                         )}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' }}>
-                        {group.spells.map(spell => {
+                    {isExpanded && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' }}>
+                            {group.spells.map(spell => {
                             // For prepared casters, spell might have isKnown property
                             const isKnown = preparedCaster ? (spell as any).isKnown !== false : true;
                             const spellPrepared = spell.prepared || false;
@@ -628,9 +661,11 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                 </div>
                             );
                         })}
-                    </div>
+                        </div>
+                    )}
                 </div>
-            ))}
+            );
+            })}
         </div>
     );
 }
