@@ -550,10 +550,23 @@ export default function EquipmentManager({
                                                             <div>
                                                                 <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Quantity</label>
                                                                 <input
-                                                                    type="number"
+                                                                    type="text"
+                                                                    inputMode="numeric"
+                                                                    pattern="[0-9]*"
                                                                     className="input"
-                                                                    value={itemObj.quantity || 1}
-                                                                    onChange={e => handleUpdateItem(actualIndex, { quantity: parseInt(e.target.value) || 1 })}
+                                                                    value={itemObj.quantity === 0 ? '' : (itemObj.quantity || 1).toString()}
+                                                                    onChange={e => {
+                                                                        const val = e.target.value;
+                                                                        if (val === '' || /^\d+$/.test(val)) {
+                                                                            const quantity = val === '' ? 0 : parseInt(val);
+                                                                            handleUpdateItem(actualIndex, { quantity: quantity || 1 });
+                                                                        }
+                                                                    }}
+                                                                    onBlur={e => {
+                                                                        if (e.target.value === '') {
+                                                                            handleUpdateItem(actualIndex, { quantity: 1 });
+                                                                        }
+                                                                    }}
                                                                 />
                                                             </div>
                                                             {(itemObj.category === 'armor' || itemObj.category === 'shield') && (
