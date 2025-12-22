@@ -64,6 +64,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
     const [allSpells, setAllSpells] = useState<Spell[]>([]);
     const [isAdding, setIsAdding] = useState(false);
+    const [isCantripMode, setIsCantripMode] = useState(false); // For prepared casters: true = learn cantrip, false = prepare spell
     const [searchTerm, setSearchTerm] = useState('');
     const [spellToDelete, setSpellToDelete] = useState<string | null>(null);
 
@@ -163,6 +164,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             await createSpellAction(newSpell, 'action');
             
             setIsAdding(false);
+            setIsCantripMode(false);
+            setSearchTerm('');
         } catch (err) {
             console.error('Failed to learn spell', err);
             alert('Failed to learn spell');
@@ -293,13 +296,27 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     const preparedSpellsLimit = getPreparedSpellsLimit();
     const currentPreparedCount = mySpells.filter(s => s.prepared && s.level > 0).length;
 
-    // For prepared casters: show all available spells (they know all spells)
+    // For prepared casters in cantrip mode: show only cantrips not yet learned
+    // For prepared casters in prepare mode: show all non-cantrip spells (they know all)
     // For known casters: only show spells not yet learned
-    const availableSpells = allSpells.filter(s =>
-        s.classes.includes(classId) &&
-        (s.level === 0 || s.level <= Math.ceil(level / 2)) &&
-        (preparedCaster ? true : !mySpells.find(ms => ms.id === s.id))
-    );
+    const availableSpells = allSpells.filter(s => {
+        if (!s.classes.includes(classId)) return false;
+        if (s.level === 0 || s.level <= Math.ceil(level / 2)) {
+            if (preparedCaster) {
+                if (isCantripMode) {
+                    // Cantrip mode: only show unlearned cantrips
+                    return s.level === 0 && !mySpells.find(ms => ms.id === s.id);
+                } else {
+                    // Prepare mode: show all non-cantrip spells (they know all)
+                    return s.level > 0;
+                }
+            } else {
+                // Known casters: only show unlearned spells
+                return !mySpells.find(ms => ms.id === s.id);
+            }
+        }
+        return false;
+    });
 
     // Filter available spells by search term
     const filteredSpells = availableSpells.filter(spell => {
@@ -317,17 +334,18 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     });
 
     // Group spells by level
-    // For prepared casters: show all available spells
+    // For prepared casters: show all available spells EXCEPT cantrips (level 0)
+    // Cantrips must be learned one by one even for prepared casters
     // For known casters: only show learned spells
     const spellsByLevel = Array.from({ length: 10 }, (_, i) => i).map(lvl => {
         let spellsAtLevel: any[] = [];
         
-        if (preparedCaster) {
-            // For prepared casters: show all available spells at this level
+        if (preparedCaster && lvl > 0) {
+            // For prepared casters: show all available spells at this level (not cantrips)
             const availableAtLevel = allSpells.filter(s => 
                 s.classes.includes(classId) &&
                 s.level === lvl &&
-                (s.level === 0 || s.level <= Math.ceil(level / 2))
+                s.level <= Math.ceil(level / 2)
             );
             
             spellsAtLevel = availableAtLevel.map(spell => {
@@ -342,7 +360,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 };
             });
         } else {
-            // For known casters: only show learned spells
+            // For known casters OR cantrips (level 0): only show learned spells
             spellsAtLevel = mySpells.filter(ms => ms.level === lvl);
         }
 
@@ -374,13 +392,30 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                         </button>
                     )}
                     {preparedCaster && (
-                        <button
-                            className="button primary"
-                            style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
-                            onClick={() => setIsAdding(true)}
-                        >
-                            + Prepare Spell
-                        </button>
+                        <>
+                            <button
+                                className="button primary"
+                                style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
+                                onClick={() => {
+                                    setIsCantripMode(true);
+                                    setSearchTerm('');
+                                    setIsAdding(true);
+                                }}
+                            >
+                                + Learn Cantrip
+                            </button>
+                            <button
+                                className="button primary"
+                                style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
+                                onClick={() => {
+                                    setIsCantripMode(false);
+                                    setSearchTerm('');
+                                    setIsAdding(true);
+                                }}
+                            >
+                                + Prepare Spell
+                            </button>
+                        </>
                     )}
                 </div>
             </h3>
@@ -399,12 +434,27 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             )}
 
             {isAdding && (
-                <div className="modal-overlay" onClick={() => setIsAdding(false)}>
+                <div className="modal-overlay" onClick={() => {
+                    setIsAdding(false);
+                    setIsCantripMode(false);
+                    setSearchTerm('');
+                }}>
                     <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-                        <h3>{preparedCaster ? 'Prepare Spell' : 'Learn New Spell'}</h3>
-                        {preparedCaster && (
+                        <h3>
+                            {preparedCaster && isCantripMode
+                                ? 'Learn Cantrip'
+                                : preparedCaster && !isCantripMode
+                                ? 'Prepare Spell'
+                                : 'Learn New Spell'}
+                        </h3>
+                        {preparedCaster && !isCantripMode && (
                             <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                                You know all spells of your class. Select a spell to prepare it. Prepared: {currentPreparedCount} / {preparedSpellsLimit}
+                                You know all spells of your class (except cantrips). Select a spell to prepare it. Prepared: {currentPreparedCount} / {preparedSpellsLimit}
+                            </p>
+                        )}
+                        {preparedCaster && isCantripMode && (
+                            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                                Cantrips must be learned one by one. Select a cantrip to learn it.
                             </p>
                         )}
                         <input
@@ -428,6 +478,9 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                         <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.5rem', overflowY: 'auto', flex: 1 }}>
                             {filteredSpells.map(spell => {
                                 const isPrepared = mySpells.find(ms => ms.id === spell.id)?.prepared || false;
+                                // For prepared casters: if in cantrip mode, use learn. Otherwise use prepare.
+                                const shouldLearn = !preparedCaster || isCantripMode;
+                                
                                 return (
                                     <div 
                                         key={spell.id} 
@@ -439,11 +492,11 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                             borderRadius: '4px',
                                             backgroundColor: isPrepared ? 'var(--surface)' : 'transparent'
                                         }} 
-                                        onClick={() => preparedCaster ? prepareSpellDirectly(spell) : learnSpell(spell)}
+                                        onClick={() => shouldLearn ? learnSpell(spell) : prepareSpellDirectly(spell)}
                                     >
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
-                                            {preparedCaster && isPrepared && (
+                                            {preparedCaster && !shouldLearn && isPrepared && (
                                                 <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 'bold' }}>Prepared</span>
                                             )}
                                         </div>
@@ -467,6 +520,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             </span>
                             <button className="button secondary" onClick={() => {
                                 setIsAdding(false);
+                                setIsCantripMode(false);
                                 setSearchTerm('');
                             }}>Close</button>
                         </div>
