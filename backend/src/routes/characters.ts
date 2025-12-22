@@ -502,6 +502,7 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
         }
 
         const data = character.data as any;
+        const classId = character.class.toLowerCase();
 
         // Update HP
         console.log('Level Up Request:', { hpIncrease, currentHp: data.hp });
@@ -544,7 +545,6 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
         const existingFeatureNames = new Set(charFeatures.map((f: any) => f.name.toLowerCase()));
 
         // Automatically add class features for the new level
-        const classId = character.class.toLowerCase();
         const classFeaturesList = classFeatures[classId] || [];
         const newClassFeatures = classFeaturesList
             .filter((cf: any) => cf.level === newLevel)

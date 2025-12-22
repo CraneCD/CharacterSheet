@@ -30,11 +30,19 @@ interface GameData {
     traits?: { [key: string]: { name: string; description: string } };
 }
 
+interface ClassFeature {
+    level: number;
+    name: string;
+    description: string;
+}
+
 export default function CharacterSheet() {
     const { id } = useParams();
     const router = useRouter();
     const [character, setCharacter] = useState<any>(null);
     const [gameData, setGameData] = useState<GameData | null>(null);
+    const [classFeaturesList, setClassFeaturesList] = useState<ClassFeature[]>([]);
+    const [subclassFeaturesList, setSubclassFeaturesList] = useState<ClassFeature[]>([]);
     const [showLevelUp, setShowLevelUp] = useState(false);
     const [showLevelDownConfirm, setShowLevelDownConfirm] = useState(false);
     const [isLevelingDown, setIsLevelingDown] = useState(false);
@@ -64,6 +72,45 @@ export default function CharacterSheet() {
         };
         loadData();
     }, [id, router]);
+
+    // Load class and subclass features when character data is available
+    useEffect(() => {
+        if (!character || !gameData) return;
+
+        const loadFeatures = async () => {
+            try {
+                const classId = character.class.toLowerCase();
+                const level = character.level;
+                const data = character.data || {};
+                
+                // Load class features
+                const classFeatures: ClassFeature[] = await api.get(`/reference/class-features/${classId}`);
+                // Filter features up to current level
+                const availableClassFeatures = classFeatures.filter(f => f.level <= level);
+                setClassFeaturesList(availableClassFeatures);
+
+                // Load subclass features if character has a subclass
+                if (data.subclassId) {
+                    const subclass = gameData.subclasses.find((s: any) => s.id === data.subclassId);
+                    if (subclass) {
+                        // Filter subclass features up to current level
+                        const availableSubclassFeatures = subclass.features.filter((f: ClassFeature) => f.level <= level);
+                        setSubclassFeaturesList(availableSubclassFeatures);
+                    } else {
+                        setSubclassFeaturesList([]);
+                    }
+                } else {
+                    setSubclassFeaturesList([]);
+                }
+            } catch (err) {
+                console.error('Failed to load class features', err);
+                setClassFeaturesList([]);
+                setSubclassFeaturesList([]);
+            }
+        };
+
+        loadFeatures();
+    }, [character, gameData]);
 
     if (!character || !gameData) return <div className="p-8 text-center">Loading character sheet...</div>;
 
@@ -858,7 +905,19 @@ export default function CharacterSheet() {
                                         description: traitData?.description || `Racial trait: ${trait}`
                                     };
                                 }) || []),
-                                ...(background.feature ? [{ name: background.feature.name, source: 'Background Feature', description: background.feature.description }] : [])
+                                ...(background.feature ? [{ name: background.feature.name, source: 'Background Feature', description: background.feature.description }] : []),
+                                // Add class features
+                                ...classFeaturesList.map(f => ({
+                                    name: f.name,
+                                    source: `Class: ${charClass.name}`,
+                                    description: f.description
+                                })),
+                                // Add subclass features
+                                ...subclassFeaturesList.map(f => ({
+                                    name: f.name,
+                                    source: subclass ? `Subclass: ${subclass.name}` : 'Subclass',
+                                    description: f.description
+                                }))
                             ]}
                             onUpdate={(newFeatures) => handleUpdateCharacter({ features: newFeatures })}
                         />
