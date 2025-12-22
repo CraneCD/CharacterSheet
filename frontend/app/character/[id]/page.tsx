@@ -13,7 +13,7 @@ import CombatManager from './components/CombatManager';
 import ActionManager from './components/ActionManager';
 import FeatureManager from './components/FeatureManager';
 import CurrencyManager from './components/CurrencyManager';
-import { CharacterData, CharacterItem } from '@/lib/types';
+import { CharacterData, CharacterItem, CharacterFeature } from '@/lib/types';
 import { calculateClassResources } from '@/lib/classResources';
 import { 
     calculateSpeedBonusFromFeatures, 
@@ -892,7 +892,7 @@ export default function CharacterSheet() {
                     <div>
                         <FeatureManager
                             characterId={character.id}
-                            initialFeatures={(data.features || []).filter(f => {
+                            initialFeatures={(data.features || []).filter((f: CharacterFeature) => {
                                 // Filter out subclass features that are already shown as static features
                                 // to avoid duplicates
                                 if (subclass && f.source?.startsWith('Subclass:')) {
