@@ -37,6 +37,7 @@ export default function EquipmentManager({
         category: 'miscellaneous',
         quantity: 1
     });
+    const [editingQuantity, setEditingQuantity] = useState<{ [index: number]: string }>({});
 
     useEffect(() => {
         setEquipment(initialEquipment || []);
@@ -554,17 +555,31 @@ export default function EquipmentManager({
                                                                     inputMode="numeric"
                                                                     pattern="[0-9]*"
                                                                     className="input"
-                                                                    value={itemObj.quantity === 0 ? '' : (itemObj.quantity || 1).toString()}
+                                                                    value={editingQuantity[actualIndex] !== undefined 
+                                                                        ? editingQuantity[actualIndex] 
+                                                                        : (itemObj.quantity === 0 ? '' : (itemObj.quantity || 1).toString())}
                                                                     onChange={e => {
                                                                         const val = e.target.value;
                                                                         if (val === '' || /^\d+$/.test(val)) {
-                                                                            const quantity = val === '' ? 0 : parseInt(val);
-                                                                            handleUpdateItem(actualIndex, { quantity: quantity || 1 });
+                                                                            setEditingQuantity({ ...editingQuantity, [actualIndex]: val });
                                                                         }
                                                                     }}
                                                                     onBlur={e => {
-                                                                        if (e.target.value === '') {
-                                                                            handleUpdateItem(actualIndex, { quantity: 1 });
+                                                                        const val = e.target.value;
+                                                                        const quantity = val === '' ? 1 : (parseInt(val) || 1);
+                                                                        handleUpdateItem(actualIndex, { quantity });
+                                                                        const newEditing = { ...editingQuantity };
+                                                                        delete newEditing[actualIndex];
+                                                                        setEditingQuantity(newEditing);
+                                                                    }}
+                                                                    onKeyDown={e => {
+                                                                        if (e.key === 'Enter') {
+                                                                            e.currentTarget.blur();
+                                                                        } else if (e.key === 'Escape') {
+                                                                            const newEditing = { ...editingQuantity };
+                                                                            delete newEditing[actualIndex];
+                                                                            setEditingQuantity(newEditing);
+                                                                            e.currentTarget.blur();
                                                                         }
                                                                     }}
                                                                 />
