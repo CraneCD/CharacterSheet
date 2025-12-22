@@ -589,11 +589,11 @@ export default function CharacterSheet() {
                 </div>
             )}
 
-            <div className="sheet-grid">
-                {/* Left Column: Stats & Saves */}
+            <div className="sheet-grid" style={{ gap: '1rem' }}>
+                {/* Left Column: Core Stats */}
                 <div className="sheet-column">
                     {/* Ability Scores */}
-                    <div className="card">
+                    <div className="card" style={{ marginBottom: '1rem' }}>
                         <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '1rem' }}>Ability Scores</h3>
                         <div>
                             {['str', 'dex', 'con', 'int', 'wis', 'cha'].map(stat => (
@@ -658,8 +658,8 @@ export default function CharacterSheet() {
                     </div>
 
                     {/* Saving Throws */}
-                    <div className="card">
-                        <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>Saving Throws</h3>
+                    <div className="card" style={{ marginBottom: '1rem' }}>
+                        <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>Saving Throws</h3>
                         <div>
                             {saves.map(save => (
                                 <div key={save.stat} className="save-row">
@@ -671,84 +671,6 @@ export default function CharacterSheet() {
                                 </div>
                             ))}
                         </div>
-                    </div>
-
-
-                </div>
-
-                {/* Middle Column: Skills & Health */}
-                <div className="sheet-column">
-                    {/* Health & Hit Dice */}
-                    <div style={{ marginBottom: '0.5rem' }}>
-                        <HPManager
-                            characterId={character.id}
-                            initialHP={data.hp || { current: 0, max: 0, temp: 0 }}
-                            onUpdate={(newHP) => handleUpdateCharacter({ hp: newHP })}
-                        />
-                    </div>
-
-                    {/* Hit Dice */}
-                    <div style={{ marginBottom: '0.5rem' }}>
-                        <HitDiceManager
-                            characterId={character.id}
-                            initialHitDice={data.hitDice}
-                            onUpdate={(newHitDice) => handleUpdateCharacter({ hitDice: newHitDice })}
-                            conModifier={modifiers.con}
-                        />
-                    </div>
-
-                    {/* Class Resources */}
-                    {(() => {
-                        // Initialize resources for existing characters that don't have them
-                        let resources = data.classResources;
-                        if (!resources || Object.keys(resources).length === 0) {
-                            resources = calculateClassResources(character.class.toLowerCase(), level, abilityScores);
-                            if (Object.keys(resources).length > 0) {
-                                // Update character with initialized resources (async, won't block render)
-                                setTimeout(() => {
-                                    handleUpdateCharacter({ classResources: resources });
-                                }, 0);
-                            }
-                        }
-                        
-                        return (
-                            <div style={{ marginBottom: '0.5rem' }}>
-                                <ClassResourcesManager
-                                    characterId={character.id}
-                                    initialResources={resources}
-                                    onUpdate={(newResources) => handleUpdateCharacter({ classResources: newResources })}
-                                    onShortRest={() => {
-                                        // Also reset hit dice on short rest if needed
-                                    }}
-                                    onLongRest={() => {
-                                        // Also reset hit dice on long rest
-                                    }}
-                                />
-                            </div>
-                        );
-                    })()}
-
-                    {/* Attacks */}
-                    <div style={{ marginBottom: '0.5rem' }}>
-                        <CombatManager
-                            equipment={equipment}
-                            strMod={effectiveModifiers.str}
-                            dexMod={effectiveModifiers.dex}
-                            profBonus={pb}
-                        />
-                    </div>
-
-                    {/* Actions & Bonus Actions */}
-                    <div style={{ marginBottom: '1rem' }}>
-                        <ActionManager
-                            characterId={character.id}
-                            initialActions={data.actions || []}
-                            onUpdate={(updates) => handleUpdateCharacter(updates)}
-                            equippedWeapons={equipment.filter(item => {
-                                const itemObj = typeof item === 'string' ? { name: item } : item;
-                                return itemObj.equipped && (itemObj.type === 'weapon' || itemObj.category === 'weapon');
-                            })}
-                        />
                     </div>
 
                     {/* Skills */}
@@ -776,11 +698,85 @@ export default function CharacterSheet() {
                             ))}
                         </div>
                     </div>
-
-
                 </div>
 
-                {/* Right Column: Equipment & Spells */}
+                {/* Middle Column: Combat & Resources */}
+                <div className="sheet-column">
+                    {/* Health */}
+                    <div style={{ marginBottom: '1rem' }}>
+                        <HPManager
+                            characterId={character.id}
+                            initialHP={data.hp || { current: 0, max: 0, temp: 0 }}
+                            onUpdate={(newHP) => handleUpdateCharacter({ hp: newHP })}
+                        />
+                    </div>
+
+                    {/* Hit Dice */}
+                    <div style={{ marginBottom: '1rem' }}>
+                        <HitDiceManager
+                            characterId={character.id}
+                            initialHitDice={data.hitDice}
+                            onUpdate={(newHitDice) => handleUpdateCharacter({ hitDice: newHitDice })}
+                            conModifier={effectiveModifiers.con}
+                        />
+                    </div>
+
+                    {/* Class Resources */}
+                    {(() => {
+                        // Initialize resources for existing characters that don't have them
+                        let resources = data.classResources;
+                        if (!resources || Object.keys(resources).length === 0) {
+                            resources = calculateClassResources(character.class.toLowerCase(), level, abilityScores);
+                            if (Object.keys(resources).length > 0) {
+                                // Update character with initialized resources (async, won't block render)
+                                setTimeout(() => {
+                                    handleUpdateCharacter({ classResources: resources });
+                                }, 0);
+                            }
+                        }
+                        
+                        return (
+                            <div style={{ marginBottom: '1rem' }}>
+                                <ClassResourcesManager
+                                    characterId={character.id}
+                                    initialResources={resources}
+                                    onUpdate={(newResources) => handleUpdateCharacter({ classResources: newResources })}
+                                    onShortRest={() => {
+                                        // Also reset hit dice on short rest if needed
+                                    }}
+                                    onLongRest={() => {
+                                        // Also reset hit dice on long rest
+                                    }}
+                                />
+                            </div>
+                        );
+                    })()}
+
+                    {/* Attacks */}
+                    <div style={{ marginBottom: '1rem' }}>
+                        <CombatManager
+                            equipment={equipment}
+                            strMod={effectiveModifiers.str}
+                            dexMod={effectiveModifiers.dex}
+                            profBonus={pb}
+                        />
+                    </div>
+
+                    {/* Actions & Bonus Actions */}
+                    <div>
+                        <ActionManager
+                            characterId={character.id}
+                            initialActions={data.actions || []}
+                            onUpdate={(updates) => handleUpdateCharacter(updates)}
+                            equippedWeapons={equipment.filter(item => {
+                                const itemObj = typeof item === 'string' ? { name: item } : item;
+                                return itemObj.equipped && (itemObj.type === 'weapon' || itemObj.category === 'weapon');
+                            })}
+                        />
+                    </div>
+                </div>
+
+                {/* Right Column: Equipment & Features */}
                 <div className="sheet-column">
                     {/* Equipment */}
                     <div style={{ marginBottom: '1rem' }}>
@@ -821,31 +817,33 @@ export default function CharacterSheet() {
                         />
                     </div>
 
-                    {/* Features & Traits (Moved to Right Column) */}
-                    <FeatureManager
-                        characterId={character.id}
-                        initialFeatures={data.features || []}
-                        staticFeatures={[
-                            ...(race.traits?.map((trait: string) => {
-                                // Try exact match first, then try without parentheses content
-                                const traitKey = trait;
-                                const traitData = gameData.traits?.[traitKey] || 
-                                    (trait.includes('(') ? gameData.traits?.[trait.split('(')[0].trim()] : undefined);
-                                return {
-                                    name: trait,
-                                    source: 'Racial Trait',
-                                    description: traitData?.description || `Racial trait: ${trait}`
-                                };
-                            }) || []),
-                            ...(background.feature ? [{ name: background.feature.name, source: 'Background Feature', description: background.feature.description }] : [])
-                        ]}
-                        onUpdate={(newFeatures) => handleUpdateCharacter({ features: newFeatures })}
-                    />
+                    {/* Features & Traits */}
+                    <div>
+                        <FeatureManager
+                            characterId={character.id}
+                            initialFeatures={data.features || []}
+                            staticFeatures={[
+                                ...(race.traits?.map((trait: string) => {
+                                    // Try exact match first, then try without parentheses content
+                                    const traitKey = trait;
+                                    const traitData = gameData.traits?.[traitKey] || 
+                                        (trait.includes('(') ? gameData.traits?.[trait.split('(')[0].trim()] : undefined);
+                                    return {
+                                        name: trait,
+                                        source: 'Racial Trait',
+                                        description: traitData?.description || `Racial trait: ${trait}`
+                                    };
+                                }) || []),
+                                ...(background.feature ? [{ name: background.feature.name, source: 'Background Feature', description: background.feature.description }] : [])
+                            ]}
+                            onUpdate={(newFeatures) => handleUpdateCharacter({ features: newFeatures })}
+                        />
+                    </div>
                 </div>
             </div>
             {/* Spells Section (Full Width) */}
             {charClass.spellcaster && (
-                <div style={{ marginTop: '2rem' }}>
+                <div style={{ marginTop: '1rem' }}>
                     <div className="card">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border)' }}>
                             <h2 className="heading" style={{ margin: 0, fontSize: '1.5rem' }}>Spellcasting</h2>
