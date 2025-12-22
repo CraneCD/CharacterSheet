@@ -11,11 +11,13 @@ interface CurrencyManagerProps {
 }
 
 export default function CurrencyManager({ characterId, initialCurrency, onUpdate }: CurrencyManagerProps) {
-    const [currency, setCurrency] = useState<{ [key: string]: number | string }>(initialCurrency || { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 });
+    const [currency, setCurrency] = useState<{ [key: string]: number | string }>(
+        initialCurrency ? { ...initialCurrency } : { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }
+    );
     const [editing, setEditing] = useState<{ [key: string]: boolean }>({});
 
     useEffect(() => {
-        setCurrency(initialCurrency || { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 });
+        setCurrency(initialCurrency ? { ...initialCurrency } : { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 });
     }, [initialCurrency]);
 
     const currencyTypes = [
@@ -130,7 +132,7 @@ export default function CurrencyManager({ characterId, initialCurrency, onUpdate
                                             handleCurrencyChange(key as keyof Currency, numValue);
                                             stopEditing(key);
                                         } else if (e.key === 'Escape') {
-                                            setCurrency(initialCurrency || { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 });
+                                            setCurrency(initialCurrency ? { ...initialCurrency } : { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 });
                                             stopEditing(key);
                                         }
                                     }}
