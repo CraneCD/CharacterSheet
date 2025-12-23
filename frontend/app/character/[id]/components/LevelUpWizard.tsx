@@ -49,6 +49,22 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     const [rolledHp, setRolledHp] = useState<number>(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Multiclass State - Declare early since it's used in calculations
+    const [levelUpMode, setLevelUpMode] = useState<'existing' | 'multiclass' | null>(null);
+    const [selectedClassToLevel, setSelectedClassToLevel] = useState<string>('');
+    const [selectedMulticlass, setSelectedMulticlass] = useState<string>('');
+    const [availableClasses, setAvailableClasses] = useState<any[]>([]);
+    const [loadingClasses, setLoadingClasses] = useState(false);
+
+    // Get current classes from character
+    const currentClasses = character.data?.classes || {};
+    const hasMultipleClasses = Object.keys(currentClasses).length > 1 || (Object.keys(currentClasses).length === 0 && character.class);
+    
+    // If no classes object exists, create it from character.class
+    const effectiveClasses = Object.keys(currentClasses).length > 0 
+        ? currentClasses 
+        : { [character.class.toLowerCase()]: character.level };
+
     // Calculate next level first (needed for ASI/Feat detection)
     const nextLevel = character.level + 1;
     
@@ -89,22 +105,6 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     const [selectedFeat, setSelectedFeat] = useState<Feat | null>(null);
     const [availableFeats, setAvailableFeats] = useState<Feat[]>([]);
     const [loadingFeats, setLoadingFeats] = useState(false);
-
-    // Multiclass State
-    const [levelUpMode, setLevelUpMode] = useState<'existing' | 'multiclass' | null>(null);
-    const [selectedClassToLevel, setSelectedClassToLevel] = useState<string>('');
-    const [selectedMulticlass, setSelectedMulticlass] = useState<string>('');
-    const [availableClasses, setAvailableClasses] = useState<any[]>([]);
-    const [loadingClasses, setLoadingClasses] = useState(false);
-
-    // Get current classes from character
-    const currentClasses = character.data?.classes || {};
-    const hasMultipleClasses = Object.keys(currentClasses).length > 1 || (Object.keys(currentClasses).length === 0 && character.class);
-    
-    // If no classes object exists, create it from character.class
-    const effectiveClasses = Object.keys(currentClasses).length > 0 
-        ? currentClasses 
-        : { [character.class.toLowerCase()]: character.level };
 
     // Get hit die for the class being leveled up
     const getHitDie = () => {
