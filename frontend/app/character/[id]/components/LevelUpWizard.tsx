@@ -51,8 +51,24 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
 
     // Calculate next level first (needed for ASI/Feat detection)
     const nextLevel = character.level + 1;
-    const classId = character.classId || character.class.toLowerCase();
-    const needsASI = getASILevels(classId).includes(nextLevel);
+    
+    // Determine which class we're leveling up
+    const getClassIdForLevelUp = () => {
+        if (levelUpMode === 'multiclass' && selectedMulticlass) {
+            return selectedMulticlass;
+        } else if (levelUpMode === 'existing' && selectedClassToLevel) {
+            return selectedClassToLevel;
+        } else if (Object.keys(effectiveClasses).length === 1) {
+            // Single class, use it
+            return Object.keys(effectiveClasses)[0];
+        }
+        // Fallback to character.class
+        return character.classId || character.class.toLowerCase();
+    };
+    
+    const classId = getClassIdForLevelUp();
+    const classLevel = levelUpMode === 'multiclass' ? 1 : (effectiveClasses[classId] || 1);
+    const needsASI = getASILevels(classId).includes(classLevel + 1);
 
     // Subclass State
     const [subclasses, setSubclasses] = useState<Subclass[]>([]);
@@ -74,7 +90,35 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     const [availableFeats, setAvailableFeats] = useState<Feat[]>([]);
     const [loadingFeats, setLoadingFeats] = useState(false);
 
-    const hitDie = character.classInfo?.hitDie || 8;
+    // Multiclass State
+    const [levelUpMode, setLevelUpMode] = useState<'existing' | 'multiclass' | null>(null);
+    const [selectedClassToLevel, setSelectedClassToLevel] = useState<string>('');
+    const [selectedMulticlass, setSelectedMulticlass] = useState<string>('');
+    const [availableClasses, setAvailableClasses] = useState<any[]>([]);
+    const [loadingClasses, setLoadingClasses] = useState(false);
+
+    // Get current classes from character
+    const currentClasses = character.data?.classes || {};
+    const hasMultipleClasses = Object.keys(currentClasses).length > 1 || (Object.keys(currentClasses).length === 0 && character.class);
+    
+    // If no classes object exists, create it from character.class
+    const effectiveClasses = Object.keys(currentClasses).length > 0 
+        ? currentClasses 
+        : { [character.class.toLowerCase()]: character.level };
+
+    // Get hit die for the class being leveled up
+    const getHitDie = () => {
+        if (levelUpMode === 'multiclass' && selectedMulticlass) {
+            const multiclassInfo = availableClasses.find((c: any) => c.id === selectedMulticlass);
+            return multiclassInfo?.hitDie || 8;
+        } else if (levelUpMode === 'existing' && selectedClassToLevel) {
+            // Would need to fetch class info, but for now use character.classInfo
+            return character.classInfo?.hitDie || 8;
+        }
+        return character.classInfo?.hitDie || 8;
+    };
+    
+    const hitDie = getHitDie();
     const conMod = Math.floor((character.data.abilityScores.con - 10) / 2);
 
     const averageHp = Math.ceil(hitDie / 2) + 1;
@@ -142,6 +186,55 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
         Promise.all(promises).finally(() => setLoadingFeatures(false));
     }, [nextLevel, character.class, character.classId, character.data.subclassId, needsSubclass]);
 
+    // Load available classes for multiclassing
+    useEffect(() => {
+        if (levelUpMode === 'multiclass') {
+            setLoadingClasses(true);
+            Promise.all([
+                api.get('/reference/classes'),
+                api.get('/reference/class-features')
+            ])
+                .then(([classes, classFeatures]) => {
+                    const abilityScores = character.data.abilityScores || {};
+                    const currentClassIds = Object.keys(effectiveClasses);
+                    
+                    // Filter classes that can be multiclassed into
+                    const available = classes.filter((cls: any) => {
+                        // Can't multiclass into a class you already have
+                        if (currentClassIds.includes(cls.id.toLowerCase())) {
+                            return false;
+                        }
+                        
+                        // Check prerequisites
+                        if (!cls.multiclassPrerequisites) {
+                            return false;
+                        }
+                        
+                        // Special case for Fighter: Str 13 OR Dex 13
+                        if (cls.id === 'fighter') {
+                            return (abilityScores.str >= 13) || (abilityScores.dex >= 13);
+                        }
+                        
+                        // For other classes, check all prerequisites
+                        for (const [ability, minScore] of Object.entries(cls.multiclassPrerequisites)) {
+                            if ((abilityScores[ability] || 0) < minScore) {
+                                return false;
+                            }
+                        }
+                        
+                        return true;
+                    });
+                    
+                    setAvailableClasses(available);
+                })
+                .catch(err => {
+                    console.error('Failed to load classes', err);
+                    setAvailableClasses([]);
+                })
+                .finally(() => setLoadingClasses(false));
+        }
+    }, [levelUpMode, character.data.abilityScores, effectiveClasses]);
+
     // Load feats when ASI/Feat is needed
     useEffect(() => {
         if (needsASI) {
@@ -202,10 +295,24 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     const handleSubmit = async () => {
         setIsSubmitting(true);
         try {
+            // Validate multiclass selection
+            if (levelUpMode === 'multiclass' && !selectedMulticlass) {
+                alert('Please select a class to multiclass into');
+                setIsSubmitting(false);
+                return;
+            }
+            if (levelUpMode === 'existing' && Object.keys(effectiveClasses).length > 1 && !selectedClassToLevel) {
+                alert('Please select which class to level up');
+                setIsSubmitting(false);
+                return;
+            }
+
             const hpIncrease = hpMode === 'average' ? hpGainAvg : hpGainRoll;
 
             const payload: any = {
-                hpIncrease
+                hpIncrease,
+                multiclass: levelUpMode === 'multiclass' ? selectedMulticlass : undefined,
+                classToLevel: levelUpMode === 'existing' && Object.keys(effectiveClasses).length > 1 ? selectedClassToLevel : undefined
             };
 
             if (needsSubclass && selectedSubclass) {
@@ -287,7 +394,9 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                 subclassId: payload.subclassId,
                 newFeatures: payload.newFeatures,
                 abilityScoreImprovement: Object.keys(finalAbilityScoreImprovement).length > 0 ? finalAbilityScoreImprovement : undefined,
-                classResources: updatedClassResources
+                classResources: updatedClassResources,
+                multiclass: payload.multiclass,
+                classToLevel: payload.classToLevel
             });
 
             onComplete(res);
@@ -309,6 +418,136 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
         <div className="modal-overlay">
             <div className="modal-content">
                 <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Level Up: {nextLevel}</h2>
+
+                {/* Class Selection Section - Show if character has multiple classes or can multiclass */}
+                {(Object.keys(effectiveClasses).length > 1 || (Object.keys(effectiveClasses).length === 1 && character.level >= 1)) && !levelUpMode && (
+                    <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
+                        <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                            Choose Level Up Path
+                        </h3>
+                        <p style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>
+                            {Object.keys(effectiveClasses).length > 1 
+                                ? 'You have multiple classes. Choose which class to level up, or multiclass into a new class.'
+                                : 'You can level up your current class or multiclass into a new class.'}
+                        </p>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {Object.keys(effectiveClasses).length > 1 && (
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.75rem', backgroundColor: levelUpMode === 'existing' ? 'var(--surface-highlight)' : 'var(--surface)', borderRadius: '4px', border: levelUpMode === 'existing' ? '2px solid var(--primary)' : '1px solid var(--border)' }}>
+                                    <input
+                                        type="radio"
+                                        name="levelUpMode"
+                                        checked={levelUpMode === 'existing'}
+                                        onChange={() => setLevelUpMode('existing')}
+                                    />
+                                    <div style={{ flex: 1 }}>
+                                        <strong>Level Up Existing Class</strong>
+                                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                            Choose which of your current classes to level up
+                                        </div>
+                                    </div>
+                                </label>
+                            )}
+
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.75rem', backgroundColor: levelUpMode === 'multiclass' ? 'var(--surface-highlight)' : 'var(--surface)', borderRadius: '4px', border: levelUpMode === 'multiclass' ? '2px solid var(--primary)' : '1px solid var(--border)' }}>
+                                <input
+                                    type="radio"
+                                    name="levelUpMode"
+                                    checked={levelUpMode === 'multiclass'}
+                                    onChange={() => setLevelUpMode('multiclass')}
+                                />
+                                <div style={{ flex: 1 }}>
+                                    <strong>Multiclass into New Class</strong>
+                                    <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                        Add a level in a new class (must meet prerequisites)
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        {/* Show class selection if leveling up existing class */}
+                        {levelUpMode === 'existing' && Object.keys(effectiveClasses).length > 1 && (
+                            <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--surface)', borderRadius: '4px' }}>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                                    Select Class to Level Up:
+                                </label>
+                                <select
+                                    className="input"
+                                    value={selectedClassToLevel}
+                                    onChange={(e) => setSelectedClassToLevel(e.target.value)}
+                                    style={{ width: '100%' }}
+                                >
+                                    <option value="">Choose a class...</option>
+                                    {Object.entries(effectiveClasses).map(([clsId, level]: [string, any]) => {
+                                        const clsName = clsId.charAt(0).toUpperCase() + clsId.slice(1);
+                                        return (
+                                            <option key={clsId} value={clsId}>
+                                                {clsName} (Level {level})
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Show class selection if multiclassing */}
+                        {levelUpMode === 'multiclass' && (
+                            <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--surface)', borderRadius: '4px' }}>
+                                {loadingClasses ? (
+                                    <p>Loading available classes...</p>
+                                ) : (
+                                    <>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                                            Select Class to Multiclass Into:
+                                        </label>
+                                        {availableClasses.length > 0 ? (
+                                            <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                {availableClasses.map((cls: any) => (
+                                                    <label
+                                                        key={cls.id}
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'flex-start',
+                                                            gap: '0.5rem',
+                                                            cursor: 'pointer',
+                                                            padding: '0.75rem',
+                                                            backgroundColor: selectedMulticlass === cls.id ? 'var(--surface-highlight)' : 'transparent',
+                                                            borderRadius: '4px',
+                                                            border: selectedMulticlass === cls.id ? '2px solid var(--primary)' : '1px solid var(--border)'
+                                                        }}
+                                                    >
+                                                        <input
+                                                            type="radio"
+                                                            name="multiclass"
+                                                            checked={selectedMulticlass === cls.id}
+                                                            onChange={() => setSelectedMulticlass(cls.id)}
+                                                            style={{ marginTop: '0.25rem' }}
+                                                        />
+                                                        <div style={{ flex: 1 }}>
+                                                            <div style={{ fontWeight: 'bold' }}>{cls.name}</div>
+                                                            <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{cls.description}</div>
+                                                            {cls.multiclassPrerequisites && (
+                                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                                                    Prerequisites: {Object.entries(cls.multiclassPrerequisites).map(([ability, score]: [string, any]) => 
+                                                                        `${ability.toUpperCase()} ${score}+`
+                                                                    ).join(', ')}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                                No classes available for multiclassing (check prerequisites)
+                                            </p>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* HP Section */}
                 <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -658,6 +897,9 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                         disabled={
                             isSubmitting || 
                             (hpMode === 'roll' && rolledHp === 0) || 
+                            ((Object.keys(effectiveClasses).length > 1 || character.level >= 1) && !levelUpMode) ||
+                            (levelUpMode === 'existing' && Object.keys(effectiveClasses).length > 1 && !selectedClassToLevel) ||
+                            (levelUpMode === 'multiclass' && !selectedMulticlass) ||
                             (needsSubclass && !selectedSubclass) ||
                             (needsASI && !asiOrFeat) ||
                             (needsASI && asiOrFeat === 'asi' && (

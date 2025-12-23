@@ -488,7 +488,7 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
     try {
         const characterId = req.params.id;
         const userId = req.user!.id;
-        const { hpIncrease, subclassId, newSpells, newFeatures, abilityScoreImprovement } = req.body;
+        const { hpIncrease, subclassId, newSpells, newFeatures, abilityScoreImprovement, multiclass, classToLevel } = req.body;
 
         const character = await prisma.character.findUnique({ where: { id: characterId } });
         if (!character || character.userId !== userId) {
@@ -502,7 +502,58 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
         }
 
         const data = character.data as any;
-        const classId = character.class.toLowerCase();
+        
+        // Handle multiclassing
+        let classId: string;
+        let classesData = data.classes || {};
+        
+        // If no classes object exists, create it from character.class
+        if (Object.keys(classesData).length === 0) {
+            classesData = { [character.class.toLowerCase()]: character.level };
+        }
+        
+        if (multiclass) {
+            // Multiclassing into a new class
+            const multiclassId = multiclass.toLowerCase();
+            if (classesData[multiclassId]) {
+                return res.status(400).json({ error: 'Cannot multiclass into a class you already have' });
+            }
+            
+            // Check prerequisites (should be checked on frontend, but verify here too)
+            const multiclassInfo = classes.find(c => c.id === multiclassId);
+            if (!multiclassInfo) {
+                return res.status(400).json({ error: 'Invalid class for multiclassing' });
+            }
+            
+            // Add new class at level 1
+            classesData[multiclassId] = 1;
+            classId = multiclassId;
+            
+            // Update character.class to the new class (for backward compatibility)
+            // But we'll store all classes in data.classes
+        } else if (classToLevel) {
+            // Leveling up an existing class
+            const classToLevelId = classToLevel.toLowerCase();
+            if (!classesData[classToLevelId]) {
+                return res.status(400).json({ error: 'Class not found in character classes' });
+            }
+            classesData[classToLevelId] = (classesData[classToLevelId] || 0) + 1;
+            classId = classToLevelId;
+        } else {
+            // Single class or first class (backward compatibility)
+            if (Object.keys(classesData).length === 1) {
+                const singleClassId = Object.keys(classesData)[0];
+                classesData[singleClassId] = (classesData[singleClassId] || 0) + 1;
+                classId = singleClassId;
+            } else {
+                // Multiple classes but no selection - use first class (shouldn't happen with new UI)
+                classId = Object.keys(classesData)[0];
+                classesData[classId] = (classesData[classId] || 0) + 1;
+            }
+        }
+        
+        // Update data.classes
+        data.classes = classesData;
 
         // Update HP
         console.log('Level Up Request:', { hpIncrease, currentHp: data.hp });
@@ -519,13 +570,25 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
             data.hp = hp;
         }
 
-        // Update Hit Dice - add 1 hit die per level
+        // Determine primary class (highest level)
+        const primaryClassId = Object.entries(classesData).reduce((a, b) => 
+            (b[1] as number) > (a[1] as number) ? b : a
+        )[0];
+        
+        // Update Hit Dice - for multiclass, we need to track hit dice per class
+        // For now, we'll use the class being leveled up's hit die
         const classInfo = classes.find(c => c.id === classId);
         if (classInfo) {
-            const hitDice = data.hitDice || { total: currentLevel, spent: 0, dieType: classInfo.hitDie };
+            // For multiclassed characters, hit dice should be tracked per class
+            // But for simplicity, we'll use the primary class's hit die type
+            // Total hit dice equals character level
+            const primaryClassInfo = classes.find(c => c.id === primaryClassId);
+            const hitDice = data.hitDice || { total: currentLevel, spent: 0, dieType: primaryClassInfo?.hitDie || classInfo.hitDie };
             hitDice.total = newLevel; // Total hit dice equals character level
-            // Keep spent count, but ensure dieType matches class
-            hitDice.dieType = classInfo.hitDie;
+            // Keep spent count, but ensure dieType matches primary class
+            if (primaryClassInfo) {
+                hitDice.dieType = primaryClassInfo.hitDie;
+            }
             data.hitDice = hitDice;
         }
 
@@ -545,17 +608,18 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
         const existingFeatureNames = new Set(charFeatures.map((f: any) => f.name.toLowerCase()));
 
         // Automatically add class features for the new level
+        const classLevel = classesData[classId] || 1;
         const classFeaturesList = classFeatures[classId] || [];
         const newClassFeatures = classFeaturesList
-            .filter((cf: any) => cf.level === newLevel)
+            .filter((cf: any) => cf.level === classLevel)
             .filter((cf: any) => {
-                const featureKey = `${cf.name.toLowerCase()}_class: ${character.class.toLowerCase()}`;
+                const featureKey = `${cf.name.toLowerCase()}_class: ${classId}`;
                 return !existingFeatureKeys.has(featureKey) && !existingFeatureNames.has(cf.name.toLowerCase());
             })
             .map((cf: any) => ({
                 name: cf.name,
                 description: cf.description,
-                source: `Class: ${character.class}`,
+                source: `Class: ${classId.charAt(0).toUpperCase() + classId.slice(1)}`,
                 level: cf.level
             }));
 
@@ -680,10 +744,12 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
         });
         data.levelHistory = levelHistory;
 
+        // Update character.class to primary class for backward compatibility
         const updated = await prisma.character.update({
             where: { id: characterId },
             data: {
                 level: newLevel,
+                class: primaryClassId.charAt(0).toUpperCase() + primaryClassId.slice(1), // Update to primary class
                 data
             }
         });

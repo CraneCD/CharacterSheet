@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Spell, CharacterSpell, CharacterData } from '@/lib/types';
+import { calculateMulticlassSpellcasterLevel, getSpellcastingClasses, calculatePreparedSpellsLimitForClass } from '@/lib/multiclassSpellcasting';
 
 // Spell Details Modal Component
 const SpellDetailsModal = ({ spell, isOpen, onClose }: { spell: Spell | null, isOpen: boolean, onClose: () => void }) => {
@@ -92,6 +93,8 @@ interface SpellManagerProps {
     existingActions?: any[];
     onCreateAction?: (action: any) => Promise<void>;
     onDeleteAction?: (index: number) => Promise<void>;
+    classes?: { [classId: string]: number }; // Multiclass support
+    allClasses?: any[]; // All available classes for reference
 }
 
 // 5e Standard Spell Slots Table (Wizard, Cleric, Druid, Sorcerer, Bard)
@@ -134,7 +137,7 @@ const getSlotsForClass = (classId: string, level: number) => {
     return slots;
 };
 
-export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction }: SpellManagerProps) {
+export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData }: SpellManagerProps) {
     const [mySpells, setMySpells] = useState<CharacterSpell[]>(initialSpells || []);
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
     const [allSpells, setAllSpells] = useState<Spell[]>([]);
@@ -382,28 +385,77 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         updateParent(mySpells, newSlots);
     };
 
-    // Calculation
-    const maxSlots = getSlotsForClass(classId, level);
+    // Calculate spell slots - handle multiclassing
+    const hasMultipleClasses = classesData && Object.keys(classesData).length > 1;
+    let maxSlots: number[];
+    let effectiveCasterLevel = level;
+    
+    if (hasMultipleClasses && allClassesData) {
+        // Multiclassed: calculate combined spellcaster level
+        effectiveCasterLevel = calculateMulticlassSpellcasterLevel(classesData, allClassesData);
+        maxSlots = getSlotsForClass('wizard', effectiveCasterLevel); // Use full caster table for combined level
+    } else {
+        // Single class
+        maxSlots = getSlotsForClass(classId, level);
+    }
 
-    // Calculate prepared spells limit (level + spellcasting ability modifier, minimum 1)
+    // Calculate prepared spells limit
+    // For multiclassed prepared casters, we need to calculate limit per class
     const getPreparedSpellsLimit = (): number => {
         if (!preparedCaster || !abilityScores || !spellcastingAbility) return 0;
-        const abilityScore = abilityScores[spellcastingAbility] || 10;
-        const modifier = Math.floor((abilityScore - 10) / 2);
-        const limit = level + modifier;
-        return Math.max(1, limit); // Minimum of 1 prepared spell
+        
+        if (hasMultipleClasses && allClassesData) {
+            // For multiclassed characters, sum up prepared spells limits from all prepared caster classes
+            const spellcastingClasses = getSpellcastingClasses(classesData, allClassesData);
+            let totalLimit = 0;
+            
+            for (const { classId: clsId, level: clsLevel, classInfo } of spellcastingClasses) {
+                if (classInfo.preparedCaster && classInfo.spellcastingAbility) {
+                    const classLimit = calculatePreparedSpellsLimitForClass(
+                        clsId,
+                        clsLevel,
+                        classInfo.spellcastingAbility,
+                        abilityScores
+                    );
+                    totalLimit += classLimit;
+                }
+            }
+            
+            return totalLimit;
+        } else {
+            // Single class
+            const abilityScore = abilityScores[spellcastingAbility] || 10;
+            const modifier = Math.floor((abilityScore - 10) / 2);
+            const limit = level + modifier;
+            return Math.max(1, limit); // Minimum of 1 prepared spell
+        }
     };
 
     const preparedSpellsLimit = getPreparedSpellsLimit();
     const currentPreparedCount = mySpells.filter(s => s.prepared && s.level > 0).length;
 
+    // Get all spellcasting classes for multiclassed characters
+    const spellcastingClasses = hasMultipleClasses && allClassesData 
+        ? getSpellcastingClasses(classesData, allClassesData)
+        : [{ classId, level, classInfo: { spellcaster: true, preparedCaster, spellcastingAbility } }];
+    
+    // Get all class IDs that can cast spells
+    const availableClassIds = spellcastingClasses.map(sc => sc.classId.toLowerCase());
+    
     // For prepared casters in cantrip mode: show only cantrips not yet learned
     // For prepared casters in prepare mode: show all non-cantrip spells (they know all)
     // For known casters: only show spells not yet learned
     const availableSpells = allSpells.filter(s => {
-        if (!s.classes.includes(classId)) return false;
-        if (s.level === 0 || s.level <= Math.ceil(level / 2)) {
-            if (preparedCaster) {
+        // Check if spell is available to any of the character's spellcasting classes
+        const spellAvailableToClass = s.classes.some(spellClass => 
+            availableClassIds.includes(spellClass.toLowerCase())
+        );
+        if (!spellAvailableToClass) return false;
+        
+        // Check spell level availability based on effective caster level
+        const maxSpellLevel = Math.ceil(effectiveCasterLevel / 2);
+        if (s.level === 0 || s.level <= maxSpellLevel) {
+            if (preparedCaster || spellcastingClasses.some(sc => sc.classInfo.preparedCaster)) {
                 if (isCantripMode) {
                     // Cantrip mode: only show unlearned cantrips
                     return s.level === 0 && !mySpells.find(ms => ms.id === s.id);
@@ -441,12 +493,13 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     const spellsByLevel = Array.from({ length: 10 }, (_, i) => i).map(lvl => {
         let spellsAtLevel: any[] = [];
         
-        if (preparedCaster && lvl > 0) {
+        if ((preparedCaster || spellcastingClasses.some(sc => sc.classInfo.preparedCaster)) && lvl > 0) {
             // For prepared casters: show all available spells at this level (not cantrips)
+            const maxSpellLevel = Math.ceil(effectiveCasterLevel / 2);
             const availableAtLevel = allSpells.filter(s => 
-                s.classes.includes(classId) &&
+                s.classes.some(spellClass => availableClassIds.includes(spellClass.toLowerCase())) &&
                 s.level === lvl &&
-                s.level <= Math.ceil(level / 2)
+                s.level <= maxSpellLevel
             );
             
             spellsAtLevel = availableAtLevel.map(spell => {

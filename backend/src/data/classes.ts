@@ -14,6 +14,7 @@ export interface ClassInfo {
     spellcastingAbility?: string;
     preparedCaster?: boolean; // If true, class knows all spells and prepares a subset each day (Cleric, Druid, Paladin, Ranger)
     subclassLevel?: number;
+    multiclassPrerequisites?: { [ability: string]: number }; // Ability score requirements for multiclassing (e.g., { str: 13, cha: 13 })
 }
 
 export const classes: ClassInfo[] = [
@@ -30,7 +31,8 @@ export const classes: ClassInfo[] = [
         weaponProficiencies: ['Simple weapons', 'Martial weapons'],
         startingEquipment: ['Chain mail or leather armor', 'Shield and martial weapon or two martial weapons', 'Light crossbow and 20 bolts or two handaxes', 'Dungeoneer\'s pack or Explorer\'s pack'],
         spellcaster: false,
-        subclassLevel: 3
+        subclassLevel: 3,
+        multiclassPrerequisites: { str: 13 } // Or Dex 13 (handled in logic)
     },
     {
         id: 'wizard',
@@ -46,7 +48,8 @@ export const classes: ClassInfo[] = [
         startingEquipment: ['Quarterstaff or dagger', 'Component pouch or arcane focus', 'Scholar\'s pack or Explorer\'s pack', 'Spellbook'],
         spellcaster: true,
         spellcastingAbility: 'int',
-        subclassLevel: 2
+        subclassLevel: 2,
+        multiclassPrerequisites: { int: 13 }
     },
     {
         id: 'rogue',
@@ -61,7 +64,8 @@ export const classes: ClassInfo[] = [
         weaponProficiencies: ['Simple weapons', 'Hand crossbows', 'Longswords', 'Rapiers', 'Shortswords'],
         startingEquipment: ['Rapier or shortsword', 'Shortbow and quiver of 20 arrows or shortsword', 'Burglar\'s pack or Dungeoneer\'s pack or Explorer\'s pack', 'Leather armor, two daggers, and thieves\' tools'],
         spellcaster: false,
-        subclassLevel: 3
+        subclassLevel: 3,
+        multiclassPrerequisites: { dex: 13 }
     },
     {
         id: 'cleric',
@@ -78,7 +82,8 @@ export const classes: ClassInfo[] = [
         spellcaster: true,
         spellcastingAbility: 'wis',
         preparedCaster: true,
-        subclassLevel: 1
+        subclassLevel: 1,
+        multiclassPrerequisites: { wis: 13 }
     },
     {
         id: 'ranger',
@@ -95,7 +100,8 @@ export const classes: ClassInfo[] = [
         spellcaster: true,
         spellcastingAbility: 'wis',
         preparedCaster: true,
-        subclassLevel: 3
+        subclassLevel: 3,
+        multiclassPrerequisites: { dex: 13, wis: 13 }
     },
     {
         id: 'barbarian',
@@ -110,7 +116,8 @@ export const classes: ClassInfo[] = [
         weaponProficiencies: ['Simple weapons', 'Martial weapons'],
         startingEquipment: ['Greataxe or any martial melee weapon', 'Two handaxes or any simple weapon', 'Explorer\'s pack and four javelins'],
         spellcaster: false,
-        subclassLevel: 3
+        subclassLevel: 3,
+        multiclassPrerequisites: { str: 13 }
     },
     {
         id: 'bard',
@@ -126,7 +133,8 @@ export const classes: ClassInfo[] = [
         startingEquipment: ['Rapier or longsword or any simple weapon', 'Diplomat\'s pack or Entertainer\'s pack', 'Lute or other musical instrument', 'Leather armor and dagger'],
         spellcaster: true,
         spellcastingAbility: 'cha',
-        subclassLevel: 3
+        subclassLevel: 3,
+        multiclassPrerequisites: { cha: 13 }
     },
     {
         id: 'druid',
@@ -143,7 +151,8 @@ export const classes: ClassInfo[] = [
         spellcaster: true,
         spellcastingAbility: 'wis',
         preparedCaster: true,
-        subclassLevel: 2
+        subclassLevel: 2,
+        multiclassPrerequisites: { wis: 13 }
     },
     {
         id: 'monk',
@@ -158,7 +167,8 @@ export const classes: ClassInfo[] = [
         weaponProficiencies: ['Simple weapons', 'Shortswords'],
         startingEquipment: ['Shortsword or any simple weapon', 'Dungeoneer\'s pack or Explorer\'s pack', '10 darts'],
         spellcaster: false,
-        subclassLevel: 3
+        subclassLevel: 3,
+        multiclassPrerequisites: { dex: 13, wis: 13 }
     },
     {
         id: 'paladin',
@@ -175,7 +185,8 @@ export const classes: ClassInfo[] = [
         spellcaster: true,
         spellcastingAbility: 'cha',
         preparedCaster: true,
-        subclassLevel: 3
+        subclassLevel: 3,
+        multiclassPrerequisites: { str: 13, cha: 13 }
     },
     {
         id: 'sorcerer',
@@ -192,7 +203,8 @@ export const classes: ClassInfo[] = [
         spellcaster: true,
         spellcastingAbility: 'cha',
         preparedCaster: true,
-        subclassLevel: 1
+        subclassLevel: 1,
+        multiclassPrerequisites: { cha: 13 }
     },
     {
         id: 'warlock',
@@ -209,6 +221,7 @@ export const classes: ClassInfo[] = [
         spellcaster: true,
         spellcastingAbility: 'cha',
         preparedCaster: true,
-        subclassLevel: 1
+        subclassLevel: 1,
+        multiclassPrerequisites: { cha: 13 }
     }
 ];

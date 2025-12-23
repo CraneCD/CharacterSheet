@@ -92,6 +92,7 @@ export interface CharacterData {
     actions?: CharacterAction[];
     subclassId?: string;
     currency?: Currency;
+    classes?: { [classId: string]: number }; // Multiclass support: { 'fighter': 5, 'wizard': 3 } means Fighter 5 / Wizard 3
 }
 
 export interface CharacterAction {
@@ -136,6 +137,7 @@ export interface ClassInfo {
     spellcastingAbility?: string;
     preparedCaster?: boolean; // If true, class knows all spells and prepares a subset each day (Cleric, Druid, Paladin, Ranger)
     subclassLevel?: number;
+    multiclassPrerequisites?: { [ability: string]: number }; // Ability score requirements for multiclassing
 }
 
 export interface Background {

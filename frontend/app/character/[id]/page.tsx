@@ -79,22 +79,36 @@ export default function CharacterSheet() {
 
         const loadFeatures = async () => {
             try {
-                const classId = character.class.toLowerCase();
-                const level = character.level;
                 const data = character.data || {};
+                const classesData = data.classes || {};
                 
-                // Load class features
-                const classFeatures: ClassFeature[] = await api.get(`/reference/class-features/${classId}`);
-                // Filter features up to current level
-                const availableClassFeatures = classFeatures.filter(f => f.level <= level);
-                setClassFeaturesList(availableClassFeatures);
+                // Get all classes
+                const characterClasses = Object.keys(classesData).length > 0 
+                    ? Object.entries(classesData).map(([classId, level]: [string, any]) => ({ id: classId, level }))
+                    : [{ id: character.class.toLowerCase(), level: character.level }];
+                
+                // Load features for all classes
+                const allClassFeatures: ClassFeature[] = [];
+                for (const cls of characterClasses) {
+                    try {
+                        const classFeatures: ClassFeature[] = await api.get(`/reference/class-features/${cls.id}`);
+                        // Filter features up to class level
+                        const featuresForClass = classFeatures.filter(f => f.level <= cls.level);
+                        allClassFeatures.push(...featuresForClass);
+                    } catch (err) {
+                        console.error(`Failed to load features for ${cls.id}`, err);
+                    }
+                }
+                
+                setClassFeaturesList(allClassFeatures);
 
-                // Load subclass features if character has a subclass
+                // Load subclass features if character has a subclass (for now, only primary class)
                 if (data.subclassId) {
                     const subclass = gameData.subclasses.find((s: any) => s.id === data.subclassId);
                     if (subclass) {
-                        // Filter subclass features up to current level
-                        const availableSubclassFeatures = subclass.features.filter((f: ClassFeature) => f.level <= level);
+                        const primaryClassLevel = characterClasses[0]?.level || character.level;
+                        // Filter subclass features up to primary class level
+                        const availableSubclassFeatures = subclass.features.filter((f: ClassFeature) => f.level <= primaryClassLevel);
                         setSubclassFeaturesList(availableSubclassFeatures);
                     } else {
                         setSubclassFeaturesList([]);
@@ -116,13 +130,33 @@ export default function CharacterSheet() {
 
     const data = character.data;
     const race = gameData.races.find(r => r.id === character.race) || { name: character.race, traits: [] };
-    const charClass = gameData.classes.find(c => c.id.toLowerCase() === character.class.toLowerCase()) || { name: character.class };
+    
+    // Handle multiclassing
+    const classesData = data.classes || {};
+    const hasMultipleClasses = Object.keys(classesData).length > 1 || (Object.keys(classesData).length === 0 && character.class);
+    
+    // Get all classes
+    const characterClasses = Object.keys(classesData).length > 0 
+        ? Object.entries(classesData).map(([classId, level]: [string, any]) => {
+            const classInfo = gameData.classes.find(c => c.id.toLowerCase() === classId.toLowerCase()) || { name: classId };
+            return { id: classId, name: classInfo.name, level };
+        })
+        : [{ id: character.class.toLowerCase(), name: character.class, level: character.level }];
+    
+    const charClass = characterClasses[0]; // Primary class for backward compatibility
     // Fallback for background if ID or full object is customized
     const background = gameData.backgrounds.find(b => b.id === data.backgroundId) || { name: 'Custom', feature: { name: 'Custom Feature', description: '' } };
 
-    // Subclass
+    // Subclass (for now, only primary class can have subclass)
     const subclass = data.subclassId ? gameData.subclasses.find((s: any) => s.id === data.subclassId) : null;
-    const classNameDisplay = subclass ? `${charClass.name} (${subclass.name})` : charClass.name;
+    
+    // Build class name display
+    let classNameDisplay = '';
+    if (hasMultipleClasses && characterClasses.length > 1) {
+        classNameDisplay = characterClasses.map(c => `${c.name} ${c.level}`).join(' / ');
+    } else {
+        classNameDisplay = subclass ? `${charClass.name} (${subclass.name})` : charClass.name;
+    }
 
     // Derived Stats
     const level = character.level;
@@ -935,64 +969,97 @@ export default function CharacterSheet() {
                 </div>
             </div>
             {/* Spells Section (Full Width) */}
-            {charClass.spellcaster && (
-                <div style={{ marginTop: '1rem' }}>
-                    <div className="card">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border)' }}>
-                            <h2 className="heading" style={{ margin: 0, fontSize: '1.5rem' }}>Spellcasting</h2>
-                            <div style={{ display: 'flex', gap: '2rem', textAlign: 'center' }}>
-                                <div>
-                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Ability</div>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase' }}>{charClass.spellcastingAbility}</div>
-                                </div>
-                                <div>
-                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Save DC</div>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{8 + pb + effectiveModifiers[charClass.spellcastingAbility]}</div>
-                                </div>
-                                <div>
-                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Attack Mod</div>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>+{pb + effectiveModifiers[charClass.spellcastingAbility]}</div>
+            {(() => {
+                // Check if character has any spellcasting classes
+                const hasSpellcasting = characterClasses.some(c => {
+                    const clsInfo = gameData.classes.find(gc => gc.id.toLowerCase() === c.id.toLowerCase());
+                    return clsInfo?.spellcaster;
+                });
+                
+                if (!hasSpellcasting) return null;
+                
+                // Get primary spellcasting class (first spellcasting class, or highest level)
+                const spellcastingClasses = characterClasses
+                    .map(c => ({
+                        ...c,
+                        classInfo: gameData.classes.find(gc => gc.id.toLowerCase() === c.id.toLowerCase())
+                    }))
+                    .filter(c => c.classInfo?.spellcaster && c.id.toLowerCase() !== 'warlock')
+                    .sort((a, b) => b.level - a.level);
+                
+                const primarySpellcastingClass = spellcastingClasses[0];
+                if (!primarySpellcastingClass) return null;
+                
+                const primarySpellcastingAbility = primarySpellcastingClass.classInfo?.spellcastingAbility || 'int';
+                
+                return (
+                    <div style={{ marginTop: '1rem' }}>
+                        <div className="card">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border)' }}>
+                                <h2 className="heading" style={{ margin: 0, fontSize: '1.5rem' }}>Spellcasting</h2>
+                                <div style={{ display: 'flex', gap: '2rem', textAlign: 'center' }}>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Ability</div>
+                                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase' }}>
+                                            {primarySpellcastingAbility}
+                                            {spellcastingClasses.length > 1 && (
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
+                                                    ({spellcastingClasses.map(sc => sc.classInfo?.spellcastingAbility?.toUpperCase()).filter((v, i, a) => a.indexOf(v) === i).join('/')})
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Save DC</div>
+                                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{8 + pb + effectiveModifiers[primarySpellcastingAbility]}</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Attack Mod</div>
+                                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>+{pb + effectiveModifiers[primarySpellcastingAbility]}</div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <SpellManager
-                            characterId={character.id}
-                            classId={character.classId || charClass.id}
-                            level={level}
-                            initialSpells={data.spells || []}
-                            initialSlotsUsed={data.spellSlotsUsed || {}}
-                            spellcastingAbility={charClass.spellcastingAbility}
-                            preparedCaster={charClass.preparedCaster}
-                            abilityScores={effectiveAbilityScores}
-                            onUpdate={(updates) => handleUpdateCharacter(updates)}
-                            existingActions={data.actions || []}
-                            onCreateAction={async (action) => {
-                                try {
-                                    await api.post(`/characters/${character.id}/actions`, { action });
-                                    const updatedChar = await api.get(`/characters/${character.id}`);
-                                    setCharacter(updatedChar);
-                                } catch (err) {
-                                    console.error('Failed to create action', err);
-                                    throw err;
-                                }
-                            }}
-                            onDeleteAction={async (index) => {
-                                try {
-                                    await api.delete(`/characters/${character.id}/actions`, {
-                                        data: { index }
-                                    });
-                                    const updatedChar = await api.get(`/characters/${character.id}`);
-                                    setCharacter(updatedChar);
-                                } catch (err) {
-                                    console.error('Failed to delete action', err);
-                                    throw err;
-                                }
-                            }}
-                        />
+                            <SpellManager
+                                characterId={character.id}
+                                classId={character.classId || primarySpellcastingClass.id}
+                                level={level}
+                                initialSpells={data.spells || []}
+                                initialSlotsUsed={data.spellSlotsUsed || {}}
+                                spellcastingAbility={primarySpellcastingAbility}
+                                preparedCaster={primarySpellcastingClass.classInfo?.preparedCaster || false}
+                                abilityScores={effectiveAbilityScores}
+                                classes={data.classes}
+                                allClasses={gameData.classes}
+                                onUpdate={(updates) => handleUpdateCharacter(updates)}
+                                existingActions={data.actions || []}
+                                onCreateAction={async (action) => {
+                                    try {
+                                        await api.post(`/characters/${character.id}/actions`, { action });
+                                        const updatedChar = await api.get(`/characters/${character.id}`);
+                                        setCharacter(updatedChar);
+                                    } catch (err) {
+                                        console.error('Failed to create action', err);
+                                        throw err;
+                                    }
+                                }}
+                                onDeleteAction={async (index) => {
+                                    try {
+                                        await api.delete(`/characters/${character.id}/actions`, {
+                                            data: { index }
+                                        });
+                                        const updatedChar = await api.get(`/characters/${character.id}`);
+                                        setCharacter(updatedChar);
+                                    } catch (err) {
+                                        console.error('Failed to delete action', err);
+                                        throw err;
+                                    }
+                                }}
+                            />
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </div>
     );
 }
