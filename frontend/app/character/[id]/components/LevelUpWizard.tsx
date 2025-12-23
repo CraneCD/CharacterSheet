@@ -217,7 +217,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                         
                         // For other classes, check all prerequisites
                         for (const [ability, minScore] of Object.entries(cls.multiclassPrerequisites)) {
-                            if ((abilityScores[ability] || 0) < minScore) {
+                            if ((abilityScores[ability] || 0) < (minScore as number)) {
                                 return false;
                             }
                         }
