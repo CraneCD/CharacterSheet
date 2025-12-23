@@ -303,6 +303,14 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 return;
             }
 
+            // Check prepared spells limit (only for non-cantrip spells)
+            if (spell.level > 0 && preparedCaster) {
+                if (currentPreparedCount >= preparedSpellsLimit) {
+                    alert(`You have reached your prepared spells limit (${preparedSpellsLimit}). Unprepare a spell first to prepare a new one.`);
+                    return;
+                }
+            }
+
             // Add spell and prepare it
             await api.post(`/characters/${characterId}/spells`, {
                 spellId: spell.id,
@@ -334,6 +342,14 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         try {
             const spell = mySpells.find(s => s.id === spellId);
             if (!spell) return;
+
+            // Check prepared spells limit when preparing (only for non-cantrip spells)
+            if (!currentStatus && spell.level > 0 && preparedCaster) {
+                if (currentPreparedCount >= preparedSpellsLimit) {
+                    alert(`You have reached your prepared spells limit (${preparedSpellsLimit}). Unprepare a spell first to prepare a new one.`);
+                    return;
+                }
+            }
 
             await api.patch(`/characters/${characterId}/spells/${spellId}/prepare`, {
                 prepared: !currentStatus
@@ -369,12 +385,13 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     // Calculation
     const maxSlots = getSlotsForClass(classId, level);
 
-    // Calculate prepared spells limit (level + spellcasting ability modifier)
+    // Calculate prepared spells limit (level + spellcasting ability modifier, minimum 1)
     const getPreparedSpellsLimit = (): number => {
         if (!preparedCaster || !abilityScores || !spellcastingAbility) return 0;
         const abilityScore = abilityScores[spellcastingAbility] || 10;
         const modifier = Math.floor((abilityScore - 10) / 2);
-        return level + modifier;
+        const limit = level + modifier;
+        return Math.max(1, limit); // Minimum of 1 prepared spell
     };
 
     const preparedSpellsLimit = getPreparedSpellsLimit();
@@ -571,19 +588,28 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                 const isPrepared = mySpells.find(ms => ms.id === spell.id)?.prepared || false;
                                 // For prepared casters: if in cantrip mode, use learn. Otherwise use prepare.
                                 const shouldLearn = !preparedCaster || isCantripMode;
+                                // Check if spell can be prepared (not at limit)
+                                const canPrepare = shouldLearn || spell.level === 0 || isPrepared || currentPreparedCount < preparedSpellsLimit;
                                 
                                 return (
                                     <div 
                                         key={spell.id} 
                                         className="spell-row" 
                                         style={{ 
-                                            cursor: 'pointer', 
+                                            cursor: canPrepare ? 'pointer' : 'not-allowed', 
                                             padding: '0.5rem', 
                                             border: '1px solid var(--border)', 
                                             borderRadius: '4px',
-                                            backgroundColor: isPrepared ? 'var(--surface)' : 'transparent'
+                                            backgroundColor: isPrepared ? 'var(--surface)' : 'transparent',
+                                            opacity: canPrepare ? 1 : 0.5
                                         }} 
-                                        onClick={() => shouldLearn ? learnSpell(spell) : prepareSpellDirectly(spell)}
+                                        onClick={() => {
+                                            if (canPrepare) {
+                                                shouldLearn ? learnSpell(spell) : prepareSpellDirectly(spell);
+                                            } else if (!shouldLearn && spell.level > 0) {
+                                                alert(`You have reached your prepared spells limit (${preparedSpellsLimit}). Unprepare a spell first to prepare a new one.`);
+                                            }
+                                        }}
                                     >
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
@@ -749,6 +775,9 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                                     }
                                                 }}
                                                 disabled={preparedCaster && !spellPrepared && currentPreparedCount >= preparedSpellsLimit}
+                                                title={preparedCaster && !spellPrepared && currentPreparedCount >= preparedSpellsLimit 
+                                                    ? `Prepared spells limit reached (${preparedSpellsLimit}). Unprepare a spell first.`
+                                                    : spellPrepared ? 'Click to unprepare this spell' : 'Click to prepare this spell'}
                                             >
                                                 {spellPrepared ? 'Prepared' : 'Prepare'}
                                             </button>

@@ -191,6 +191,7 @@ export const classes: ClassInfo[] = [
         startingEquipment: ['Light crossbow and 20 bolts or any simple weapon', 'Component pouch or arcane focus', 'Dungeoneer\'s pack or Explorer\'s pack', 'Two daggers'],
         spellcaster: true,
         spellcastingAbility: 'cha',
+        preparedCaster: true,
         subclassLevel: 1
     },
     {
@@ -207,6 +208,7 @@ export const classes: ClassInfo[] = [
         startingEquipment: ['Light crossbow and 20 bolts or any simple weapon', 'Component pouch or arcane focus', 'Scholar\'s pack or Dungeoneer\'s pack', 'Leather armor, any simple weapon, and two daggers'],
         spellcaster: true,
         spellcastingAbility: 'cha',
+        preparedCaster: true,
         subclassLevel: 1
     }
 ];
