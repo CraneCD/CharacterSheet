@@ -465,6 +465,16 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             spellsAtLevel = mySpells.filter(ms => ms.level === lvl);
         }
 
+        // Sort spells: prepared spells first, then alphabetically by name
+        spellsAtLevel.sort((a, b) => {
+            // First sort by prepared status (prepared spells come first)
+            if (a.prepared !== b.prepared) {
+                return a.prepared ? -1 : 1;
+            }
+            // Then sort alphabetically by name
+            return a.name.localeCompare(b.name);
+        });
+
         return {
             level: lvl,
             spells: spellsAtLevel,
