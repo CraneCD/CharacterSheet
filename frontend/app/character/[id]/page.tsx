@@ -139,11 +139,16 @@ export default function CharacterSheet() {
     const characterClasses = Object.keys(classesData).length > 0 
         ? Object.entries(classesData).map(([classId, level]: [string, any]) => {
             const classInfo = gameData.classes.find(c => c.id.toLowerCase() === classId.toLowerCase()) || { name: classId };
-            return { id: classId, name: classInfo.name, level };
+            return { id: classId, name: classInfo.name, level, classInfo };
         })
-        : [{ id: character.class.toLowerCase(), name: character.class, level: character.level }];
+        : (() => {
+            const primaryClassInfo = gameData.classes.find(c => c.id.toLowerCase() === character.class.toLowerCase()) || { name: character.class };
+            return [{ id: character.class.toLowerCase(), name: character.class, level: character.level, classInfo: primaryClassInfo }];
+        })();
     
-    const charClass = characterClasses[0]; // Primary class for backward compatibility
+    // Get full class info for primary class (for backward compatibility)
+    const primaryClassId = characterClasses[0]?.id || character.class.toLowerCase();
+    const charClass = gameData.classes.find(c => c.id.toLowerCase() === primaryClassId) || { name: character.class };
     // Fallback for background if ID or full object is customized
     const background = gameData.backgrounds.find(b => b.id === data.backgroundId) || { name: 'Custom', feature: { name: 'Custom Feature', description: '' } };
 
