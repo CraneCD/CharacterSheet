@@ -177,9 +177,33 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         onUpdate({ spells, spellSlotsUsed: slots });
     };
 
+    // Helper function to parse casting time and determine action type
+    const getActionTypeFromCastingTime = (castingTime: string): 'action' | 'bonus' | 'reaction' | 'other' => {
+        const time = castingTime.toLowerCase();
+        if (time.includes('bonus action')) {
+            return 'bonus';
+        } else if (time.includes('reaction')) {
+            return 'reaction';
+        } else if (time.includes('action') || time === '1 action') {
+            return 'action';
+        } else {
+            return 'other';
+        }
+    };
+
     // Helper function to get action name for a spell
-    const getActionName = (spellName: string, type: 'action' | 'bonus') => {
-        return type === 'action' ? `Cast ${spellName}` : `Cast ${spellName} (Bonus)`;
+    const getActionName = (spellName: string, type: 'action' | 'bonus' | 'reaction' | 'other') => {
+        switch (type) {
+            case 'bonus':
+                return `Cast ${spellName} (Bonus)`;
+            case 'reaction':
+                return `Cast ${spellName} (Reaction)`;
+            case 'other':
+                return `Cast ${spellName}`;
+            case 'action':
+            default:
+                return `Cast ${spellName}`;
+        }
     };
 
     // Helper function to find action index by name
@@ -201,13 +225,15 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     };
 
     // Helper function to create action for spell
-    const createSpellAction = async (spell: Spell | CharacterSpell, type: 'action' | 'bonus') => {
+    const createSpellAction = async (spell: Spell | CharacterSpell) => {
         if (!onCreateAction) return;
         
         const spellData = 'description' in spell ? spell : allSpells.find(s => s.id === spell.id);
         if (!spellData) return;
 
-        const actionName = getActionName(spell.name, type);
+        // Determine action type from casting time
+        const actionType = getActionTypeFromCastingTime(spellData.castingTime);
+        const actionName = getActionName(spell.name, actionType);
         
         // Check if action already exists
         if (findActionIndex(actionName) !== -1) {
@@ -220,7 +246,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             await onCreateAction({
                 name: actionName,
                 description: description,
-                type: type
+                type: actionType
             });
         } catch (err) {
             console.error('Failed to create spell action', err);
@@ -248,7 +274,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             updateParent(updated, slotsUsed);
             
             // Create action for learned spell
-            await createSpellAction(newSpell, 'action');
+            await createSpellAction(newSpell);
             
             setIsAdding(false);
             setIsCantripMode(false);
@@ -333,8 +359,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             setMySpells(updated);
             updateParent(updated, slotsUsed);
             
-            // Create bonus action for prepared spell
-            await createSpellAction(newSpell, 'bonus');
+            // Create action for prepared spell (type determined by casting time)
+            await createSpellAction(newSpell);
         } catch (err) {
             console.error('Failed to prepare spell', err);
             alert('Failed to prepare spell');
@@ -361,18 +387,29 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             setMySpells(updated);
             updateParent(updated, slotsUsed);
             
-            // Handle action/bonus action creation/removal
-            const actionName = getActionName(spell.name, 'action');
-            const bonusActionName = getActionName(spell.name, 'bonus');
-            
-            if (!currentStatus) {
-                // Spell is being prepared - remove regular action, create bonus action
-                await removeActionByName(actionName);
-                await createSpellAction(spell, 'bonus');
-            } else {
-                // Spell is being unprepared - remove bonus action, create regular action
-                await removeActionByName(bonusActionName);
-                await createSpellAction(spell, 'action');
+            // Get spell data to determine action type from casting time
+            const spellData = allSpells.find(s => s.id === spell.id);
+            if (spellData) {
+                const actionType = getActionTypeFromCastingTime(spellData.castingTime);
+                const actionName = getActionName(spell.name, actionType);
+                
+                // Remove any existing action with different type (in case it was created incorrectly)
+                const allPossibleNames = [
+                    getActionName(spell.name, 'action'),
+                    getActionName(spell.name, 'bonus'),
+                    getActionName(spell.name, 'reaction'),
+                    getActionName(spell.name, 'other')
+                ];
+                
+                // Remove all existing actions for this spell
+                for (const name of allPossibleNames) {
+                    if (name !== actionName) {
+                        await removeActionByName(name);
+                    }
+                }
+                
+                // Create action with correct type based on casting time
+                await createSpellAction(spell);
             }
         } catch (err) {
             console.error('Failed to update preparation', err);
