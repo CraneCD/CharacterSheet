@@ -22,8 +22,9 @@ Add these in Render's Environment tab:
 NODE_ENV=production
 DATABASE_URL=postgresql://... (from Supabase/Neon)
 JWT_SECRET=your-random-secret-key-here
-PORT=3001
 ```
+
+**Do not set PORT.** Render sets it automatically (typically 10000). The app uses `process.env.PORT` and falls back to 3001 only for local dev.
 
 ### Important Notes
 
@@ -33,8 +34,12 @@ PORT=3001
    - Generate Prisma client
    - Compile TypeScript to JavaScript
 3. **Start Command**: Runs the compiled JavaScript from `dist/index.js`
+4. **PORT**: Never set `PORT` in Render. The platform injects it; your app must listen on that port.
 
 ### Troubleshooting
+
+**Deploy times out / "no open ports detected"**
+- Remove `PORT` from Render Environment Variables. Render expects the app to listen on its assigned port (usually 10000). If you set `PORT=3001`, the app listens on 3001 but Render probes 10000, so the deploy fails.
 
 If you get "dist folder not found" error:
 - Check that Root Directory is set to `backend`

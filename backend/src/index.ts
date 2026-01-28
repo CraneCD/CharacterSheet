@@ -9,7 +9,10 @@ import referenceRoutes from './routes/reference';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT) || 3001;
+
+// Render expects the app to listen on PORT (default 10000). Do NOT set PORT in Render env.
+console.log('PORT from env:', process.env.PORT ?? '(unset, using 3001)');
 
 // Debug: Log database connection info (without password)
 if (process.env.DATABASE_URL) {
@@ -76,6 +79,10 @@ app.use('/api/reference', referenceRoutes);
 
 app.get('/', (req, res) => {
     res.send('D&D Character Sheet API is running');
+});
+
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok' });
 });
 
 // Error handling middleware

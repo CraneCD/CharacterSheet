@@ -399,6 +399,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                 classToLevel: payload.classToLevel
             });
 
+            setIsSubmitting(false);
             onComplete(res);
         } catch (err) {
             console.error('Failed to level up', err);
@@ -432,22 +433,22 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                         </p>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {Object.keys(effectiveClasses).length > 1 && (
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.75rem', backgroundColor: levelUpMode === 'existing' ? 'var(--surface-highlight)' : 'var(--surface)', borderRadius: '4px', border: levelUpMode === 'existing' ? '2px solid var(--primary)' : '1px solid var(--border)' }}>
-                                    <input
-                                        type="radio"
-                                        name="levelUpMode"
-                                        checked={levelUpMode === 'existing'}
-                                        onChange={() => setLevelUpMode('existing')}
-                                    />
-                                    <div style={{ flex: 1 }}>
-                                        <strong>Level Up Existing Class</strong>
-                                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                                            Choose which of your current classes to level up
-                                        </div>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.75rem', backgroundColor: levelUpMode === 'existing' ? 'var(--surface-highlight)' : 'var(--surface)', borderRadius: '4px', border: levelUpMode === 'existing' ? '2px solid var(--primary)' : '1px solid var(--border)' }}>
+                                <input
+                                    type="radio"
+                                    name="levelUpMode"
+                                    checked={levelUpMode === 'existing'}
+                                    onChange={() => setLevelUpMode('existing')}
+                                />
+                                <div style={{ flex: 1 }}>
+                                    <strong>Level Up Existing Class</strong>
+                                    <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                        {Object.keys(effectiveClasses).length > 1
+                                            ? 'Choose which of your current classes to level up'
+                                            : 'Continue leveling your current class'}
                                     </div>
-                                </label>
-                            )}
+                                </div>
+                            </label>
 
                             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.75rem', backgroundColor: levelUpMode === 'multiclass' ? 'var(--surface-highlight)' : 'var(--surface)', borderRadius: '4px', border: levelUpMode === 'multiclass' ? '2px solid var(--primary)' : '1px solid var(--border)' }}>
                                 <input
