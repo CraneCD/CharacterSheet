@@ -5,6 +5,7 @@ import StepRace from './StepRace';
 import StepClass from './StepClass';
 import StepAbilities from './StepAbilities';
 import StepDetails from './StepDetails';
+import StepStartingEquipment from './StepStartingEquipment';
 import StepReview from './StepReview';
 import { Race, ClassInfo, Subclass, CharacterItem, ItemCategory } from '@/lib/types';
 import { calculateClassResources, mergeHeroicInspiration } from '@/lib/classResources';
@@ -23,7 +24,8 @@ export default function WizardContainer() {
         alignment: '',
         backgroundId: '',
         skillfulChoice: '' as string,
-        versatileFeatId: '' as string
+        versatileFeatId: '' as string,
+        startingEquipmentChoices: [] as string[]
     });
 
     // We store full objects for race/class to display names in Review without refetching
@@ -126,7 +128,7 @@ export default function WizardContainer() {
             // 5.5e: backgrounds grant ASI, skills, etc.; races grant traits only (no ASI).
             // Prefer wizard reference (canonical) over API so create is correct even if API is stale.
             const baseScores = { ...formData.abilityScores };
-            let bgFromApi: { abilityScoreIncrease?: Record<string, number>; skillProficiencies?: string[] } | null = null;
+            let bgFromApi: { abilityScoreIncrease?: Record<string, number>; skillProficiencies?: string[]; equipment?: string[] } | null = null;
             try {
                 const bgs = await api.get('/reference/backgrounds') as any[];
                 const bid = (formData.backgroundId || '').toLowerCase();
@@ -178,6 +180,26 @@ export default function WizardContainer() {
                 }
             }
 
+            const equipment: (string | CharacterItem)[] = [];
+            const currency: { cp?: number; sp?: number; ep?: number; gp?: number; pp?: number } = {};
+
+            const bgEquipment = bgFromApi?.equipment ?? [];
+            const currencyRe = /^\s*(\d+)\s*(gp|sp|cp|ep|pp)\s*$/i;
+            for (const entry of bgEquipment) {
+                const m = entry.match(currencyRe);
+                if (m) {
+                    const amt = parseInt(m[1], 10);
+                    const key = m[2].toLowerCase() as 'gp' | 'sp' | 'cp' | 'ep' | 'pp';
+                    currency[key] = (currency[key] ?? 0) + amt;
+                } else {
+                    equipment.push(entry);
+                }
+            }
+
+            for (const choice of formData.startingEquipmentChoices ?? []) {
+                if (choice?.trim()) equipment.push(choice.trim());
+            }
+
             const data: any = {
                 abilityScores: baseScores,
                 backgroundId: formData.backgroundId,
@@ -192,8 +214,11 @@ export default function WizardContainer() {
                     dieType: hitDie 
                 },
                 classResources,
-                equipment: []
+                equipment
             };
+            if (Object.keys(currency).length > 0) {
+                data.currency = currency;
+            }
 
             if (selectedSubclass) {
                 data.subclassId = selectedSubclass.id;
@@ -230,6 +255,14 @@ export default function WizardContainer() {
             case 3: return true; // Abilities always have defaults
             case 4: return !!formData.name && !!formData.backgroundId && !!formData.alignment;
             case 5: {
+                const lines = selectedClass?.startingEquipment ?? [];
+                const choices = formData.startingEquipmentChoices ?? [];
+                for (let i = 0; i < lines.length; i++) {
+                    if (!(choices[i] ?? '').trim()) return false;
+                }
+                return true;
+            }
+            case 6: {
                 const rt = getRaceTraits(formData.raceId).length > 0 ? getRaceTraits(formData.raceId) : (selectedRace?.traits ?? []);
                 if (hasSkillful(rt) && !formData.skillfulChoice) return false;
                 if (hasVersatile(rt) && !formData.versatileFeatId) return false;
@@ -256,7 +289,7 @@ export default function WizardContainer() {
             {/* Progress Bar */}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem', position: 'relative' }}>
                 <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '2px', backgroundColor: 'var(--border)', zIndex: 0 }}></div>
-                {[1, 2, 3, 4, 5].map(s => {
+                {[1, 2, 3, 4, 5, 6].map(s => {
                     const isActive = s <= step;
                     return (
                         <div key={s} style={{
@@ -292,7 +325,11 @@ export default function WizardContainer() {
                     <StepClass
                         selectedClassId={formData.classId}
                         onSelect={(cls) => {
-                            setFormData({ ...formData, classId: cls.id });
+                            setFormData({
+                                ...formData,
+                                classId: cls.id,
+                                startingEquipmentChoices: []
+                            });
                             setSelectedClass(cls);
                             if (selectedClass?.id !== cls.id) {
                                 setSelectedSubclass(null);
@@ -318,6 +355,13 @@ export default function WizardContainer() {
                     />
                 )}
                 {step === 5 && (
+                    <StepStartingEquipment
+                        selectedClass={selectedClass}
+                        choices={formData.startingEquipmentChoices ?? []}
+                        onChange={(choices) => setFormData({ ...formData, startingEquipmentChoices: choices })}
+                    />
+                )}
+                {step === 6 && (
                     <StepReview
                         data={formData}
                         onUpdate={(updates) => setFormData({ ...formData, ...updates })}
@@ -364,7 +408,7 @@ export default function WizardContainer() {
                         &larr; Back
                     </button>
 
-                    {step < 5 ? (
+                    {step < 6 ? (
                         <button
                             className="button primary"
                             onClick={handleNext}
