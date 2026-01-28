@@ -7,25 +7,38 @@ interface CombatManagerProps {
     strMod: number;
     dexMod: number;
     profBonus: number;
+    fightingStyles?: string[];
 }
 
-export default function CombatManager({ equipment, strMod, dexMod, profBonus }: CombatManagerProps) {
+export default function CombatManager({ equipment, strMod, dexMod, profBonus, fightingStyles = [] }: CombatManagerProps) {
     const equippedWeapons = equipment
         .map(item => (typeof item === 'string' ? { name: item } : item))
-        .filter(item => item.equipped && item.type === 'weapon');
+        .filter(item => item.equipped && (item.type === 'weapon' || item.category === 'weapon')) as CharacterItem[];
 
     if (equippedWeapons.length === 0) return null;
 
-    const calculateAttack = (weapon: CharacterItem) => {
-        const isFinesse = weapon.properties?.includes('finesse');
-        const isRanged = weapon.properties?.includes('ranged'); // simplified
+    const hasArchery = fightingStyles.includes('archery');
+    const hasDueling = fightingStyles.includes('dueling');
+    const hasTWF = fightingStyles.includes('two-weapon-fighting');
+    const hasGWF = fightingStyles.includes('great-weapon-fighting');
 
-        // Use Dex if Finesse and Dex > Str, or if Ranged (usually). 
-        // 5e: Finesse = Choice. Ranged = Dex. Thrown = Str (unless Finesse).
-        // Simplification for MVP:
-        // If Finesse: max(Str, Dex)
-        // If Ranged (and not Thrown/Finesse overrides): Dex
-        // Else: Str
+    const isRangedWeapon = (w: CharacterItem) =>
+        w.properties?.some((p: string) => String(p).toLowerCase().includes('ammunition'));
+    const isMeleeWeapon = (w: CharacterItem) => !isRangedWeapon(w);
+    const isLightMelee = (w: CharacterItem) =>
+        isMeleeWeapon(w) && w.properties?.some((p: string) => String(p).toLowerCase() === 'light');
+    const isTwoHandedOrVersatile = (w: CharacterItem) =>
+        w.properties?.some((p: string) => {
+            const s = String(p).toLowerCase();
+            return s === 'two-handed' || s === 'versatile';
+        });
+
+    const oneMeleeNoOther = equippedWeapons.length === 1 && isMeleeWeapon(equippedWeapons[0]);
+    const twoLightMelee = equippedWeapons.length === 2 && isLightMelee(equippedWeapons[0]) && isLightMelee(equippedWeapons[1]);
+
+    const calculateAttack = (weapon: CharacterItem, index: number) => {
+        const isFinesse = weapon.properties?.some((p: string) => String(p).toLowerCase() === 'finesse');
+        const isRanged = isRangedWeapon(weapon);
 
         let mod = strMod;
         if (isFinesse) {
@@ -34,10 +47,16 @@ export default function CombatManager({ equipment, strMod, dexMod, profBonus }: 
             mod = dexMod;
         }
 
-        const toHit = mod + profBonus; // Assuming proficiency with equipped weapons
-        const damageMod = mod; // Usually same mod added to damage
+        let toHit = mod + profBonus;
+        if (hasArchery && isRanged) toHit += 2;
 
-        return { toHit, damageMod };
+        let damageMod = mod;
+        if (hasDueling && oneMeleeNoOther && isMeleeWeapon(weapon)) damageMod += 2;
+        if (twoLightMelee && index === 1) damageMod = hasTWF ? mod : 0;
+
+        const gwfNote = hasGWF && isTwoHandedOrVersatile(weapon);
+
+        return { toHit, damageMod, gwfNote };
     };
 
     return (
@@ -48,7 +67,7 @@ export default function CombatManager({ equipment, strMod, dexMod, profBonus }: 
 
             <div style={{ display: 'grid', gap: '0.5rem' }}>
                 {equippedWeapons.map((weapon, i) => {
-                    const { toHit, damageMod } = calculateAttack(weapon);
+                    const { toHit, damageMod, gwfNote } = calculateAttack(weapon, i);
                     const sign = toHit >= 0 ? '+' : '';
                     const dmgSign = damageMod >= 0 ? '+' : '';
 
@@ -59,6 +78,11 @@ export default function CombatManager({ equipment, strMod, dexMod, profBonus }: 
                                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                                     {weapon.properties?.join(', ')}
                                 </div>
+                                {gwfNote && (
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                        GWF: reroll 1s, 2s on damage
+                                    </div>
+                                )}
                             </div>
                             <div style={{ textAlign: 'right', flex: '0 0 auto' }}>
                                 <div style={{ fontWeight: 'bold', fontSize: '1.125rem' }}>

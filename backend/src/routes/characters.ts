@@ -525,7 +525,7 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
     try {
         const characterId = req.params.id;
         const userId = req.user!.id;
-        const { hpIncrease, subclassId, newSpells, newFeatures, abilityScoreImprovement, multiclass, classToLevel } = req.body;
+        const { hpIncrease, subclassId, newSpells, newFeatures, abilityScoreImprovement, multiclass, classToLevel, fightingStyle } = req.body;
 
         const character = await prisma.character.findUnique({ where: { id: characterId } });
         if (!character || character.userId !== userId) {
@@ -733,8 +733,15 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
             data.abilityScores = scores;
         }
 
+        // Fighting Style (level-up)
+        if (fightingStyle && typeof fightingStyle === 'string') {
+            const list = data.fightingStyles || [];
+            if (!list.includes(fightingStyle)) {
+                data.fightingStyles = [...list, fightingStyle];
+            }
+        }
+
         // Update Class Resources - if provided in request, use it; otherwise recalculate
-        // Note: Frontend should calculate and send updated resources, but we can also handle it here
         if (req.body.classResources) {
             data.classResources = req.body.classResources;
         } else {

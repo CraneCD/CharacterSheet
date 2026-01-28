@@ -5,9 +5,14 @@ interface StepReviewProps {
     raceName?: string;
     className?: string;
     backgroundName?: string;
+    fightingStyleId?: string;
 }
 
-export default function StepReview({ data, raceName, className, backgroundName }: StepReviewProps) {
+function fightingStyleDisplayName(id: string): string {
+    return id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+export default function StepReview({ data, raceName, className, backgroundName, fightingStyleId }: StepReviewProps) {
     return (
         <div>
             <h2 className="heading" style={{ marginBottom: '1rem' }}>Review Character</h2>
@@ -23,6 +28,13 @@ export default function StepReview({ data, raceName, className, backgroundName }
 
                         <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Class</div>
                         <div style={{ fontWeight: 'bold', marginBottom: '1rem' }}>{className}</div>
+
+                        {data.classId === 'fighter' && fightingStyleId && (
+                            <>
+                                <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Fighting Style</div>
+                                <div style={{ fontWeight: 'bold', marginBottom: '1rem' }}>{fightingStyleDisplayName(fightingStyleId)}</div>
+                            </>
+                        )}
 
                         <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Background</div>
                         <div style={{ fontWeight: 'bold', marginBottom: '1rem' }}>{backgroundName}</div>

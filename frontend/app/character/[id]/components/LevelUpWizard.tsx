@@ -32,6 +32,24 @@ interface Feat {
     abilityScoreIncrease?: { [ability: string]: number };
 }
 
+/** Whether this level-up grants a Fighting Style, and optional restricted options (e.g. Soulknife). */
+function getFightingStyleForLevel(
+    classId: string,
+    nextLevel: number,
+    effectiveSubclassId: string | undefined
+): { needed: boolean; options?: string[] } {
+    if ((classId === 'ranger' && nextLevel === 2) || (classId === 'paladin' && nextLevel === 2)) {
+        return { needed: true };
+    }
+    if (effectiveSubclassId === 'champion' && classId === 'fighter' && nextLevel === 10) {
+        return { needed: true };
+    }
+    if (effectiveSubclassId === 'soulknife' && classId === 'rogue' && nextLevel === 3) {
+        return { needed: true, options: ['dueling', 'two-weapon-fighting'] };
+    }
+    return { needed: false };
+}
+
 // Helper function to determine if a level grants ASI/Feat
 const getASILevels = (classId: string): number[] => {
     const baseLevels = [4, 8, 12, 16, 19];
@@ -86,6 +104,11 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     const classLevel = levelUpMode === 'multiclass' ? 1 : (effectiveClasses[classId] || 1);
     const needsASI = getASILevels(classId).includes(classLevel + 1);
 
+    const effectiveSubclassIdForFS = (needsSubclass && selectedSubclass) ? selectedSubclass.id : character.data?.subclassId;
+    const fightingStyleCheck = getFightingStyleForLevel(classId, nextLevel, effectiveSubclassIdForFS);
+    const needsFightingStyle = fightingStyleCheck.needed;
+    const allowedFightingStyleIds = fightingStyleCheck.options; // undefined = all
+
     // Subclass State
     const [subclasses, setSubclasses] = useState<Subclass[]>([]);
     const [selectedSubclass, setSelectedSubclass] = useState<Subclass | null>(null);
@@ -105,6 +128,10 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     const [selectedFeat, setSelectedFeat] = useState<Feat | null>(null);
     const [availableFeats, setAvailableFeats] = useState<Feat[]>([]);
     const [loadingFeats, setLoadingFeats] = useState(false);
+
+    // Fighting Style (level-up)
+    const [fightingStylesList, setFightingStylesList] = useState<{ id: string; name: string; description: string }[]>([]);
+    const [selectedFightingStyle, setSelectedFightingStyle] = useState<string | null>(null);
 
     // Get hit die for the class being leveled up
     const getHitDie = () => {
@@ -287,6 +314,22 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
         }
     }, [needsASI, character.data.abilityScores, character.race, classId]);
 
+    useEffect(() => {
+        if (needsFightingStyle) {
+            api.get('/reference/fighting-styles')
+                .then((list: { id: string; name: string; description: string }[]) => {
+                    setFightingStylesList(list || []);
+                })
+                .catch(err => {
+                    console.error('Failed to load fighting styles', err);
+                    setFightingStylesList([]);
+                });
+        } else {
+            setFightingStylesList([]);
+            setSelectedFightingStyle(null);
+        }
+    }, [needsFightingStyle]);
+
     const handleRoll = () => {
         const roll = Math.floor(Math.random() * hitDie) + 1;
         setRolledHp(roll);
@@ -398,7 +441,8 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                 abilityScoreImprovement: Object.keys(finalAbilityScoreImprovement).length > 0 ? finalAbilityScoreImprovement : undefined,
                 classResources: updatedClassResources,
                 multiclass: payload.multiclass,
-                classToLevel: payload.classToLevel
+                classToLevel: payload.classToLevel,
+                fightingStyle: needsFightingStyle && selectedFightingStyle ? selectedFightingStyle : undefined
             });
 
             setIsSubmitting(false);
@@ -549,6 +593,40 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                 )}
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* Fighting Style (level-up) */}
+                {needsFightingStyle && (
+                    <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
+                        <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                            Fighting Style
+                        </h3>
+                        <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                            {allowedFightingStyleIds
+                                ? 'Choose one of the following (Soulknife): Dueling or Two-Weapon Fighting.'
+                                : 'You gain a Fighting Style at this level. Choose one.'}
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {fightingStylesList
+                                .filter(fs => !allowedFightingStyleIds || allowedFightingStyleIds.includes(fs.id))
+                                .map(fs => (
+                                    <div
+                                        key={fs.id}
+                                        onClick={() => setSelectedFightingStyle(selectedFightingStyle === fs.id ? null : fs.id)}
+                                        style={{
+                                            cursor: 'pointer',
+                                            padding: '1rem',
+                                            borderRadius: '8px',
+                                            border: selectedFightingStyle === fs.id ? '2px solid var(--primary)' : '1px solid var(--border)',
+                                            backgroundColor: selectedFightingStyle === fs.id ? 'var(--surface-highlight)' : 'var(--surface)'
+                                        }}
+                                    >
+                                        <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>{fs.name}</div>
+                                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{fs.description}</div>
+                                    </div>
+                                ))}
+                        </div>
                     </div>
                 )}
 
@@ -904,6 +982,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                             (levelUpMode === 'existing' && Object.keys(effectiveClasses).length > 1 && !selectedClassToLevel) ||
                             (levelUpMode === 'multiclass' && !selectedMulticlass) ||
                             (needsSubclass && !selectedSubclass) ||
+                            (needsFightingStyle && !selectedFightingStyle) ||
                             (needsASI && !asiOrFeat) ||
                             (needsASI && asiOrFeat === 'asi' && (
                                 (asiMode === 'single' && !asiSingle) ||

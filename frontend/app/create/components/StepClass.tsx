@@ -4,25 +4,36 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { ClassInfo, Subclass } from '@/lib/types';
 
+export interface FightingStyleOption {
+    id: string;
+    name: string;
+    description: string;
+}
+
 interface StepClassProps {
     selectedClassId?: string;
     onSelect: (cls: ClassInfo) => void;
     selectedSubclassId?: string;
     onSelectSubclass: (sub: Subclass | null) => void;
+    selectedFightingStyleId?: string;
+    onSelectFightingStyle: (id: string | null) => void;
 }
 
-export default function StepClass({ selectedClassId, onSelect, selectedSubclassId, onSelectSubclass }: StepClassProps) {
+export default function StepClass({ selectedClassId, onSelect, selectedSubclassId, onSelectSubclass, selectedFightingStyleId, onSelectFightingStyle }: StepClassProps) {
     const [classes, setClasses] = useState<ClassInfo[]>([]);
     const [subclasses, setSubclasses] = useState<Subclass[]>([]);
+    const [fightingStyles, setFightingStyles] = useState<FightingStyleOption[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         Promise.all([
             api.get('/reference/classes'),
-            api.get('/reference/subclasses')
-        ]).then(([clsData, subData]) => {
+            api.get('/reference/subclasses'),
+            api.get('/reference/fighting-styles')
+        ]).then(([clsData, subData, fsData]) => {
             setClasses(clsData);
             setSubclasses(subData);
+            setFightingStyles(fsData || []);
             setLoading(false);
         }).catch(err => {
             console.error('Failed to load data', err);
@@ -57,9 +68,9 @@ export default function StepClass({ selectedClassId, onSelect, selectedSubclassI
                             }}
                             onClick={() => {
                                 onSelect(cls);
-                                // Reset subclass when changing class
                                 if (selectedClassId !== cls.id) {
                                     onSelectSubclass(null);
+                                    onSelectFightingStyle(null);
                                 }
                             }}
                         >
@@ -105,6 +116,35 @@ export default function StepClass({ selectedClassId, onSelect, selectedSubclassI
                             >
                                 <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>{sub.name}</div>
                                 <div style={{ fontSize: '0.875rem' }}>{sub.description}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {selectedClassId === 'fighter' && (
+                <div className="card" style={{ border: '1px solid var(--primary)', padding: '1.5rem', marginTop: '1rem' }}>
+                    <h3 className="heading" style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--primary)' }}>
+                        Fighting Style
+                    </h3>
+                    <p style={{ marginBottom: '1rem', color: 'var(--text-muted)' }}>
+                        Fighters choose a Fighting Style at 1st level.
+                    </p>
+                    <div style={{ display: 'grid', gap: '0.75rem' }}>
+                        {fightingStyles.map(fs => (
+                            <div
+                                key={fs.id}
+                                onClick={() => onSelectFightingStyle(selectedFightingStyleId === fs.id ? null : fs.id)}
+                                style={{
+                                    cursor: 'pointer',
+                                    padding: '1rem',
+                                    borderRadius: '8px',
+                                    border: selectedFightingStyleId === fs.id ? '2px solid var(--primary)' : '1px solid var(--border)',
+                                    backgroundColor: selectedFightingStyleId === fs.id ? 'var(--surface-highlight)' : 'var(--surface)'
+                                }}
+                            >
+                                <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>{fs.name}</div>
+                                <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{fs.description}</div>
                             </div>
                         ))}
                     </div>

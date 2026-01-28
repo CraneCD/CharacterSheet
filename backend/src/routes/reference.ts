@@ -8,6 +8,7 @@ import { classFeatures } from '../data/classFeatures';
 import { feats } from '../data/feats';
 import { baseItems } from '../data/baseItems';
 import { traits } from '../data/traits';
+import { fightingStyles } from '../data/fightingStyles';
 
 const router = express.Router();
 
@@ -133,6 +134,11 @@ router.get('/traits/:name', (req, res) => {
         return res.status(404).json({ error: 'Trait not found' });
     }
     res.json(trait);
+});
+
+// Get all fighting styles
+router.get('/fighting-styles', (req, res) => {
+    res.json(fightingStyles);
 });
 
 export default router;

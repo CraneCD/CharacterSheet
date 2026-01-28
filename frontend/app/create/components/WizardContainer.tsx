@@ -26,6 +26,7 @@ export default function WizardContainer() {
     const [selectedRace, setSelectedRace] = useState<Race | null>(null);
     const [selectedClass, setSelectedClass] = useState<ClassInfo | null>(null);
     const [selectedSubclass, setSelectedSubclass] = useState<Subclass | null>(null);
+    const [selectedFightingStyle, setSelectedFightingStyle] = useState<string | null>(null);
 
     const handleNext = () => setStep(step + 1);
     const handleBack = () => setStep(step - 1);
@@ -137,11 +138,11 @@ export default function WizardContainer() {
                 equipment: [] // Start with empty equipment - users can add items manually
             };
 
-            // Add Subclass Data
             if (selectedSubclass) {
                 data.subclassId = selectedSubclass.id;
-                // Don't add subclass features to data.features - they're displayed automatically as static features
-                // based on the subclass data and character level
+            }
+            if (selectedFightingStyle) {
+                data.fightingStyles = [selectedFightingStyle];
             }
 
             const payload = {
@@ -166,8 +167,8 @@ export default function WizardContainer() {
             case 1: return !!formData.raceId;
             case 2:
                 if (!formData.classId) return false;
-                // If class requires subclass at level 1, ensure it's selected
                 if (selectedClass && selectedClass.subclassLevel === 1 && !selectedSubclass) return false;
+                if (formData.classId === 'fighter' && !selectedFightingStyle) return false;
                 return true;
             case 3: return true; // Abilities always have defaults
             case 4: return !!formData.name && !!formData.backgroundId && !!formData.alignment;
@@ -225,13 +226,15 @@ export default function WizardContainer() {
                         onSelect={(cls) => {
                             setFormData({ ...formData, classId: cls.id });
                             setSelectedClass(cls);
-                            // If we switched classes, verify if subclass selection is needed or clear it
                             if (selectedClass?.id !== cls.id) {
                                 setSelectedSubclass(null);
+                                setSelectedFightingStyle(null);
                             }
                         }}
                         selectedSubclassId={selectedSubclass?.id}
                         onSelectSubclass={setSelectedSubclass}
+                        selectedFightingStyleId={selectedFightingStyle ?? undefined}
+                        onSelectFightingStyle={setSelectedFightingStyle}
                     />
                 )}
                 {step === 3 && (
@@ -252,6 +255,7 @@ export default function WizardContainer() {
                         raceName={selectedRace?.name}
                         className={selectedClass?.name}
                         backgroundName={formData.backgroundId}
+                        fightingStyleId={selectedFightingStyle ?? undefined}
                     />
                 )}
             </div>

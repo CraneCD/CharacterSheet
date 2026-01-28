@@ -235,11 +235,15 @@ export default function CharacterSheet() {
     if (shield && shield.baseAC) {
         calculatedAC += shield.baseAC;
     } else if (shield) {
-        // Fallback if baseAC not set but type is shield
         calculatedAC += 2;
     }
 
-    // Use manual AC override if set, otherwise use calculated
+    // Defense fighting style: +1 AC while wearing armor
+    const fightingStyles = (data.fightingStyles as string[] | undefined) || [];
+    if (armor && fightingStyles.includes('defense')) {
+        calculatedAC += 1;
+    }
+
     const ac = data.ac !== undefined ? data.ac : calculatedAC;
     
     // Speed: calculate base speed, then add feature bonuses
@@ -878,6 +882,7 @@ export default function CharacterSheet() {
                             strMod={effectiveModifiers.str}
                             dexMod={effectiveModifiers.dex}
                             profBonus={pb}
+                            fightingStyles={fightingStyles}
                         />
                     </div>
 

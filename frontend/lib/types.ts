@@ -93,6 +93,7 @@ export interface CharacterData {
     subclassId?: string;
     currency?: Currency;
     classes?: { [classId: string]: number }; // Multiclass support: { 'fighter': 5, 'wizard': 3 } means Fighter 5 / Wizard 3
+    fightingStyles?: string[]; // e.g. ['archery', 'defense'] – IDs from fighting-styles reference
 }
 
 export interface CharacterAction {
