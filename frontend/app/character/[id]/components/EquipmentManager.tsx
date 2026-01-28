@@ -3,16 +3,19 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { CharacterItem, ItemCategory } from '@/lib/types';
+import { getMasteryActionsForWeapon, getMasteryForWeapon } from '@/lib/weaponMastery';
 
 interface EquipmentManagerProps {
     characterId: string;
     initialEquipment: (string | CharacterItem)[];
     onUpdate: (newEquipment: (string | CharacterItem)[]) => void;
-    onEquipChange?: () => void; // Callback when equipment changes (for AC recalculation)
+    onEquipChange?: () => void;
     abilityScores?: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
     proficiencyBonus?: number;
-    existingActions?: any[]; // To check if weapon action already exists
-    onCreateAction?: (action: any) => Promise<void>; // Callback to create action
+    existingActions?: any[];
+    onCreateAction?: (action: any) => Promise<void>;
+    hasWeaponMastery?: boolean;
+    onDeleteMasteryActionsForWeapon?: (weaponName: string) => Promise<void>;
 }
 
 export default function EquipmentManager({ 
@@ -23,7 +26,9 @@ export default function EquipmentManager({
     abilityScores = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
     proficiencyBonus = 2,
     existingActions = [],
-    onCreateAction
+    onCreateAction,
+    hasWeaponMastery = false,
+    onDeleteMasteryActionsForWeapon
 }: EquipmentManagerProps) {
     const [equipment, setEquipment] = useState<(string | CharacterItem)[]>(initialEquipment || []);
     const [baseItems, setBaseItems] = useState<CharacterItem[]>([]);
@@ -179,23 +184,41 @@ export default function EquipmentManager({
         // Handle weapon action creation/removal
         if (item.category === 'weapon' || item.type === 'weapon') {
             const weaponActionName = `${item.name} Attack`;
-            const existingAction = existingActions.find(a => a.name === weaponActionName);
+            const existingAction = existingActions.find((a: any) => a.name === weaponActionName);
             
-            if (newEquipped && !existingAction && onCreateAction) {
-                // Create weapon action
-                const actionDescription = generateWeaponActionDescription(item);
-                const action = {
-                    name: weaponActionName,
-                    description: actionDescription,
-                    type: 'action'
-                };
-                try {
-                    await onCreateAction(action);
-                } catch (err) {
-                    console.error('Failed to create weapon action', err);
+            if (newEquipped) {
+                if (!existingAction && onCreateAction) {
+                    const actionDescription = generateWeaponActionDescription(item);
+                    try {
+                        await onCreateAction({ name: weaponActionName, description: actionDescription, type: 'action' });
+                    } catch (err) {
+                        console.error('Failed to create weapon action', err);
+                    }
+                }
+                // Weapon Mastery: add mastery actions when equipping
+                if (hasWeaponMastery && onCreateAction) {
+                    const masteryActions = getMasteryActionsForWeapon(item.name);
+                    for (const ma of masteryActions) {
+                        const exists = existingActions.some((a: any) => a.name === ma.name);
+                        if (!exists) {
+                            try {
+                                await onCreateAction(ma);
+                            } catch (err) {
+                                console.error('Failed to create mastery action', err);
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Unequipping: remove Weapon Mastery actions for this weapon
+                if (hasWeaponMastery && getMasteryForWeapon(item.name) && onDeleteMasteryActionsForWeapon) {
+                    try {
+                        await onDeleteMasteryActionsForWeapon(item.name);
+                    } catch (err) {
+                        console.error('Failed to remove mastery actions', err);
+                    }
                 }
             }
-            // Note: We don't auto-remove actions when unequipping, user can remove manually if desired
         }
 
         try {

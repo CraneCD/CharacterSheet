@@ -21,6 +21,7 @@ import {
     getAbilityScoreIncreasesFromFeatures,
     getSavingThrowProficienciesFromFeatures
 } from '@/lib/featureStatModifiers';
+import { isMasteryActionForWeapon } from '@/lib/weaponMastery';
 
 interface GameData {
     races: any[];
@@ -909,13 +910,9 @@ export default function CharacterSheet() {
                             initialEquipment={data.equipment || []}
                             onUpdate={(newEquipment) => {
                                 handleUpdateCharacter({ equipment: newEquipment });
-                                // Trigger AC recalculation by forcing a re-render
                                 setCharacter((prev: any) => ({ ...prev }));
                             }}
-                            onEquipChange={() => {
-                                // Force re-render to recalculate AC
-                                setCharacter((prev: any) => ({ ...prev }));
-                            }}
+                            onEquipChange={() => setCharacter((prev: any) => ({ ...prev }))}
                             abilityScores={abilityScores}
                             proficiencyBonus={pb}
                             existingActions={data.actions || []}
@@ -927,6 +924,21 @@ export default function CharacterSheet() {
                                 } catch (err) {
                                     console.error('Failed to create action', err);
                                     throw err;
+                                }
+                            }}
+                            hasWeaponMastery={classFeaturesList.some(f => f.name === 'Weapon Mastery')}
+                            onDeleteMasteryActionsForWeapon={async (weaponName) => {
+                                const actions = (data.actions || []) as { name: string }[];
+                                const indices = actions
+                                    .map((a, i) => (isMasteryActionForWeapon(a.name, weaponName) ? i : -1))
+                                    .filter(i => i >= 0)
+                                    .sort((a, b) => b - a);
+                                for (const idx of indices) {
+                                    await api.delete(`/characters/${character.id}/actions`, { data: { index: idx } });
+                                }
+                                if (indices.length > 0) {
+                                    const updatedChar = await api.get(`/characters/${character.id}`);
+                                    setCharacter(updatedChar);
                                 }
                             }}
                         />
