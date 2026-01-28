@@ -308,10 +308,13 @@ export default function CharacterSheet() {
         if (!proficientSkills.includes(s)) proficientSkills.push(s);
     }
 
+    const expertiseSkills = (data.expertise || []) as string[];
     const skills = skillsList.map(skill => {
         const isProficient = proficientSkills.includes(skill.name);
-        const total = effectiveModifiers[skill.stat] + (isProficient ? pb : 0);
-        return { ...skill, total, isProficient };
+        const hasExpertise = expertiseSkills.includes(skill.name);
+        const proficiencyBonus = hasExpertise ? pb * 2 : (isProficient ? pb : 0);
+        const total = effectiveModifiers[skill.stat] + proficiencyBonus;
+        return { ...skill, total, isProficient, hasExpertise };
     });
 
     const handleUpdateCharacter = (updates: Partial<CharacterData>) => {
@@ -813,17 +816,38 @@ export default function CharacterSheet() {
                             {skills.map(skill => (
                                 <div key={skill.name} className="skill-row">
                                     <span style={{ display: 'flex', alignItems: 'center' }}>
-                                        <span 
-                                            className="proficient-dot" 
-                                            onClick={() => handleToggleSkillProficiency(skill.name)}
-                                            style={{ 
-                                                backgroundColor: skill.isProficient ? 'var(--primary)' : 'transparent', 
-                                                border: '1px solid var(--text-muted)',
-                                                cursor: 'pointer',
-                                                transition: 'background-color 0.2s'
-                                            }}
-                                            title={skill.isProficient ? 'Click to remove proficiency' : 'Click to add proficiency'}
-                                        ></span>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                            <span 
+                                                className="proficient-dot" 
+                                                onClick={() => handleToggleSkillProficiency(skill.name)}
+                                                style={{ 
+                                                    backgroundColor: skill.isProficient ? 'var(--primary)' : 'transparent', 
+                                                    border: '1px solid var(--text-muted)',
+                                                    cursor: 'pointer',
+                                                    transition: 'background-color 0.2s'
+                                                }}
+                                                title={skill.isProficient ? 'Click to remove proficiency' : 'Click to add proficiency'}
+                                            ></span>
+                                            {skill.hasExpertise && (
+                                                <span 
+                                                    style={{ 
+                                                        backgroundColor: 'var(--primary)', 
+                                                        color: '#fff',
+                                                        borderRadius: '50%',
+                                                        width: '0.75rem',
+                                                        height: '0.75rem',
+                                                        fontSize: '0.5rem',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontWeight: 'bold',
+                                                        lineHeight: 1,
+                                                        marginLeft: '0.125rem'
+                                                    }}
+                                                    title="Expertise (double proficiency bonus)"
+                                                >E</span>
+                                            )}
+                                        </span>
                                         {skill.name} <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginLeft: '0.25rem' }}>({skill.stat.toUpperCase()})</span>
                                     </span>
                                     <span style={{ fontWeight: 'bold' }}>{formatMod(skill.total)}</span>

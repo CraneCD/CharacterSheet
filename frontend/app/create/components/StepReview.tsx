@@ -13,17 +13,23 @@ interface StepReviewProps {
     backgroundName?: string;
     fightingStyleId?: string;
     raceTraits?: string[];
+    proficientSkills?: string[];
 }
 
 function fightingStyleDisplayName(id: string): string {
     return id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
-export default function StepReview({ data, onUpdate, raceName, className, backgroundName, fightingStyleId, raceTraits = [] }: StepReviewProps) {
+export default function StepReview({ data, onUpdate, raceName, className, backgroundName, fightingStyleId, raceTraits = [], proficientSkills = [] }: StepReviewProps) {
     const [feats, setFeats] = useState<{ id: string; name: string }[]>([]);
     const [featsLoading, setFeatsLoading] = useState(false);
     const needsSkillful = hasSkillful(raceTraits);
     const needsVersatile = hasVersatile(raceTraits);
+    
+    // Level 1 expertise: Rogue gets 2 skills
+    const needsExpertise = data.classId === 'rogue';
+    const expertiseCount: number = needsExpertise ? 2 : 0;
+    const expertiseChoices = (data.expertiseChoices || []) as string[];
 
     useEffect(() => {
         if (!needsVersatile) return;
@@ -44,9 +50,9 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
         <div>
             <h2 className="heading" style={{ marginBottom: '1rem' }}>Review Character</h2>
 
-            {(needsSkillful || needsVersatile) && onUpdate && (
+            {(needsSkillful || needsVersatile || needsExpertise) && onUpdate && (
                 <div className="card" style={{ marginBottom: '1rem' }}>
-                    <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>Trait choices</h3>
+                    <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>Trait and class choices</h3>
                     {needsSkillful && (
                         <div style={{ marginBottom: needsVersatile ? '1rem' : 0 }}>
                             <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.35rem', fontSize: '0.875rem' }}>
@@ -82,6 +88,46 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
                                         <option key={f.id} value={f.id}>{f.name}</option>
                                     ))}
                                 </select>
+                            )}
+                        </div>
+                    )}
+                    {needsExpertise && (
+                        <div style={{ marginTop: needsSkillful || needsVersatile ? '1rem' : 0 }}>
+                            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                                Expertise — choose {expertiseCount} skill{expertiseCount === 1 ? '' : 's'} (double proficiency bonus)
+                            </label>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                                Select from skills you're proficient in: {proficientSkills.length > 0 ? proficientSkills.join(', ') : 'None available'}
+                            </p>
+                            {proficientSkills.length === 0 ? (
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', fontStyle: 'italic' }}>
+                                    No proficient skills available. You need skill proficiencies to gain expertise.
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {Array.from({ length: expertiseCount }).map((_, idx) => (
+                                        <select
+                                            key={idx}
+                                            className="input"
+                                            value={expertiseChoices[idx] || ''}
+                                            onChange={(e) => {
+                                                const updated = [...expertiseChoices];
+                                                updated[idx] = e.target.value;
+                                                // Remove duplicates
+                                                const unique = Array.from(new Set(updated.filter(Boolean)));
+                                                while (unique.length < expertiseCount) unique.push('');
+                                                onUpdate({ expertiseChoices: unique.slice(0, expertiseCount) });
+                                            }}
+                                        >
+                                            <option value="">Select a skill...</option>
+                                            {proficientSkills
+                                                .filter(skill => !expertiseChoices.includes(skill) || expertiseChoices[idx] === skill)
+                                                .map((skill) => (
+                                                    <option key={skill} value={skill}>{skill}</option>
+                                                ))}
+                                        </select>
+                                    ))}
+                                </div>
                             )}
                         </div>
                     )}

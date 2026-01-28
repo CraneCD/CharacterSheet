@@ -9,7 +9,7 @@ import StepStartingEquipment from './StepStartingEquipment';
 import StepReview from './StepReview';
 import { Race, ClassInfo, Subclass, CharacterItem } from '@/lib/types';
 import { calculateClassResources, mergeHeroicInspiration } from '@/lib/classResources';
-import { hasDwarvenToughness, hasResourceful, hasSkillful, hasVersatile } from '@/lib/racialTraitBonuses';
+import { hasDwarvenToughness, hasResourceful, hasSkillful, hasVersatile, getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
 import { getRaceTraits, getBackgroundAsi, getBackgroundSkills } from '@/lib/wizardReference';
 import { splitEquipmentChoice, itemNameToCharacterItem } from '@/lib/equipmentMapping';
 
@@ -26,7 +26,8 @@ export default function WizardContainer() {
         backgroundId: '',
         skillfulChoice: '' as string,
         versatileFeatId: '' as string,
-        startingEquipmentChoices: [] as string[]
+        startingEquipmentChoices: [] as string[],
+        expertiseChoices: [] as string[]
     });
 
     // We store full objects for race/class to display names in Review without refetching
@@ -130,6 +131,8 @@ export default function WizardContainer() {
                 }
             }
 
+            const expertise = (formData.expertiseChoices || []).filter((s: string) => s?.trim()) as string[];
+            
             const data: any = {
                 abilityScores: baseScores,
                 backgroundId: formData.backgroundId,
@@ -146,6 +149,9 @@ export default function WizardContainer() {
                 classResources,
                 equipment
             };
+            if (expertise.length > 0) {
+                data.expertise = expertise;
+            }
             if (Object.keys(currency).length > 0) {
                 data.currency = currency;
             }
@@ -196,6 +202,10 @@ export default function WizardContainer() {
                 const rt = getRaceTraits(formData.raceId).length > 0 ? getRaceTraits(formData.raceId) : (selectedRace?.traits ?? []);
                 if (hasSkillful(rt) && !formData.skillfulChoice) return false;
                 if (hasVersatile(rt) && !formData.versatileFeatId) return false;
+                if (formData.classId === 'rogue') {
+                    const expertiseChoices = (formData.expertiseChoices || []) as string[];
+                    if (expertiseChoices.filter((s: string) => s?.trim()).length !== 2) return false;
+                }
                 return true;
             }
             default: return true;
@@ -245,7 +255,8 @@ export default function WizardContainer() {
                                 ...formData,
                                 raceId: race.id,
                                 skillfulChoice: '',
-                                versatileFeatId: ''
+                                versatileFeatId: '',
+                                expertiseChoices: []
                             });
                             setSelectedRace(race);
                         }}
@@ -258,7 +269,8 @@ export default function WizardContainer() {
                             setFormData({
                                 ...formData,
                                 classId: cls.id,
-                                startingEquipmentChoices: []
+                                startingEquipmentChoices: [],
+                                expertiseChoices: []
                             });
                             setSelectedClass(cls);
                             if (selectedClass?.id !== cls.id) {
@@ -291,17 +303,30 @@ export default function WizardContainer() {
                         onChange={(choices) => setFormData({ ...formData, startingEquipmentChoices: choices })}
                     />
                 )}
-                {step === 6 && (
-                    <StepReview
-                        data={formData}
-                        onUpdate={(updates) => setFormData({ ...formData, ...updates })}
-                        raceName={selectedRace?.name}
-                        className={selectedClass?.name}
-                        backgroundName={formData.backgroundId}
-                        fightingStyleId={selectedFightingStyle ?? undefined}
-                        raceTraits={getRaceTraits(formData.raceId).length > 0 ? getRaceTraits(formData.raceId) : (selectedRace?.traits ?? [])}
-                    />
-                )}
+                {step === 6 && (() => {
+                    const rt = getRaceTraits(formData.raceId).length > 0 ? getRaceTraits(formData.raceId) : (selectedRace?.traits ?? []);
+                    const bgSkills = getBackgroundSkills(formData.backgroundId);
+                    const traitSkills = getSkillProficienciesFromTraits(rt);
+                    const proficientSkills = [...bgSkills];
+                    for (const s of traitSkills) {
+                        if (!proficientSkills.includes(s)) proficientSkills.push(s);
+                    }
+                    if (hasSkillful(rt) && formData.skillfulChoice && !proficientSkills.includes(formData.skillfulChoice)) {
+                        proficientSkills.push(formData.skillfulChoice);
+                    }
+                    return (
+                        <StepReview
+                            data={formData}
+                            onUpdate={(updates) => setFormData({ ...formData, ...updates })}
+                            raceName={selectedRace?.name}
+                            className={selectedClass?.name}
+                            backgroundName={formData.backgroundId}
+                            fightingStyleId={selectedFightingStyle ?? undefined}
+                            raceTraits={rt}
+                            proficientSkills={proficientSkills}
+                        />
+                    );
+                })()}
             </div>
 
             {/* Navigation Actions - Fixed at Bottom */}
