@@ -9,6 +9,7 @@ import StepReview from './StepReview';
 import { Race, ClassInfo, Subclass, CharacterItem, ItemCategory } from '@/lib/types';
 import { calculateClassResources } from '@/lib/classResources';
 import { hasDwarvenToughness } from '@/lib/racialTraitBonuses';
+import { getRaceTraits, getBackgroundAsi, getBackgroundSkills } from '@/lib/wizardReference';
 
 export default function WizardContainer() {
     const router = useRouter();
@@ -121,36 +122,43 @@ export default function WizardContainer() {
         setLoading(true);
         try {
             // 5.5e: backgrounds grant ASI, skills, etc.; races grant traits only (no ASI).
+            // Prefer wizard reference (canonical) over API so create is correct even if API is stale.
             const baseScores = { ...formData.abilityScores };
-            type Bg = { id: string; abilityScoreIncrease?: { [key: string]: number }; skillProficiencies?: string[] };
-            let bg: Bg | null = null;
+            let bgFromApi: { abilityScoreIncrease?: Record<string, number>; skillProficiencies?: string[] } | null = null;
             try {
-                const bgs = await api.get('/reference/backgrounds') as Bg[];
+                const bgs = await api.get('/reference/backgrounds') as any[];
                 const bid = (formData.backgroundId || '').toLowerCase();
-                bg = bgs.find(b => (b.id || '').toLowerCase() === bid) || null;
+                const b = bgs.find((x: any) => (x.id || '').toLowerCase() === bid);
+                if (b) bgFromApi = b;
             } catch (e) {
                 console.warn('Failed to fetch backgrounds for ASI/skills', e);
             }
-            const asi = bg?.abilityScoreIncrease || {};
+            const asi = getBackgroundAsi(formData.backgroundId) || bgFromApi?.abilityScoreIncrease || {};
             for (const [abil, inc] of Object.entries(asi)) {
                 const k = abil as keyof typeof baseScores;
                 baseScores[k] = (baseScores[k] ?? 10) + (inc as number);
             }
+            const bgSkills = getBackgroundSkills(formData.backgroundId).length > 0
+                ? getBackgroundSkills(formData.backgroundId)
+                : (bgFromApi?.skillProficiencies ?? []);
+            const raceTraits = getRaceTraits(formData.raceId).length > 0
+                ? getRaceTraits(formData.raceId)
+                : (selectedRace?.traits ?? []);
 
             const classResources = selectedClass 
                 ? calculateClassResources(selectedClass.id, 1, baseScores)
                 : {};
 
             const hitDie = selectedClass?.hitDie ?? 8;
-            const dwarvenToughness = selectedRace && hasDwarvenToughness(selectedRace.traits || []);
+            const dwarvenToughness = selectedRace && hasDwarvenToughness(raceTraits);
             const maxHp = hitDie + (dwarvenToughness ? 1 : 0);
 
             const data: any = {
                 abilityScores: baseScores,
                 backgroundId: formData.backgroundId,
                 alignment: formData.alignment,
-                skills: bg?.skillProficiencies ?? [],
-                racialTraits: selectedRace?.traits ?? [],
+                skills: bgSkills,
+                racialTraits: raceTraits,
                 hp: { current: maxHp, max: maxHp, temp: 0 },
                 hitDice: { 
                     total: 1, 

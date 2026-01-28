@@ -23,6 +23,7 @@ import {
 } from '@/lib/featureStatModifiers';
 import { isMasteryActionForWeapon } from '@/lib/weaponMastery';
 import { getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
+import { getRaceTraits, getBackgroundSkills } from '@/lib/wizardReference';
 
 interface GameData {
     races: any[];
@@ -290,9 +291,15 @@ export default function CharacterSheet() {
         { name: 'Survival', stat: 'wis' },
     ];
 
-    const racialTraits = (data.racialTraits && data.racialTraits.length > 0) ? data.racialTraits : (race?.traits || []);
+    const canonTraits = getRaceTraits(character.race);
+    const racialTraits = (data.racialTraits && data.racialTraits.length > 0)
+        ? data.racialTraits
+        : (canonTraits.length > 0 ? canonTraits : (race?.traits || []));
+    const canonSkills = getBackgroundSkills(data.backgroundId);
     const definedSkills = data.skills || [];
-    const baseProficient = definedSkills.length > 0 ? definedSkills : (background?.skillProficiencies || []);
+    const baseProficient = definedSkills.length > 0
+        ? definedSkills
+        : (canonSkills.length > 0 ? canonSkills : (background?.skillProficiencies || []));
     const traitSkills = getSkillProficienciesFromTraits(racialTraits);
     const proficientSkills = [...baseProficient];
     for (const s of traitSkills) {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Race } from '@/lib/types';
+import { getRaceTraits } from '@/lib/wizardReference';
 
 interface StepRaceProps {
     selectedRaceId?: string;
@@ -48,7 +49,10 @@ export default function StepRace({ selectedRaceId, onSelect }: StepRaceProps) {
                             <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>{race.description}</p>
 
                             <div style={{ fontSize: '0.875rem' }}>
-                                <strong>Traits:</strong> {race.traits.join(', ')}
+                                <strong>Traits:</strong> {(() => {
+                                    const traits = getRaceTraits(race.id);
+                                    return (traits.length > 0 ? traits : (race.traits || [])).join(', ');
+                                })()}
                             </div>
                         </div>
                     );

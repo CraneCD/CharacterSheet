@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Background } from '@/lib/types';
+import { getBackgroundAsi, getBackgroundSkills } from '@/lib/wizardReference';
 
 interface StepDetailsProps {
     data: {
@@ -41,7 +42,8 @@ export default function StepDetails({ data, onUpdate }: StepDetailsProps) {
 
     if (loading) return <div>Loading backgrounds...</div>;
 
-    const selectedBackground = backgrounds.find(b => b.id === data.backgroundId);
+    const bgId = (data.backgroundId || '').toLowerCase();
+    const selectedBackground = backgrounds.find((b: Background) => (b.id || '').toLowerCase() === bgId);
 
     return (
         <div>
@@ -87,14 +89,25 @@ export default function StepDetails({ data, onUpdate }: StepDetailsProps) {
                     <div style={{ padding: '0.75rem', backgroundColor: 'var(--surface)', borderRadius: '4px', border: '1px solid var(--border)' }}>
                         <h4 style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>{selectedBackground.name}</h4>
                         <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>{selectedBackground.description}</p>
-                        {selectedBackground.abilityScoreIncrease && Object.keys(selectedBackground.abilityScoreIncrease).length > 0 && (
-                            <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>
-                                <strong>Ability Score Increase:</strong>{' '}
-                                {Object.entries(selectedBackground.abilityScoreIncrease ?? {})
-                                    .map(([s, v]) => `${s.toUpperCase()} +${v}`)
-                                    .join(', ')}
-                            </div>
-                        )}
+                        {(() => {
+                            const asi = getBackgroundAsi(data.backgroundId) || selectedBackground.abilityScoreIncrease;
+                            const skills = getBackgroundSkills(data.backgroundId) || selectedBackground.skillProficiencies || [];
+                            return (
+                                <>
+                                    {asi && Object.keys(asi).length > 0 && (
+                                        <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+                                            <strong>Ability Score Increase:</strong>{' '}
+                                            {Object.entries(asi).map(([s, v]) => `${s.toUpperCase()} +${v}`).join(', ')}
+                                        </div>
+                                    )}
+                                    {skills.length > 0 && (
+                                        <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+                                            <strong>Skill Proficiencies:</strong> {skills.join(', ')}
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
                         <div style={{ fontSize: '0.875rem' }}>
                             <strong>Initial Equipment:</strong> {selectedBackground.equipment?.join(', ') || 'None'}
                         </div>

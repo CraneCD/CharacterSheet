@@ -1,0 +1,125 @@
+/**
+ * Canonical race traits and background ASI/skills for the create wizard.
+ * Used as fallback when API data is missing or stale (e.g. old deployment).
+ * Keep in sync with backend src/data/races.ts and backgrounds.ts.
+ */
+
+export const RACE_TRAITS: Record<string, string[]> = {
+    human: ['Resourceful', 'Skillful', 'Versatile'],
+    elf: ['Darkvision', 'Elven Lineage', 'Fey Ancestry', 'Keen Senses', 'Trance'],
+    dwarf: ['Darkvision', 'Dwarven Resilience', 'Dwarven Toughness', 'Stonecunning'],
+    halfling: ['Brave', 'Halfling Nimbleness', 'Luck', 'Naturally Stealthy'],
+    dragonborn: ['Darkvision', 'Draconic Ancestry', 'Breath Weapon', 'Damage Resistance', 'Draconic Flight'],
+    gnome: ['Darkvision', 'Gnomish Cunning', 'Gnomish Lineage'],
+    'half-elf': ['Darkvision', 'Fey Ancestry', 'Skill Versatility'],
+    'half-orc': ['Darkvision', 'Menacing', 'Relentless Endurance', 'Savage Attacks'],
+    tiefling: ['Darkvision', 'Fiendish Legacy', 'Hellish Resistance', 'Otherworldly Presence'],
+    orc: ['Adrenaline Rush', 'Darkvision', 'Relentless Endurance'],
+};
+
+export const BACKGROUND_ASI: Record<string, Record<string, number>> = {
+    acolyte: { wis: 2, int: 1 },
+    criminal: { dex: 2, cha: 1 },
+    'folk-hero': { con: 2, wis: 1 },
+    noble: { cha: 2, int: 1 },
+    sage: { int: 2, wis: 1 },
+    soldier: { str: 2, con: 1 },
+    anthropologist: { int: 2, wis: 1 },
+    archaeologist: { int: 2, str: 1 },
+    athlete: { str: 2, dex: 1 },
+    charlatan: { cha: 2, dex: 1 },
+    'city-watch': { str: 2, wis: 1 },
+    'clan-crafter': { con: 2, int: 1 },
+    'cloistered-scholar': { int: 2, wis: 1 },
+    courtier: { cha: 2, wis: 1 },
+    entertainer: { cha: 2, dex: 1 },
+    faceless: { dex: 2, int: 1 },
+    'faction-agent': { int: 2, wis: 1 },
+    'far-traveler': { wis: 2, dex: 1 },
+    feylost: { cha: 2, wis: 1 },
+    fisher: { con: 2, wis: 1 },
+    'giant-foundling': { str: 2, con: 1 },
+    gladiator: { str: 2, cha: 1 },
+    'guild-artisan': { int: 2, cha: 1 },
+    'guild-merchant': { cha: 2, wis: 1 },
+    'haunted-one': { wis: 2, int: 1 },
+    hermit: { wis: 2, int: 1 },
+    'house-agent': { int: 2, cha: 1 },
+    inheritor: { cha: 2, wis: 1 },
+    'investigator-scag': { int: 2, wis: 1 },
+    'investigator-vrgr': { int: 2, wis: 1 },
+    knight: { cha: 2, int: 1 },
+    'knight-of-the-order': { cha: 2, str: 1 },
+    marine: { str: 2, con: 1 },
+    'mercenary-veteran': { str: 2, cha: 1 },
+    outlander: { str: 2, wis: 1 },
+    pirate: { dex: 2, wis: 1 },
+    rewarded: { cha: 2, int: 1 },
+    ruined: { cha: 2, wis: 1 },
+    'rune-carver': { int: 2, wis: 1 },
+    sailor: { dex: 2, wis: 1 },
+    shipwright: { int: 2, str: 1 },
+    smuggler: { dex: 2, cha: 1 },
+    spy: { dex: 2, int: 1 },
+};
+
+export const BACKGROUND_SKILLS: Record<string, string[]> = {
+    acolyte: ['Insight', 'Religion'],
+    criminal: ['Deception', 'Stealth'],
+    'folk-hero': ['Animal Handling', 'Survival'],
+    noble: ['History', 'Persuasion'],
+    sage: ['Arcana', 'History'],
+    soldier: ['Athletics', 'Intimidation'],
+    anthropologist: ['Insight', 'Religion'],
+    archaeologist: ['History', 'Survival'],
+    athlete: ['Athletics', 'Acrobatics'],
+    charlatan: ['Deception', 'Sleight of Hand'],
+    'city-watch': ['Athletics', 'Insight'],
+    'clan-crafter': ['History', 'Insight'],
+    'cloistered-scholar': ['History', 'Investigation'],
+    courtier: ['Insight', 'Persuasion'],
+    entertainer: ['Acrobatics', 'Performance'],
+    faceless: ['Deception', 'Intimidation'],
+    'faction-agent': ['Insight', 'Investigation'],
+    'far-traveler': ['Insight', 'Perception'],
+    feylost: ['Deception', 'Survival'],
+    fisher: ['History', 'Survival'],
+    'giant-foundling': ['Athletics', 'Intimidation'],
+    gladiator: ['Athletics', 'Performance'],
+    'guild-artisan': ['Insight', 'Persuasion'],
+    'guild-merchant': ['Insight', 'Persuasion'],
+    'haunted-one': ['Investigation', 'Religion'],
+    hermit: ['Medicine', 'Religion'],
+    'house-agent': ['Investigation', 'Persuasion'],
+    inheritor: ['Survival', 'Investigation'],
+    'investigator-scag': ['Investigation', 'Insight'],
+    'investigator-vrgr': ['Investigation', 'Insight'],
+    knight: ['History', 'Persuasion'],
+    'knight-of-the-order': ['Persuasion', 'History'],
+    marine: ['Athletics', 'Survival'],
+    'mercenary-veteran': ['Athletics', 'Persuasion'],
+    outlander: ['Athletics', 'Survival'],
+    pirate: ['Athletics', 'Perception'],
+    rewarded: ['Investigation', 'Persuasion'],
+    ruined: ['Deception', 'Survival'],
+    'rune-carver': ['Arcana', 'History'],
+    sailor: ['Athletics', 'Perception'],
+    shipwright: ['History', 'Investigation'],
+    smuggler: ['Deception', 'Stealth'],
+    spy: ['Deception', 'Stealth'],
+};
+
+export function getRaceTraits(raceId: string): string[] {
+    const k = (raceId || '').toLowerCase();
+    return RACE_TRAITS[k] ?? [];
+}
+
+export function getBackgroundAsi(backgroundId: string): Record<string, number> {
+    const k = (backgroundId || '').toLowerCase();
+    return BACKGROUND_ASI[k] ?? {};
+}
+
+export function getBackgroundSkills(backgroundId: string): string[] {
+    const k = (backgroundId || '').toLowerCase();
+    return BACKGROUND_SKILLS[k] ?? [];
+}
