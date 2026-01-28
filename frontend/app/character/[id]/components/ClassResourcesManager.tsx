@@ -163,7 +163,9 @@ export default function ClassResourcesManager({
                             <div style={{ 
                                 fontSize: '1.25rem', 
                                 fontWeight: 'bold',
-                                color: resource.current === 0 ? 'var(--text-muted)' : 'var(--primary)'
+                                color: resource.current === 0 ? 'var(--text-muted)' : 'var(--primary)',
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0
                             }}>
                                 {resource.current} / {resource.max}
                             </div>
