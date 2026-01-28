@@ -186,6 +186,28 @@ export function calculateClassResources(
     return resources;
 }
 
+const HEROIC_INSPIRATION: ClassResource = {
+    name: 'Heroic Inspiration',
+    current: 1,
+    max: 1,
+    resetType: 'long',
+    description: 'You gain Heroic Inspiration whenever you finish a Long Rest. You can use it to grant yourself advantage on an attack roll, ability check, or saving throw, or to grant an ally advantage on one such roll.'
+};
+
+/**
+ * Merge Heroic Inspiration into class resources when the character has Resourceful (e.g. Human).
+ */
+export function mergeHeroicInspiration(
+    resources: ClassResources,
+    hasResourceful: boolean
+): ClassResources {
+    if (!hasResourceful) return resources;
+    return {
+        ...resources,
+        'Heroic Inspiration': { ...HEROIC_INSPIRATION }
+    };
+}
+
 /**
  * Update class resources when leveling up
  */

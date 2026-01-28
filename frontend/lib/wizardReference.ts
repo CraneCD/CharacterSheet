@@ -123,3 +123,19 @@ export function getBackgroundSkills(backgroundId: string): string[] {
     const k = (backgroundId || '').toLowerCase();
     return BACKGROUND_SKILLS[k] ?? [];
 }
+
+/** Origin feats (1st-level) for Versatile. IDs from /reference/feats. */
+export const ORIGIN_FEAT_IDS = [
+    'alert', 'athlete', 'actor', 'charger', 'durable', 'healer', 'lucky',
+    'magic-initiate', 'savage-attacker', 'skilled', 'tavern-brawler', 'tough',
+    'crossbow-expert', 'dual-wielder', 'dungeon-delver', 'inspiring-leader',
+    'keen-mind', 'linguist', 'observant', 'resilient', 'ritual-caster'
+];
+
+/** All skills for Skillful "choose one" picker. */
+export const SKILLS_FOR_SKILLFUL = [
+    'Acrobatics', 'Animal Handling', 'Arcana', 'Athletics', 'Deception',
+    'History', 'Insight', 'Intimidation', 'Investigation', 'Medicine',
+    'Nature', 'Perception', 'Performance', 'Persuasion', 'Religion',
+    'Sleight of Hand', 'Stealth', 'Survival'
+];

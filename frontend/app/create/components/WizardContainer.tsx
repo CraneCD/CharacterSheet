@@ -7,8 +7,8 @@ import StepAbilities from './StepAbilities';
 import StepDetails from './StepDetails';
 import StepReview from './StepReview';
 import { Race, ClassInfo, Subclass, CharacterItem, ItemCategory } from '@/lib/types';
-import { calculateClassResources } from '@/lib/classResources';
-import { hasDwarvenToughness } from '@/lib/racialTraitBonuses';
+import { calculateClassResources, mergeHeroicInspiration } from '@/lib/classResources';
+import { hasDwarvenToughness, hasResourceful, hasSkillful, hasVersatile } from '@/lib/racialTraitBonuses';
 import { getRaceTraits, getBackgroundAsi, getBackgroundSkills } from '@/lib/wizardReference';
 
 export default function WizardContainer() {
@@ -21,7 +21,9 @@ export default function WizardContainer() {
         abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
         name: '',
         alignment: '',
-        backgroundId: ''
+        backgroundId: '',
+        skillfulChoice: '' as string,
+        versatileFeatId: '' as string
     });
 
     // We store full objects for race/class to display names in Review without refetching
@@ -145,27 +147,51 @@ export default function WizardContainer() {
                 ? getRaceTraits(formData.raceId)
                 : (selectedRace?.traits ?? []);
 
-            const classResources = selectedClass 
-                ? calculateClassResources(selectedClass.id, 1, baseScores)
+            let classResources = selectedClass 
+                ? calculateClassResources(selectedClass.id, 1, baseScores, selectedSubclass?.id)
                 : {};
+            classResources = mergeHeroicInspiration(classResources, hasResourceful(raceTraits));
 
             const hitDie = selectedClass?.hitDie ?? 8;
             const dwarvenToughness = selectedRace && hasDwarvenToughness(raceTraits);
             const maxHp = hitDie + (dwarvenToughness ? 1 : 0);
 
+            const skills = [...bgSkills];
+            if (hasSkillful(raceTraits) && formData.skillfulChoice) {
+                if (!skills.includes(formData.skillfulChoice)) skills.push(formData.skillfulChoice);
+            }
+
+            const features: { name: string; description: string; source: string }[] = [];
+            if (hasVersatile(raceTraits) && formData.versatileFeatId) {
+                try {
+                    const feats = await api.get('/reference/feats') as { id: string; name: string; description: string }[];
+                    const feat = feats.find((f: any) => (f.id || '').toLowerCase() === (formData.versatileFeatId || '').toLowerCase());
+                    if (feat) {
+                        features.push({
+                            name: feat.name,
+                            description: feat.description,
+                            source: 'Racial Trait (Versatile)'
+                        });
+                    }
+                } catch (e) {
+                    console.warn('Failed to fetch feat for Versatile', e);
+                }
+            }
+
             const data: any = {
                 abilityScores: baseScores,
                 backgroundId: formData.backgroundId,
                 alignment: formData.alignment,
-                skills: bgSkills,
+                skills,
                 racialTraits: raceTraits,
+                features,
                 hp: { current: maxHp, max: maxHp, temp: 0 },
                 hitDice: { 
                     total: 1, 
                     spent: 0, 
                     dieType: hitDie 
                 },
-                classResources: classResources,
+                classResources,
                 equipment: []
             };
 
@@ -203,6 +229,12 @@ export default function WizardContainer() {
                 return true;
             case 3: return true; // Abilities always have defaults
             case 4: return !!formData.name && !!formData.backgroundId && !!formData.alignment;
+            case 5: {
+                const rt = getRaceTraits(formData.raceId).length > 0 ? getRaceTraits(formData.raceId) : (selectedRace?.traits ?? []);
+                if (hasSkillful(rt) && !formData.skillfulChoice) return false;
+                if (hasVersatile(rt) && !formData.versatileFeatId) return false;
+                return true;
+            }
             default: return true;
         }
     };
@@ -246,7 +278,12 @@ export default function WizardContainer() {
                     <StepRace
                         selectedRaceId={formData.raceId}
                         onSelect={(race) => {
-                            setFormData({ ...formData, raceId: race.id });
+                            setFormData({
+                                ...formData,
+                                raceId: race.id,
+                                skillfulChoice: '',
+                                versatileFeatId: ''
+                            });
                             setSelectedRace(race);
                         }}
                     />
@@ -283,10 +320,12 @@ export default function WizardContainer() {
                 {step === 5 && (
                     <StepReview
                         data={formData}
+                        onUpdate={(updates) => setFormData({ ...formData, ...updates })}
                         raceName={selectedRace?.name}
                         className={selectedClass?.name}
                         backgroundName={formData.backgroundId}
                         fightingStyleId={selectedFightingStyle ?? undefined}
+                        raceTraits={getRaceTraits(formData.raceId).length > 0 ? getRaceTraits(formData.raceId) : (selectedRace?.traits ?? [])}
                     />
                 )}
             </div>

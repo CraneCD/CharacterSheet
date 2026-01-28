@@ -31,15 +31,15 @@ export const traits: { [key: string]: Trait } = {
     },
     'Versatile': {
         name: 'Versatile',
-        description: 'You gain the Skilled feat or another 1st-level feat of your choice.'
+        description: 'You gain an Origin feat of your choice.'
     },
     'Resourceful': {
         name: 'Resourceful',
-        description: 'You gain Inspiration whenever you finish a Long Rest.'
+        description: 'You gain Heroic Inspiration whenever you finish a Long Rest.'
     },
     'Skillful': {
         name: 'Skillful',
-        description: 'You gain proficiency in one skill of your choice and one tool of your choice.'
+        description: 'You gain proficiency in one skill of your choice.'
     },
     'Lucky': {
         name: 'Lucky',

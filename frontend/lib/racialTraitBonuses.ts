@@ -43,3 +43,15 @@ export function getSkillProficienciesFromTraits(traitNames: string[]): string[] 
 export function hasDwarvenToughness(traitNames: string[]): boolean {
     return traitNames.some(t => t.split('(')[0].trim() === 'Dwarven Toughness');
 }
+
+export function hasResourceful(traitNames: string[]): boolean {
+    return traitNames.some(t => t.split('(')[0].trim() === 'Resourceful');
+}
+
+export function hasSkillful(traitNames: string[]): boolean {
+    return traitNames.some(t => t.split('(')[0].trim() === 'Skillful');
+}
+
+export function hasVersatile(traitNames: string[]): boolean {
+    return traitNames.some(t => t.split('(')[0].trim() === 'Versatile');
+}

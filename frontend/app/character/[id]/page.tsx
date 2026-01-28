@@ -14,7 +14,7 @@ import ActionManager from './components/ActionManager';
 import FeatureManager from './components/FeatureManager';
 import CurrencyManager from './components/CurrencyManager';
 import { CharacterData, CharacterItem, CharacterFeature } from '@/lib/types';
-import { calculateClassResources } from '@/lib/classResources';
+import { calculateClassResources, mergeHeroicInspiration } from '@/lib/classResources';
 import { 
     calculateSpeedBonusFromFeatures, 
     getACCalculationFromFeatures,
@@ -22,7 +22,7 @@ import {
     getSavingThrowProficienciesFromFeatures
 } from '@/lib/featureStatModifiers';
 import { isMasteryActionForWeapon } from '@/lib/weaponMastery';
-import { getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
+import { getSkillProficienciesFromTraits, hasResourceful } from '@/lib/racialTraitBonuses';
 import { getRaceTraits, getBackgroundSkills } from '@/lib/wizardReference';
 
 interface GameData {
@@ -852,23 +852,35 @@ export default function CharacterSheet() {
                     {(() => {
                         // Initialize resources for existing characters that don't have them
                         let resources = data.classResources;
+                        let didChange = false;
                         if (!resources || Object.keys(resources).length === 0) {
                             resources = calculateClassResources(character.class.toLowerCase(), level, abilityScores, data.subclassId);
-                            if (Object.keys(resources).length > 0) {
-                                setTimeout(() => handleUpdateCharacter({ classResources: resources }), 0);
-                            }
+                            if (Object.keys(resources).length > 0) didChange = true;
                         } else if (
                             character.class.toLowerCase() === 'fighter' &&
                             data.subclassId === 'gunslinger' &&
                             level >= 3 &&
                             !resources['Grit Points']
                         ) {
-                            // Patch: add Grit Points for existing Gunslingers who have resources but no Grit
                             const withGrit = calculateClassResources(character.class.toLowerCase(), level, abilityScores, data.subclassId);
                             if (withGrit['Grit Points']) {
                                 resources = { ...resources, 'Grit Points': withGrit['Grit Points'] };
-                                setTimeout(() => handleUpdateCharacter({ classResources: resources }), 0);
+                                didChange = true;
                             }
+                        }
+                        const needHeroic = hasResourceful(racialTraits);
+                        const hadHeroic = !!(resources && (resources as Record<string, unknown>)['Heroic Inspiration']);
+                        resources = mergeHeroicInspiration(resources || {}, needHeroic);
+                        if (needHeroic && !hadHeroic) didChange = true;
+                        if (didChange && Object.keys(resources).length > 0) {
+                            const toPersist = resources;
+                            setTimeout(() => {
+                                handleUpdateCharacter({ classResources: toPersist });
+                                api.put(`/characters/${character.id}`, {
+                                    ...character,
+                                    data: { ...character.data, classResources: toPersist }
+                                }).catch((err) => console.error('Failed to persist class resources', err));
+                            }, 0);
                         }
                         
                         return (
