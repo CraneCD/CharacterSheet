@@ -120,14 +120,16 @@ export default function WizardContainer() {
     const handleCreate = async () => {
         setLoading(true);
         try {
-            // 5.5e: backgrounds grant ASI; races do not. Apply background ability score increases.
+            // 5.5e: backgrounds grant ASI, skills, etc.; races grant traits only (no ASI).
             const baseScores = { ...formData.abilityScores };
-            let bg: { abilityScoreIncrease?: { [key: string]: number } } | null = null;
+            type Bg = { id: string; abilityScoreIncrease?: { [key: string]: number }; skillProficiencies?: string[] };
+            let bg: Bg | null = null;
             try {
-                const bgs = await api.get('/reference/backgrounds') as { id: string; abilityScoreIncrease?: { [key: string]: number } }[];
-                bg = bgs.find(b => b.id === formData.backgroundId) || null;
-            } catch {
-                /* ignore */
+                const bgs = await api.get('/reference/backgrounds') as Bg[];
+                const bid = (formData.backgroundId || '').toLowerCase();
+                bg = bgs.find(b => (b.id || '').toLowerCase() === bid) || null;
+            } catch (e) {
+                console.warn('Failed to fetch backgrounds for ASI/skills', e);
             }
             const asi = bg?.abilityScoreIncrease || {};
             for (const [abil, inc] of Object.entries(asi)) {
@@ -147,6 +149,8 @@ export default function WizardContainer() {
                 abilityScores: baseScores,
                 backgroundId: formData.backgroundId,
                 alignment: formData.alignment,
+                skills: bg?.skillProficiencies ?? [],
+                racialTraits: selectedRace?.traits ?? [],
                 hp: { current: maxHp, max: maxHp, temp: 0 },
                 hitDice: { 
                     total: 1, 

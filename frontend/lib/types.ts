@@ -85,6 +85,8 @@ export interface CharacterData {
         cha: number;
     };
     skills: string[];
+    /** Stored at creation from race; used for Features & Traits display. */
+    racialTraits?: string[];
     equipment: (string | CharacterItem)[];
     spells: CharacterSpell[];
     spellSlotsUsed?: { [level: number]: number };

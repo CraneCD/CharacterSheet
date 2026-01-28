@@ -131,7 +131,8 @@ export default function CharacterSheet() {
     if (!character || !gameData) return <div className="p-8 text-center">Loading character sheet...</div>;
 
     const data = character.data;
-    const race = gameData.races.find(r => r.id === character.race) || { name: character.race, traits: [] };
+    const raceId = (character.race || '').toLowerCase();
+    const race = gameData.races.find((r: any) => (r.id || '').toLowerCase() === raceId) || { name: character.race, traits: [] };
     
     // Handle multiclassing
     const classesData = data.classes || {};
@@ -151,8 +152,8 @@ export default function CharacterSheet() {
     // Get full class info for primary class (for backward compatibility)
     const primaryClassId = characterClasses[0]?.id || character.class.toLowerCase();
     const charClass = gameData.classes.find(c => c.id.toLowerCase() === primaryClassId) || { name: character.class };
-    // Fallback for background if ID or full object is customized
-    const background = gameData.backgrounds.find(b => b.id === data.backgroundId) || { name: 'Custom', feature: { name: 'Custom Feature', description: '' } };
+    const bgId = (data.backgroundId || '').toLowerCase();
+    const background = gameData.backgrounds.find((b: any) => (b.id || '').toLowerCase() === bgId) || { name: 'Custom', feature: { name: 'Custom Feature', description: '' } };
 
     // Subclass (for now, only primary class can have subclass)
     const subclass = data.subclassId ? gameData.subclasses.find((s: any) => s.id === data.subclassId) : null;
@@ -289,9 +290,10 @@ export default function CharacterSheet() {
         { name: 'Survival', stat: 'wis' },
     ];
 
+    const racialTraits = (data.racialTraits && data.racialTraits.length > 0) ? data.racialTraits : (race?.traits || []);
     const definedSkills = data.skills || [];
     const baseProficient = definedSkills.length > 0 ? definedSkills : (background?.skillProficiencies || []);
-    const traitSkills = getSkillProficienciesFromTraits(race?.traits || []);
+    const traitSkills = getSkillProficienciesFromTraits(racialTraits);
     const proficientSkills = [...baseProficient];
     for (const s of traitSkills) {
         if (!proficientSkills.includes(s)) proficientSkills.push(s);
@@ -968,8 +970,7 @@ export default function CharacterSheet() {
                                 return true;
                             })}
                             staticFeatures={[
-                                ...(race.traits?.map((trait: string) => {
-                                    // Try exact match first, then try without parentheses content
+                                ...((racialTraits || []).map((trait: string) => {
                                     const traitKey = trait;
                                     const traitData = gameData.traits?.[traitKey] || 
                                         (trait.includes('(') ? gameData.traits?.[trait.split('(')[0].trim()] : undefined);
@@ -978,7 +979,7 @@ export default function CharacterSheet() {
                                         source: 'Racial Trait',
                                         description: traitData?.description || `Racial trait: ${trait}`
                                     };
-                                }) || []),
+                                })),
                                 ...(background.feature ? [{ name: background.feature.name, source: 'Background Feature', description: background.feature.description }] : []),
                                 // Add class features
                                 ...classFeaturesList.map(f => ({
