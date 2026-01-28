@@ -104,11 +104,6 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     const classLevel = levelUpMode === 'multiclass' ? 1 : (effectiveClasses[classId] || 1);
     const needsASI = getASILevels(classId).includes(classLevel + 1);
 
-    const effectiveSubclassIdForFS = (needsSubclass && selectedSubclass) ? selectedSubclass.id : character.data?.subclassId;
-    const fightingStyleCheck = getFightingStyleForLevel(classId, nextLevel, effectiveSubclassIdForFS);
-    const needsFightingStyle = fightingStyleCheck.needed;
-    const allowedFightingStyleIds = fightingStyleCheck.options; // undefined = all
-
     // Subclass State
     const [subclasses, setSubclasses] = useState<Subclass[]>([]);
     const [selectedSubclass, setSelectedSubclass] = useState<Subclass | null>(null);
@@ -154,6 +149,11 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
 
     const subclassLevel = character.classInfo?.subclassLevel;
     const needsSubclass = nextLevel === subclassLevel && !character.data.subclassId;
+
+    const effectiveSubclassIdForFS = (needsSubclass && selectedSubclass) ? selectedSubclass.id : character.data?.subclassId;
+    const fightingStyleCheck = getFightingStyleForLevel(classId, nextLevel, effectiveSubclassIdForFS);
+    const needsFightingStyle = fightingStyleCheck.needed;
+    const allowedFightingStyleIds = fightingStyleCheck.options; // undefined = all
 
     useEffect(() => {
         if (needsSubclass) {
