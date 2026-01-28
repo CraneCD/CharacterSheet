@@ -7,10 +7,11 @@ import StepAbilities from './StepAbilities';
 import StepDetails from './StepDetails';
 import StepStartingEquipment from './StepStartingEquipment';
 import StepReview from './StepReview';
-import { Race, ClassInfo, Subclass, CharacterItem, ItemCategory } from '@/lib/types';
+import { Race, ClassInfo, Subclass, CharacterItem } from '@/lib/types';
 import { calculateClassResources, mergeHeroicInspiration } from '@/lib/classResources';
 import { hasDwarvenToughness, hasResourceful, hasSkillful, hasVersatile } from '@/lib/racialTraitBonuses';
 import { getRaceTraits, getBackgroundAsi, getBackgroundSkills } from '@/lib/wizardReference';
+import { splitEquipmentChoice, itemNameToCharacterItem } from '@/lib/equipmentMapping';
 
 export default function WizardContainer() {
     const router = useRouter();
@@ -42,86 +43,6 @@ export default function WizardContainer() {
         }
     };
 
-    // Helper function to categorize an item by name
-    const categorizeItem = async (itemName: string): Promise<CharacterItem> => {
-        // First, try to find it in base items
-        try {
-            const baseItems = await api.get('/reference/base-items');
-            const baseItem = baseItems.find((item: any) => 
-                item.name.toLowerCase() === itemName.toLowerCase()
-            );
-            
-            if (baseItem) {
-                return {
-                    name: baseItem.name,
-                    category: baseItem.category,
-                    type: baseItem.type,
-                    armorMethod: baseItem.armorMethod,
-                    baseAC: baseItem.baseAC,
-                    damage: baseItem.damage,
-                    damageType: baseItem.damageType,
-                    properties: baseItem.properties,
-                    description: baseItem.description,
-                    quantity: 1,
-                    equipped: false,
-                    isBaseItem: true
-                };
-            }
-        } catch (err) {
-            console.error('Failed to fetch base items for categorization', err);
-        }
-
-        // If not found in base items, use heuristics
-        const nameLower = itemName.toLowerCase();
-        let category: ItemCategory = 'miscellaneous';
-        let type: 'armor' | 'weapon' | 'shield' | 'other' = 'other';
-
-        // Check for currency (gp, sp, cp, ep, pp)
-        if (/\d+\s*(gp|sp|cp|ep|pp)/i.test(itemName)) {
-            category = 'miscellaneous';
-            type = 'other';
-        }
-        // Check for weapons
-        else if (/\b(sword|dagger|axe|mace|hammer|spear|bow|crossbow|staff|wand|club|flail|whip|rapier|scimitar|sickle|trident|lance|pike|halberd|glaive|warhammer|greataxe|greatsword|maul|longbow|shortbow|handaxe|javelin|dart|sling|blowgun)\b/i.test(nameLower)) {
-            category = 'weapon';
-            type = 'weapon';
-        }
-        // Check for armor
-        else if (/\b(armor|mail|plate|leather|chain|scale|hide|breastplate|padded|studded|ring|splint|half|full)\b/i.test(nameLower)) {
-            category = 'armor';
-            type = 'armor';
-        }
-        // Check for shields
-        else if (/\b(shield|buckler)\b/i.test(nameLower)) {
-            category = 'shield';
-            type = 'shield';
-        }
-        // Check for potions
-        else if (/\b(potion|elixir|philter)\b/i.test(nameLower)) {
-            category = 'potion';
-            type = 'other';
-        }
-        // Check for scrolls
-        else if (/\b(scroll|spell scroll)\b/i.test(nameLower)) {
-            category = 'scroll';
-            type = 'other';
-        }
-        // Check for magic items (common magic item names)
-        else if (/\b(amulet|ring|cloak|boots|gloves|gauntlets|helm|hat|crown|wand|staff|rod|orb|gem|stone|crystal|tome|book|manual|deck|figurine|horn|instrument|lyre|harp|flute|drum|whistle|bag|pouch|bottle|vial|flask|lantern|torch|candle|rope|chain|key|lock|trap|tool|kit)\b/i.test(nameLower)) {
-            category = 'magic-item';
-            type = 'other';
-        }
-
-        return {
-            name: itemName,
-            category,
-            type,
-            quantity: 1,
-            equipped: false,
-            isBaseItem: false
-        };
-    };
-
     const handleCreate = async () => {
         setLoading(true);
         try {
@@ -129,13 +50,18 @@ export default function WizardContainer() {
             // Prefer wizard reference (canonical) over API so create is correct even if API is stale.
             const baseScores = { ...formData.abilityScores };
             let bgFromApi: { abilityScoreIncrease?: Record<string, number>; skillProficiencies?: string[]; equipment?: string[] } | null = null;
+            let baseItems: { name: string; category: string; type?: string; armorMethod?: string; baseAC?: number; damage?: string; damageType?: string; properties?: string[] }[] = [];
             try {
-                const bgs = await api.get('/reference/backgrounds') as any[];
+                const [bgs, items] = await Promise.all([
+                    api.get('/reference/backgrounds') as Promise<any[]>,
+                    api.get('/reference/base-items') as Promise<any[]>
+                ]);
                 const bid = (formData.backgroundId || '').toLowerCase();
                 const b = bgs.find((x: any) => (x.id || '').toLowerCase() === bid);
                 if (b) bgFromApi = b;
+                baseItems = items ?? [];
             } catch (e) {
-                console.warn('Failed to fetch backgrounds for ASI/skills', e);
+                console.warn('Failed to fetch backgrounds/base-items', e);
             }
             const asi = getBackgroundAsi(formData.backgroundId) || bgFromApi?.abilityScoreIncrease || {};
             for (const [abil, inc] of Object.entries(asi)) {
@@ -180,7 +106,7 @@ export default function WizardContainer() {
                 }
             }
 
-            const equipment: (string | CharacterItem)[] = [];
+            const equipment: CharacterItem[] = [];
             const currency: { cp?: number; sp?: number; ep?: number; gp?: number; pp?: number } = {};
 
             const bgEquipment = bgFromApi?.equipment ?? [];
@@ -192,12 +118,16 @@ export default function WizardContainer() {
                     const key = m[2].toLowerCase() as 'gp' | 'sp' | 'cp' | 'ep' | 'pp';
                     currency[key] = (currency[key] ?? 0) + amt;
                 } else {
-                    equipment.push(entry);
+                    equipment.push(itemNameToCharacterItem(entry, baseItems));
                 }
             }
 
             for (const choice of formData.startingEquipmentChoices ?? []) {
-                if (choice?.trim()) equipment.push(choice.trim());
+                if (!choice?.trim()) continue;
+                const parts = splitEquipmentChoice(choice.trim());
+                for (const part of parts) {
+                    if (part) equipment.push(itemNameToCharacterItem(part, baseItems));
+                }
             }
 
             const data: any = {
