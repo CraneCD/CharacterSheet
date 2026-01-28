@@ -238,6 +238,44 @@ export const subclasses: Subclass[] = [
         ]
     },
     {
+        id: 'gunslinger',
+        classId: 'fighter',
+        name: 'Gunslinger',
+        description: 'You master experimental firearms and deadly trick shots on the battlefield.',
+        features: [
+            {
+                level: 3,
+                name: 'Firearm Proficiency & Gunsmith',
+                description: 'You gain proficiency with firearms and tinker\'s tools, and you can craft, repair, and maintain firearms during rests.'
+            },
+            {
+                level: 3,
+                name: 'Adept Marksman',
+                description: 'You gain a pool of grit points fueled by critical hits and finishing foes, which you spend to perform special trick shots with your firearms.'
+            },
+            {
+                level: 7,
+                name: 'Lightning Reload',
+                description: 'You can reload one firearm you are holding as part of the Attack action or as a bonus action, and you have advantage on checks to clear misfires.'
+            },
+            {
+                level: 10,
+                name: 'Trick Shooter',
+                description: 'Your trick shots improve; when you hit with a firearm attack, you can apply additional rider effects such as disarming, pushing, or hampering your target.'
+            },
+            {
+                level: 15,
+                name: 'Vicious Intent',
+                description: 'Your firearm attacks score a critical hit on a roll of 19 or 20, and critical hits restore more grit to you.'
+            },
+            {
+                level: 18,
+                name: 'Hemorrhaging Critical',
+                description: 'When you score a critical hit with a firearm, the target suffers bleeding wounds, taking extra damage each turn until it receives magical healing or a successful Medicine check.'
+            }
+        ]
+    },
+    {
         id: 'shadow',
         classId: 'monk',
         name: 'Way of Shadow',

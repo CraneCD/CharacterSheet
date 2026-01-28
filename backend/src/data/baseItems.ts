@@ -262,6 +262,83 @@ export const baseItems: BaseItem[] = [
         isBaseItem: true
     },
     {
+        name: 'Palm Pistol',
+        category: 'weapon',
+        type: 'weapon',
+        damage: '1d8',
+        damageType: 'piercing',
+        properties: ['ammunition (range 20/80)', 'light', 'reload 1', 'misfire d5'],
+        description: 'Cost 20 gp, ammo 2 gp (20), weight 1 lb. A tiny concealable firearm with a short range and a tendency to misfire.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Pistol',
+        category: 'weapon',
+        type: 'weapon',
+        damage: '1d10',
+        damageType: 'piercing',
+        properties: ['ammunition (range 60/120)', 'light', 'reload 4', 'misfire d4'],
+        description: 'Cost 50 gp, ammo 4 gp (20), weight 3 lbs. A one-handed firearm designed for quick-drawing and repeated shots before reloading.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Pepperbox',
+        category: 'weapon',
+        type: 'weapon',
+        damage: '1d10',
+        damageType: 'piercing',
+        properties: ['ammunition (range 70/140)', 'reload 6', 'misfire d4'],
+        description: 'Cost 70 gp, ammo 4 gp (20), weight 4 lbs. A multi-barreled firearm that can be fired several times before it must be reloaded.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Musket',
+        category: 'weapon',
+        type: 'weapon',
+        damage: '1d12',
+        damageType: 'piercing',
+        properties: ['ammunition (range 120/240)', 'reload 1', 'two-handed', 'misfire d3'],
+        description: 'Cost 100 gp, ammo 5 gp (20), weight 10 lbs. A long-barreled firearm that delivers powerful shots at long range.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Blunderbuss',
+        category: 'weapon',
+        type: 'weapon',
+        damage: '2d8',
+        damageType: 'piercing',
+        properties: ['ammunition (range 15/60)', 'reload 1', 'two-handed', 'misfire d3'],
+        description: 'Cost 100 gp, ammo 5 gp (5), weight 10 lbs. A short, wide-mouthed firearm that fires scattering shot in a brutal close-range blast.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Hand Mortar',
+        category: 'weapon',
+        type: 'weapon',
+        damage: '2d8',
+        damageType: 'fire',
+        properties: ['ammunition (range 30/60)', 'reload 1', 'explosive', 'misfire d2'],
+        description: 'Cost 200 gp, ammo 10 gp (1), weight 10 lbs. A heavy handheld launcher that fires explosive shells, dealing fire damage in a small area.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Bad News',
+        category: 'weapon',
+        type: 'weapon',
+        damage: '2d12',
+        damageType: 'piercing',
+        properties: ['ammunition (range 200/400)', 'reload 1', 'two-handed', 'misfire d2'],
+        description: 'Cost 400 gp, ammo 10 gp (5), weight 20 lbs. A massive, experimental rifle that delivers devastating shots at extreme range, but is prone to catastrophic failure.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
         name: 'Quarterstaff',
         category: 'weapon',
         type: 'weapon',
