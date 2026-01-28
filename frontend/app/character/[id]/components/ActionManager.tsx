@@ -2,39 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { CharacterAction, CharacterData, CharacterItem } from '@/lib/types';
+import { CharacterAction, CharacterData } from '@/lib/types';
 
 interface ActionManagerProps {
     characterId: string;
     initialActions: CharacterAction[];
     onUpdate: (data: Partial<CharacterData>) => void;
-    equippedWeapons?: (string | CharacterItem)[]; // To filter out redundant weapon actions
 }
 
-export default function ActionManager({ characterId, initialActions, onUpdate, equippedWeapons = [] }: ActionManagerProps) {
+export default function ActionManager({ characterId, initialActions, onUpdate }: ActionManagerProps) {
     const [actions, setActions] = useState<CharacterAction[]>(initialActions || []);
 
     useEffect(() => {
         setActions(initialActions || []);
     }, [initialActions]);
 
-    // Filter out weapon actions that are redundant with equipped weapons
-    const equippedWeaponNames = equippedWeapons
-        .map(item => (typeof item === 'string' ? item : item.name))
-        .filter(name => name);
-    
-    const weaponActionNames = new Set(
-        equippedWeaponNames.map(name => `${name} Attack`)
-    );
-
-    // Filter out actions that match weapon attack patterns
-    const filteredActions = actions.filter(action => {
-        // Don't filter out if it's not a weapon attack action
-        if (!action.name.endsWith(' Attack')) return true;
-        
-        // Check if this action corresponds to an equipped weapon
-        return !weaponActionNames.has(action.name);
-    });
+    // Weapon attacks live only in the Attacks section (CombatManager). Never show them here.
+    const filteredActions = actions.filter(action => !action.name.endsWith(' Attack'));
     const [isAdding, setIsAdding] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
     const [newItem, setNewItem] = useState<Partial<CharacterAction>>({

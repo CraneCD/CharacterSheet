@@ -128,42 +128,6 @@ export default function EquipmentManager({
         }
     };
 
-    const generateWeaponActionDescription = (weapon: CharacterItem): string => {
-        const mod = (score: number) => Math.floor((score - 10) / 2);
-        const formatMod = (m: number) => m >= 0 ? `+${m}` : `${m}`;
-        
-        // Determine ability modifier (finesse uses Dex or Str, otherwise melee uses Str, ranged uses Dex)
-        const hasFinesse = weapon.properties?.includes('finesse');
-        const isRanged = weapon.properties?.some(p => p.includes('ammunition') || p.includes('thrown'));
-        const abilityMod = hasFinesse 
-            ? Math.max(mod(abilityScores.str), mod(abilityScores.dex))
-            : isRanged 
-                ? mod(abilityScores.dex)
-                : mod(abilityScores.str);
-        
-        const attackMod = abilityMod + proficiencyBonus;
-        const damageMod = abilityMod;
-        
-        const damage = weapon.damage || '1d4';
-        const damageType = weapon.damageType || 'bludgeoning';
-        const properties = weapon.properties?.join(', ') || '';
-        
-        let description = `**Melee/Ranged Weapon Attack:** ${formatMod(attackMod)} to hit`;
-        if (weapon.properties?.some(p => p.includes('range'))) {
-            description += ', range varies';
-        }
-        description += `\n**Hit:** ${damage}`;
-        if (damageMod !== 0) {
-            description += ` ${formatMod(damageMod)}`;
-        }
-        description += ` ${damageType} damage`;
-        if (properties) {
-            description += `\n**Properties:** ${properties}`;
-        }
-        
-        return description;
-    };
-
     const handleEquipToggle = async (index: number, item: CharacterItem) => {
         const newEquipped = !item.equipped;
         
@@ -181,42 +145,27 @@ export default function EquipmentManager({
             setEquipment(newEquipment);
         }
 
-        // Handle weapon action creation/removal
+        // Weapon attacks are shown only in the Attacks section (CombatManager). Do not create them as actions.
+        // Handle Weapon Mastery actions on equip/unequip only.
         if (item.category === 'weapon' || item.type === 'weapon') {
-            const weaponActionName = `${item.name} Attack`;
-            const existingAction = existingActions.find((a: any) => a.name === weaponActionName);
-            
-            if (newEquipped) {
-                if (!existingAction && onCreateAction) {
-                    const actionDescription = generateWeaponActionDescription(item);
-                    try {
-                        await onCreateAction({ name: weaponActionName, description: actionDescription, type: 'action' });
-                    } catch (err) {
-                        console.error('Failed to create weapon action', err);
-                    }
-                }
-                // Weapon Mastery: add mastery actions when equipping
-                if (hasWeaponMastery && onCreateAction) {
-                    const masteryActions = getMasteryActionsForWeapon(item.name);
-                    for (const ma of masteryActions) {
-                        const exists = existingActions.some((a: any) => a.name === ma.name);
-                        if (!exists) {
-                            try {
-                                await onCreateAction(ma);
-                            } catch (err) {
-                                console.error('Failed to create mastery action', err);
-                            }
+            if (newEquipped && hasWeaponMastery && onCreateAction) {
+                const masteryActions = getMasteryActionsForWeapon(item.name);
+                for (const ma of masteryActions) {
+                    const exists = existingActions.some((a: any) => a.name === ma.name);
+                    if (!exists) {
+                        try {
+                            await onCreateAction(ma);
+                        } catch (err) {
+                            console.error('Failed to create mastery action', err);
                         }
                     }
                 }
-            } else {
-                // Unequipping: remove Weapon Mastery actions for this weapon
-                if (hasWeaponMastery && getMasteryForWeapon(item.name) && onDeleteMasteryActionsForWeapon) {
-                    try {
-                        await onDeleteMasteryActionsForWeapon(item.name);
-                    } catch (err) {
-                        console.error('Failed to remove mastery actions', err);
-                    }
+            }
+            if (!newEquipped && hasWeaponMastery && getMasteryForWeapon(item.name) && onDeleteMasteryActionsForWeapon) {
+                try {
+                    await onDeleteMasteryActionsForWeapon(item.name);
+                } catch (err) {
+                    console.error('Failed to remove mastery actions', err);
                 }
             }
         }

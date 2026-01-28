@@ -893,10 +893,6 @@ export default function CharacterSheet() {
                             characterId={character.id}
                             initialActions={data.actions || []}
                             onUpdate={(updates) => handleUpdateCharacter(updates)}
-                            equippedWeapons={equipment.filter(item => {
-                                const itemObj = typeof item === 'string' ? { name: item } : item;
-                                return itemObj.equipped && (itemObj.type === 'weapon' || itemObj.category === 'weapon');
-                            })}
                         />
                     </div>
                 </div>
