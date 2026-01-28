@@ -1,9 +1,14 @@
 import { ClassResources, ClassResource } from './types';
 
 /**
- * Calculate class resources based on class ID and level
+ * Calculate class resources based on class ID, level, and optionally subclass.
  */
-export function calculateClassResources(classId: string, level: number, abilityScores?: { [key: string]: number }): ClassResources {
+export function calculateClassResources(
+    classId: string,
+    level: number,
+    abilityScores?: { [key: string]: number },
+    subclassId?: string
+): ClassResources {
     const resources: ClassResources = {};
 
     switch (classId.toLowerCase()) {
@@ -46,6 +51,19 @@ export function calculateClassResources(classId: string, level: number, abilityS
                 resetType: 'short',
                 description: 'Use a bonus action to regain 1d10 + fighter level hit points.'
             };
+            // Gunslinger (Fighter subclass): Grit Points from Adept Marksman (level 3+)
+            if (subclassId === 'gunslinger' && level >= 3) {
+                const gritMax = abilityScores?.wis != null
+                    ? Math.max(1, Math.floor((abilityScores.wis - 10) / 2))
+                    : 1;
+                resources['Grit Points'] = {
+                    name: 'Grit Points',
+                    current: gritMax,
+                    max: gritMax,
+                    resetType: 'short',
+                    description: 'You spend grit to perform trick shots with firearms. Regain grit on a short rest, when you score a critical hit with a firearm, or when you reduce a creature to 0 HP with a firearm attack.'
+                };
+            }
             break;
 
         case 'barbarian':
@@ -175,10 +193,11 @@ export function updateClassResourcesForLevel(
     classId: string,
     newLevel: number,
     existingResources: ClassResources | undefined,
-    abilityScores?: { [key: string]: number }
+    abilityScores?: { [key: string]: number },
+    subclassId?: string
 ): ClassResources {
-    // Recalculate all resources for the new level
-    const newResources = calculateClassResources(classId, newLevel, abilityScores);
+    // Recalculate all resources for the new level (including subclass resources like Grit)
+    const newResources = calculateClassResources(classId, newLevel, abilityScores, subclassId);
     
     // Preserve current values where possible (don't reset to max automatically)
     // Only update max values, keep current if it's still valid

@@ -368,12 +368,14 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
             // Note: Class and subclass features for the new level are automatically
             // added by the backend, so we don't need to send them here
 
-            // Update class resources for the new level
+            // Update class resources for the new level (include subclass for Gunslinger Grit, etc.)
+            const effectiveSubclassId = (needsSubclass && selectedSubclass) ? selectedSubclass.id : character.data?.subclassId;
             const updatedClassResources = updateClassResourcesForLevel(
                 classId,
                 nextLevel,
                 character.data.classResources,
-                character.data.abilityScores
+                character.data.abilityScores,
+                effectiveSubclassId
             );
 
             // Calculate ability score increases from features (e.g., Primal Champion)

@@ -836,12 +836,21 @@ export default function CharacterSheet() {
                         // Initialize resources for existing characters that don't have them
                         let resources = data.classResources;
                         if (!resources || Object.keys(resources).length === 0) {
-                            resources = calculateClassResources(character.class.toLowerCase(), level, abilityScores);
+                            resources = calculateClassResources(character.class.toLowerCase(), level, abilityScores, data.subclassId);
                             if (Object.keys(resources).length > 0) {
-                                // Update character with initialized resources (async, won't block render)
-                                setTimeout(() => {
-                                    handleUpdateCharacter({ classResources: resources });
-                                }, 0);
+                                setTimeout(() => handleUpdateCharacter({ classResources: resources }), 0);
+                            }
+                        } else if (
+                            character.class.toLowerCase() === 'fighter' &&
+                            data.subclassId === 'gunslinger' &&
+                            level >= 3 &&
+                            !resources['Grit Points']
+                        ) {
+                            // Patch: add Grit Points for existing Gunslingers who have resources but no Grit
+                            const withGrit = calculateClassResources(character.class.toLowerCase(), level, abilityScores, data.subclassId);
+                            if (withGrit['Grit Points']) {
+                                resources = { ...resources, 'Grit Points': withGrit['Grit Points'] };
+                                setTimeout(() => handleUpdateCharacter({ classResources: resources }), 0);
                             }
                         }
                         

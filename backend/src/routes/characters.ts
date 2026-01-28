@@ -91,7 +91,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
                     }
                 };
             } else if (classId === 'fighter') {
-                data.classResources = {
+                const fighterResources: Record<string, { name: string; current: number; max: number; resetType: string; description: string }> = {
                     'Action Surge': {
                         name: 'Action Surge',
                         current: character.level >= 17 ? 2 : 1,
@@ -107,6 +107,20 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
                         description: 'Use a bonus action to regain 1d10 + fighter level hit points.'
                     }
                 };
+                // Gunslinger: Grit Points (Wis mod, min 1) at level 3+
+                const subclassId = (data.subclassId as string) || '';
+                if (subclassId === 'gunslinger' && character.level >= 3) {
+                    const wis = (data.abilityScores as Record<string, number>)?.wis;
+                    const gritMax = wis != null ? Math.max(1, Math.floor((wis - 10) / 2)) : 1;
+                    fighterResources['Grit Points'] = {
+                        name: 'Grit Points',
+                        current: gritMax,
+                        max: gritMax,
+                        resetType: 'short',
+                        description: 'You spend grit to perform trick shots with firearms. Regain grit on a short rest, when you score a critical hit with a firearm, or when you reduce a creature to 0 HP with a firearm attack.'
+                    };
+                }
+                data.classResources = fighterResources;
             } else if (classId === 'barbarian') {
                 let rageUses = 2;
                 if (character.level >= 3) rageUses = 3;
@@ -178,6 +192,29 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
                     }
                 };
             }
+        }
+
+        // Patch: add Grit Points for existing Fighter Gunslingers who have resources but no Grit
+        const classId = (character.class as string).toLowerCase();
+        const subclassId = (data.subclassId as string) || '';
+        if (
+            data.classResources &&
+            Object.keys(data.classResources).length > 0 &&
+            classId === 'fighter' &&
+            subclassId === 'gunslinger' &&
+            character.level >= 3 &&
+            !(data.classResources as Record<string, unknown>)['Grit Points']
+        ) {
+            const abilityScores = (data.abilityScores as Record<string, number>) || {};
+            const wis = abilityScores.wis;
+            const gritMax = wis != null ? Math.max(1, Math.floor((wis - 10) / 2)) : 1;
+            (data.classResources as Record<string, { name: string; current: number; max: number; resetType: string; description: string }>)['Grit Points'] = {
+                name: 'Grit Points',
+                current: gritMax,
+                max: gritMax,
+                resetType: 'short',
+                description: 'You spend grit to perform trick shots with firearms. Regain grit on a short rest, when you score a critical hit with a firearm, or when you reduce a creature to 0 HP with a firearm attack.'
+            };
         }
 
         // Return character with potentially initialized hit dice and resources
