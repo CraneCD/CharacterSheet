@@ -17,6 +17,10 @@ export const traits: { [key: string]: Trait } = {
         name: 'Keen Senses',
         description: 'You have proficiency in the Perception skill.'
     },
+    'Elven Lineage': {
+        name: 'Elven Lineage',
+        description: 'You are part of an elven lineage that grants you supernatural abilities. Choose one lineage: Drow, High Elf, or Wood Elf. Your choice grants you certain traits (see the 2024 PHB).'
+    },
     'Fey Ancestry': {
         name: 'Fey Ancestry',
         description: 'You have advantage on saving throws against being charmed, and magic can\'t put you to sleep.'
@@ -27,11 +31,27 @@ export const traits: { [key: string]: Trait } = {
     },
     'Versatile': {
         name: 'Versatile',
-        description: 'You gain proficiency in one skill of your choice.'
+        description: 'You gain the Skilled feat or another 1st-level feat of your choice.'
+    },
+    'Resourceful': {
+        name: 'Resourceful',
+        description: 'You gain Inspiration whenever you finish a Long Rest.'
+    },
+    'Skillful': {
+        name: 'Skillful',
+        description: 'You gain proficiency in one skill of your choice and one tool of your choice.'
     },
     'Lucky': {
         name: 'Lucky',
         description: 'When you roll a 1 on the d20 for an attack roll, ability check, or saving throw, you can reroll the die and must use the new roll.'
+    },
+    'Luck': {
+        name: 'Luck',
+        description: 'When you roll a 1 on the d20 for an attack roll, ability check, or saving throw, you can reroll the die and must use the new roll.'
+    },
+    'Naturally Stealthy': {
+        name: 'Naturally Stealthy',
+        description: 'You can attempt to hide even when you are obscured only by a creature that is at least one size larger than you.'
     },
     'Brave': {
         name: 'Brave',
@@ -49,6 +69,10 @@ export const traits: { [key: string]: Trait } = {
         name: 'Dwarven Combat Training',
         description: 'You have proficiency with the battleaxe, handaxe, light hammer, and warhammer.'
     },
+    'Dwarven Toughness': {
+        name: 'Dwarven Toughness',
+        description: 'Your hit point maximum increases by 1, and it increases by 1 again whenever you gain a level.'
+    },
     'Stonecunning': {
         name: 'Stonecunning',
         description: 'Whenever you make an Intelligence (History) check related to the origin of stonework, you are considered proficient in the History skill and add double your proficiency bonus to the check, instead of your normal proficiency bonus.'
@@ -56,6 +80,10 @@ export const traits: { [key: string]: Trait } = {
     'Draconic Ancestry': {
         name: 'Draconic Ancestry',
         description: 'You have draconic ancestry. Choose one type of dragon from the Draconic Ancestry table. Your breath weapon and damage resistance are determined by the dragon type, as shown in the table.'
+    },
+    'Draconic Flight': {
+        name: 'Draconic Flight',
+        description: 'When you reach 5th level, you gain the ability to use a bonus action to manifest spectral wings. They last until the end of your turn, and you have a flying speed equal to your walking speed. Once you use this trait, you can\'t do so again until you finish a long rest.'
     },
     'Breath Weapon': {
         name: 'Breath Weapon',
@@ -68,6 +96,14 @@ export const traits: { [key: string]: Trait } = {
     'Gnome Cunning': {
         name: 'Gnome Cunning',
         description: 'You have advantage on all Intelligence, Wisdom, and Charisma saving throws against magic.'
+    },
+    'Gnomish Cunning': {
+        name: 'Gnomish Cunning',
+        description: 'You have advantage on all Intelligence, Wisdom, and Charisma saving throws against magic.'
+    },
+    'Gnomish Lineage': {
+        name: 'Gnomish Lineage',
+        description: 'You are part of a gnomish lineage. Choose one lineage: Forest Gnome or Rock Gnome. Your choice grants you certain traits (see the 2024 PHB).'
     },
     'Skill Versatility': {
         name: 'Skill Versatility',
@@ -92,6 +128,14 @@ export const traits: { [key: string]: Trait } = {
     'Infernal Legacy': {
         name: 'Infernal Legacy',
         description: 'You know the thaumaturgy cantrip. When you reach 3rd level, you can cast the hellish rebuke spell as a 2nd-level spell once with this trait and regain the ability to do so when you finish a long rest. When you reach 5th level, you can cast the darkness spell once with this trait and regain the ability to do so when you finish a long rest. Charisma is your spellcasting ability for these spells.'
+    },
+    'Fiendish Legacy': {
+        name: 'Fiendish Legacy',
+        description: 'You have a legacy of the Lower Planes. Choose one legacy: Abyssal, Chthonic, or Infernal. Your choice grants you a cantrip and spells at 3rd and 5th level (see the 2024 PHB). Charisma is your spellcasting ability.'
+    },
+    'Otherworldly Presence': {
+        name: 'Otherworldly Presence',
+        description: 'You have advantage on saving throws against being charmed or frightened.'
     },
     // Flight and Movement
     'Flight': {
@@ -225,6 +269,22 @@ export const traits: { [key: string]: Trait } = {
     'Light Bearer': {
         name: 'Light Bearer',
         description: 'You know the light cantrip. Charisma is your spellcasting ability for it.'
+    },
+    'Celestial Revelation': {
+        name: 'Celestial Revelation',
+        description: 'When you reach 3rd level, you can use a bonus action to reveal your celestial nature. You gain a transformation that lasts for 1 minute or until you end it (bonus action). Choose Necrotic, Radiant, or Radiant Consumption; each grants different benefits (see the 2024 PHB). Once you use this trait, you can\'t do so again until you finish a long rest.'
+    },
+    'Adrenaline Rush': {
+        name: 'Adrenaline Rush',
+        description: 'You can take the Dash action as a bonus action. When you do so, you gain a number of temporary hit points equal to your proficiency bonus. Once you use this trait, you can\'t do so again until you finish a short or long rest.'
+    },
+    'Giant Ancestry': {
+        name: 'Giant Ancestry',
+        description: 'You have a connection to a kind of giant. Choose one: Cloud, Fire, Frost, Hill, Stone, or Storm. Your choice grants you a 1st-level spell and a 3rd-level spell (see the 2024 PHB).'
+    },
+    'Large Form': {
+        name: 'Large Form',
+        description: 'Starting at 5th level, you can use a bonus action to magically grow. For 1 minute, you become Large, double your reach, and your Strength increases by 2 (max 22). Once you use this trait, you can\'t do so again until you finish a long rest.'
     },
     'Shapechanger': {
         name: 'Shapechanger',

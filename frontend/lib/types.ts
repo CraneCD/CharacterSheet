@@ -115,7 +115,6 @@ export interface Race {
     id: string;
     name: string;
     description: string;
-    abilityScoreIncrease: { [key: string]: number };
     size: string;
     speed: number;
     traits: string[];
@@ -149,6 +148,8 @@ export interface Background {
     toolProficiencies?: string[];
     languages?: number;
     equipment?: string[];
+    /** 5.5e: +2 one ability, +1 another (or +1 to three). Themed to the background. */
+    abilityScoreIncrease?: { [key: string]: number };
     feature: {
         name: string;
         description: string;

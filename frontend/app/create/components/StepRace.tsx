@@ -50,14 +50,6 @@ export default function StepRace({ selectedRaceId, onSelect }: StepRaceProps) {
                             <div style={{ fontSize: '0.875rem' }}>
                                 <strong>Traits:</strong> {race.traits.join(', ')}
                             </div>
-                            <div style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
-                                <strong>Ability Score Increase:</strong>
-                                <ul style={{ paddingLeft: '1.5rem', marginTop: '0.25rem' }}>
-                                    {Object.entries(race.abilityScoreIncrease).map(([stat, val]) => (
-                                        <li key={stat}>{stat.toUpperCase()} +{val}</li>
-                                    ))}
-                                </ul>
-                            </div>
                         </div>
                     );
                 })}

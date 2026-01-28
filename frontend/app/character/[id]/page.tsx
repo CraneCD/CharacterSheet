@@ -22,6 +22,7 @@ import {
     getSavingThrowProficienciesFromFeatures
 } from '@/lib/featureStatModifiers';
 import { isMasteryActionForWeapon } from '@/lib/weaponMastery';
+import { getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
 
 interface GameData {
     races: any[];
@@ -288,11 +289,13 @@ export default function CharacterSheet() {
         { name: 'Survival', stat: 'wis' },
     ];
 
-    const definedSkills = data.skills || []; // From DB
-    // Merge background skills? For now assume data.skills has everything or fallback
-    // Simplification: check if skill name is in data.skills (names array)
-    // Or if data.skills is missing, use background proficiencies
-    const proficientSkills = definedSkills.length > 0 ? definedSkills : (background?.skillProficiencies || []);
+    const definedSkills = data.skills || [];
+    const baseProficient = definedSkills.length > 0 ? definedSkills : (background?.skillProficiencies || []);
+    const traitSkills = getSkillProficienciesFromTraits(race?.traits || []);
+    const proficientSkills = [...baseProficient];
+    for (const s of traitSkills) {
+        if (!proficientSkills.includes(s)) proficientSkills.push(s);
+    }
 
     const skills = skillsList.map(skill => {
         const isProficient = proficientSkills.includes(skill.name);

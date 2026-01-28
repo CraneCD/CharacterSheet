@@ -87,6 +87,14 @@ export default function StepDetails({ data, onUpdate }: StepDetailsProps) {
                     <div style={{ padding: '0.75rem', backgroundColor: 'var(--surface)', borderRadius: '4px', border: '1px solid var(--border)' }}>
                         <h4 style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>{selectedBackground.name}</h4>
                         <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>{selectedBackground.description}</p>
+                        {selectedBackground.abilityScoreIncrease && Object.keys(selectedBackground.abilityScoreIncrease).length > 0 && (
+                            <div style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+                                <strong>Ability Score Increase:</strong>{' '}
+                                {Object.entries(selectedBackground.abilityScoreIncrease ?? {})
+                                    .map(([s, v]) => `${s.toUpperCase()} +${v}`)
+                                    .join(', ')}
+                            </div>
+                        )}
                         <div style={{ fontSize: '0.875rem' }}>
                             <strong>Initial Equipment:</strong> {selectedBackground.equipment?.join(', ') || 'None'}
                         </div>

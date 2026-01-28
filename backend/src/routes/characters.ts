@@ -596,7 +596,9 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
         console.log('Level Up Request:', { hpIncrease, currentHp: data.hp });
         if (hpIncrease) {
             const hp = data.hp || { current: 0, max: 0, temp: 0 };
-            const inc = Number(hpIncrease);
+            let inc = Number(hpIncrease);
+            const dwarvenToughness = (character.race || '').toLowerCase() === 'dwarf';
+            if (dwarvenToughness) inc += 1;
             const oldMax = Number(hp.max) || 0;
             const oldCurrent = Number(hp.current) || 0;
 

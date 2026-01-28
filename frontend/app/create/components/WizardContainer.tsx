@@ -8,6 +8,7 @@ import StepDetails from './StepDetails';
 import StepReview from './StepReview';
 import { Race, ClassInfo, Subclass, CharacterItem, ItemCategory } from '@/lib/types';
 import { calculateClassResources } from '@/lib/classResources';
+import { hasDwarvenToughness } from '@/lib/racialTraitBonuses';
 
 export default function WizardContainer() {
     const router = useRouter();
@@ -119,23 +120,41 @@ export default function WizardContainer() {
     const handleCreate = async () => {
         setLoading(true);
         try {
-            // Calculate class resources for level 1
+            // 5.5e: backgrounds grant ASI; races do not. Apply background ability score increases.
+            const baseScores = { ...formData.abilityScores };
+            let bg: { abilityScoreIncrease?: { [key: string]: number } } | null = null;
+            try {
+                const bgs = await api.get('/reference/backgrounds') as { id: string; abilityScoreIncrease?: { [key: string]: number } }[];
+                bg = bgs.find(b => b.id === formData.backgroundId) || null;
+            } catch {
+                /* ignore */
+            }
+            const asi = bg?.abilityScoreIncrease || {};
+            for (const [abil, inc] of Object.entries(asi)) {
+                const k = abil as keyof typeof baseScores;
+                baseScores[k] = (baseScores[k] ?? 10) + (inc as number);
+            }
+
             const classResources = selectedClass 
-                ? calculateClassResources(selectedClass.id, 1, formData.abilityScores)
+                ? calculateClassResources(selectedClass.id, 1, baseScores)
                 : {};
 
+            const hitDie = selectedClass?.hitDie ?? 8;
+            const dwarvenToughness = selectedRace && hasDwarvenToughness(selectedRace.traits || []);
+            const maxHp = hitDie + (dwarvenToughness ? 1 : 0);
+
             const data: any = {
-                abilityScores: formData.abilityScores,
+                abilityScores: baseScores,
                 backgroundId: formData.backgroundId,
                 alignment: formData.alignment,
-                hp: { current: selectedClass?.hitDie, max: selectedClass?.hitDie, temp: 0 }, // Basic HP init
+                hp: { current: maxHp, max: maxHp, temp: 0 },
                 hitDice: { 
-                    total: 1, // Level 1 character starts with 1 hit die
+                    total: 1, 
                     spent: 0, 
-                    dieType: selectedClass?.hitDie || 8 
+                    dieType: hitDie 
                 },
                 classResources: classResources,
-                equipment: [] // Start with empty equipment - users can add items manually
+                equipment: []
             };
 
             if (selectedSubclass) {
