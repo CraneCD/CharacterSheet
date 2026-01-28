@@ -139,3 +139,72 @@ export const SKILLS_FOR_SKILLFUL = [
     'Nature', 'Perception', 'Performance', 'Persuasion', 'Religion',
     'Sleight of Hand', 'Stealth', 'Survival'
 ];
+
+/** Standard D&D languages. */
+export const STANDARD_LANGUAGES = [
+    'Common',
+    'Dwarvish',
+    'Elvish',
+    'Giant',
+    'Gnomish',
+    'Goblin',
+    'Halfling',
+    'Orc',
+    'Abyssal',
+    'Celestial',
+    'Deep Speech',
+    'Draconic',
+    'Infernal',
+    'Primordial',
+    'Sylvan',
+    'Undercommon',
+    'Aarakocra',
+    'Auran',
+    'Aquan',
+    'Ignan',
+    'Terran',
+    'Thieves\' Cant'
+];
+
+/** Race languages (fixed languages from race, excluding "choice" entries). */
+export const RACE_LANGUAGES: Record<string, string[]> = {
+    human: ['Common'],
+    elf: ['Common', 'Elvish'],
+    dwarf: ['Common', 'Dwarvish'],
+    halfling: ['Common', 'Halfling'],
+    dragonborn: ['Common', 'Draconic'],
+    gnome: ['Common', 'Gnomish'],
+    'half-elf': ['Common', 'Elvish'],
+    'half-orc': ['Common', 'Orc'],
+    tiefling: ['Common', 'Infernal'],
+    orc: ['Common', 'Orc'],
+    aarakocra: ['Common', 'Aarakocra', 'Auran'],
+};
+
+/** Race language choices (number of "choose one" languages). */
+export const RACE_LANGUAGE_CHOICES: Record<string, number> = {
+    human: 1,
+    'half-elf': 1,
+};
+
+/** Background language choices (number of languages granted). */
+export const BACKGROUND_LANGUAGE_CHOICES: Record<string, number> = {
+    acolyte: 2,
+    sage: 2,
+    noble: 1,
+};
+
+export function getRaceLanguages(raceId: string): string[] {
+    const k = (raceId || '').toLowerCase();
+    return RACE_LANGUAGES[k] ?? [];
+}
+
+export function getRaceLanguageChoices(raceId: string): number {
+    const k = (raceId || '').toLowerCase();
+    return RACE_LANGUAGE_CHOICES[k] ?? 0;
+}
+
+export function getBackgroundLanguageChoices(backgroundId: string): number {
+    const k = (backgroundId || '').toLowerCase();
+    return BACKGROUND_LANGUAGE_CHOICES[k] ?? 0;
+}

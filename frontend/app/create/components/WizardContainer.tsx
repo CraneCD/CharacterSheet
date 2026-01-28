@@ -10,7 +10,7 @@ import StepReview from './StepReview';
 import { Race, ClassInfo, Subclass, CharacterItem } from '@/lib/types';
 import { calculateClassResources, mergeHeroicInspiration } from '@/lib/classResources';
 import { hasDwarvenToughness, hasResourceful, hasSkillful, hasVersatile, getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
-import { getRaceTraits, getBackgroundAsi, getBackgroundSkills } from '@/lib/wizardReference';
+import { getRaceTraits, getBackgroundAsi, getBackgroundSkills, getRaceLanguages, getRaceLanguageChoices, getBackgroundLanguageChoices } from '@/lib/wizardReference';
 import { splitEquipmentChoice, itemNameToCharacterItem } from '@/lib/equipmentMapping';
 
 export default function WizardContainer() {
@@ -27,7 +27,8 @@ export default function WizardContainer() {
         skillfulChoice: '' as string,
         versatileFeatId: '' as string,
         startingEquipmentChoices: [] as string[],
-        expertiseChoices: [] as string[]
+        expertiseChoices: [] as string[],
+        languageChoices: [] as string[]
     });
 
     // We store full objects for race/class to display names in Review without refetching
@@ -133,6 +134,14 @@ export default function WizardContainer() {
 
             const expertise = (formData.expertiseChoices || []).filter((s: string) => s?.trim()) as string[];
             
+            // Calculate languages: race languages + choices
+            const raceLangs = getRaceLanguages(formData.raceId);
+            const langChoices = (formData.languageChoices || []).filter((s: string) => s?.trim()) as string[];
+            const languages = [...raceLangs];
+            for (const lang of langChoices) {
+                if (!languages.includes(lang)) languages.push(lang);
+            }
+            
             const data: any = {
                 abilityScores: baseScores,
                 backgroundId: formData.backgroundId,
@@ -151,6 +160,9 @@ export default function WizardContainer() {
             };
             if (expertise.length > 0) {
                 data.expertise = expertise;
+            }
+            if (languages.length > 0) {
+                data.languages = languages;
             }
             if (Object.keys(currency).length > 0) {
                 data.currency = currency;
@@ -206,6 +218,13 @@ export default function WizardContainer() {
                     const expertiseChoices = (formData.expertiseChoices || []) as string[];
                     if (expertiseChoices.filter((s: string) => s?.trim()).length !== 2) return false;
                 }
+                const raceLangChoices = getRaceLanguageChoices(formData.raceId);
+                const bgLangChoices = getBackgroundLanguageChoices(formData.backgroundId);
+                const totalLangChoices = raceLangChoices + bgLangChoices;
+                if (totalLangChoices > 0) {
+                    const languageChoices = (formData.languageChoices || []) as string[];
+                    if (languageChoices.filter((s: string) => s?.trim()).length !== totalLangChoices) return false;
+                }
                 return true;
             }
             default: return true;
@@ -256,7 +275,8 @@ export default function WizardContainer() {
                                 raceId: race.id,
                                 skillfulChoice: '',
                                 versatileFeatId: '',
-                                expertiseChoices: []
+                                expertiseChoices: [],
+                                languageChoices: []
                             });
                             setSelectedRace(race);
                         }}
@@ -293,7 +313,14 @@ export default function WizardContainer() {
                 {step === 4 && (
                     <StepDetails
                         data={{ name: formData.name, backgroundId: formData.backgroundId, alignment: formData.alignment }}
-                        onUpdate={(updates) => setFormData({ ...formData, ...updates })}
+                        onUpdate={(updates) => {
+                            const newFormData = { ...formData, ...updates };
+                            // Reset language choices if background changed
+                            if (updates.backgroundId && updates.backgroundId !== formData.backgroundId) {
+                                newFormData.languageChoices = [];
+                            }
+                            setFormData(newFormData);
+                        }}
                     />
                 )}
                 {step === 5 && (
@@ -324,6 +351,8 @@ export default function WizardContainer() {
                             fightingStyleId={selectedFightingStyle ?? undefined}
                             raceTraits={rt}
                             proficientSkills={proficientSkills}
+                            raceId={formData.raceId}
+                            backgroundId={formData.backgroundId}
                         />
                     );
                 })()}

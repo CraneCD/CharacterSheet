@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { hasSkillful, hasVersatile } from '@/lib/racialTraitBonuses';
-import { ORIGIN_FEAT_IDS, SKILLS_FOR_SKILLFUL } from '@/lib/wizardReference';
+import { ORIGIN_FEAT_IDS, SKILLS_FOR_SKILLFUL, STANDARD_LANGUAGES, getRaceLanguages, getRaceLanguageChoices, getBackgroundLanguageChoices } from '@/lib/wizardReference';
 
 interface StepReviewProps {
     data: any;
@@ -14,13 +14,15 @@ interface StepReviewProps {
     fightingStyleId?: string;
     raceTraits?: string[];
     proficientSkills?: string[];
+    raceId?: string;
+    backgroundId?: string;
 }
 
 function fightingStyleDisplayName(id: string): string {
     return id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
-export default function StepReview({ data, onUpdate, raceName, className, backgroundName, fightingStyleId, raceTraits = [], proficientSkills = [] }: StepReviewProps) {
+export default function StepReview({ data, onUpdate, raceName, className, backgroundName, fightingStyleId, raceTraits = [], proficientSkills = [], raceId, backgroundId }: StepReviewProps) {
     const [feats, setFeats] = useState<{ id: string; name: string }[]>([]);
     const [featsLoading, setFeatsLoading] = useState(false);
     const needsSkillful = hasSkillful(raceTraits);
@@ -30,6 +32,13 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
     const needsExpertise = data.classId === 'rogue';
     const expertiseCount: number = needsExpertise ? 2 : 0;
     const expertiseChoices = (data.expertiseChoices || []) as string[];
+    
+    // Language choices
+    const raceLangChoices = getRaceLanguageChoices(raceId || '');
+    const bgLangChoices = getBackgroundLanguageChoices(backgroundId || '');
+    const totalLangChoices = raceLangChoices + bgLangChoices;
+    const languageChoices = (data.languageChoices || []) as string[];
+    const needsLanguageSelection = totalLangChoices > 0;
 
     useEffect(() => {
         if (!needsVersatile) return;
@@ -50,9 +59,9 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
         <div>
             <h2 className="heading" style={{ marginBottom: '1rem' }}>Review Character</h2>
 
-            {(needsSkillful || needsVersatile || needsExpertise) && onUpdate && (
+            {(needsSkillful || needsVersatile || needsExpertise || needsLanguageSelection) && onUpdate && (
                 <div className="card" style={{ marginBottom: '1rem' }}>
-                    <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>Trait and class choices</h3>
+                    <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>Trait, class, and language choices</h3>
                     {needsSkillful && (
                         <div style={{ marginBottom: needsVersatile ? '1rem' : 0 }}>
                             <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.35rem', fontSize: '0.875rem' }}>
@@ -129,6 +138,47 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
                                     ))}
                                 </div>
                             )}
+                        </div>
+                    )}
+                    {needsLanguageSelection && (
+                        <div style={{ marginTop: (needsSkillful || needsVersatile || needsExpertise) ? '1rem' : 0 }}>
+                            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                                Languages — choose {totalLangChoices} language{totalLangChoices === 1 ? '' : 's'}
+                            </label>
+                            {raceLangChoices > 0 && (
+                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                    From race: {raceLangChoices} language{raceLangChoices === 1 ? '' : 's'}
+                                </p>
+                            )}
+                            {bgLangChoices > 0 && (
+                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                                    From background: {bgLangChoices} language{bgLangChoices === 1 ? '' : 's'}
+                                </p>
+                            )}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                {Array.from({ length: totalLangChoices }).map((_, idx) => (
+                                    <select
+                                        key={idx}
+                                        className="input"
+                                        value={languageChoices[idx] || ''}
+                                        onChange={(e) => {
+                                            const updated = [...languageChoices];
+                                            updated[idx] = e.target.value;
+                                            // Remove duplicates
+                                            const unique = Array.from(new Set(updated.filter(Boolean)));
+                                            while (unique.length < totalLangChoices) unique.push('');
+                                            onUpdate({ languageChoices: unique.slice(0, totalLangChoices) });
+                                        }}
+                                    >
+                                        <option value="">Select a language...</option>
+                                        {STANDARD_LANGUAGES
+                                            .filter(lang => !languageChoices.includes(lang) || languageChoices[idx] === lang)
+                                            .map((lang) => (
+                                                <option key={lang} value={lang}>{lang}</option>
+                                            ))}
+                                    </select>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>

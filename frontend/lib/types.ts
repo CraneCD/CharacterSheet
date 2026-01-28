@@ -87,6 +87,8 @@ export interface CharacterData {
     skills: string[];
     /** Skills with Expertise (double proficiency bonus). */
     expertise?: string[];
+    /** Languages known by the character. */
+    languages?: string[];
     /** Stored at creation from race; used for Features & Traits display. */
     racialTraits?: string[];
     equipment: (string | CharacterItem)[];
