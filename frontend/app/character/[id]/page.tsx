@@ -296,13 +296,15 @@ export default function CharacterSheet() {
         ? data.racialTraits
         : (canonTraits.length > 0 ? canonTraits : (race?.traits || []));
     const canonSkills = getBackgroundSkills(data.backgroundId);
-    const definedSkills = data.skills || [];
-    const baseProficient = definedSkills.length > 0
-        ? definedSkills
-        : (canonSkills.length > 0 ? canonSkills : (background?.skillProficiencies || []));
+    const bgSkills = canonSkills.length > 0 ? canonSkills : (background?.skillProficiencies || []);
     const traitSkills = getSkillProficienciesFromTraits(racialTraits);
-    const proficientSkills = [...baseProficient];
+    const baseSkills = [...bgSkills];
     for (const s of traitSkills) {
+        if (!baseSkills.includes(s)) baseSkills.push(s);
+    }
+    const storedSkills = data.skills || [];
+    const proficientSkills = [...baseSkills];
+    for (const s of storedSkills) {
         if (!proficientSkills.includes(s)) proficientSkills.push(s);
     }
 
@@ -320,24 +322,28 @@ export default function CharacterSheet() {
     };
 
     const handleToggleSkillProficiency = async (skillName: string) => {
-        const currentSkills = data.skills || [];
-        const isCurrentlyProficient = currentSkills.includes(skillName);
-        
-        let updatedSkills: string[];
+        const isCurrentlyProficient = proficientSkills.includes(skillName);
+        const currentStored = data.skills || [];
+
+        let updatedStored: string[];
         if (isCurrentlyProficient) {
-            // Remove proficiency
-            updatedSkills = currentSkills.filter((s: string) => s !== skillName);
+            updatedStored = currentStored.filter((s: string) => s !== skillName);
         } else {
-            // Add proficiency
-            updatedSkills = [...currentSkills, skillName];
+            if (currentStored.includes(skillName)) return;
+            updatedStored = [...currentStored, skillName];
+        }
+
+        const toPersist: string[] = [...baseSkills];
+        for (const s of updatedStored) {
+            if (!toPersist.includes(s)) toPersist.push(s);
         }
 
         try {
             await api.put(`/characters/${character.id}`, {
                 ...character,
-                data: { ...character.data, skills: updatedSkills }
+                data: { ...character.data, skills: toPersist }
             });
-            handleUpdateCharacter({ skills: updatedSkills });
+            handleUpdateCharacter({ skills: toPersist });
         } catch (err) {
             console.error('Failed to update skill proficiency', err);
             alert('Failed to update skill proficiency');
