@@ -973,7 +973,7 @@ export default function CharacterSheet() {
                     </div>
 
                     {/* Actions & Bonus Actions */}
-                    <div>
+                    <div className="sheet-column-fill">
                         <ActionManager
                             characterId={character.id}
                             initialActions={data.actions || []}
@@ -1035,7 +1035,7 @@ export default function CharacterSheet() {
                     </div>
 
                     {/* Features & Traits */}
-                    <div>
+                    <div className="sheet-column-fill">
                         <FeatureManager
                             characterId={character.id}
                             initialFeatures={(data.features || []).filter((f: CharacterFeature) => {

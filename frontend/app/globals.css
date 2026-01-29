@@ -357,6 +357,7 @@ button {
   .sheet-grid {
     grid-template-columns: 260px 1fr 1fr;
     gap: 1.25rem;
+    align-items: stretch;
   }
 }
 
@@ -371,6 +372,22 @@ button {
 @media (min-width: 1024px) {
   .sheet-column {
     gap: 1.25rem;
+  }
+}
+
+/* Fill sections grow so column bottoms align when collapsed (Actions, Features & Traits) */
+@media (min-width: 1024px) {
+  .sheet-column-fill {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .sheet-column-fill > .card {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 }
 
