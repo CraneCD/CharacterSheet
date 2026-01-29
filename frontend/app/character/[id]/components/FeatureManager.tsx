@@ -75,7 +75,7 @@ export default function FeatureManager({ characterId, initialFeatures, staticFea
 
     return (
         <div className="card">
-            <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                 Features & Traits
                 <button
                     className="button primary"
@@ -87,7 +87,7 @@ export default function FeatureManager({ characterId, initialFeatures, staticFea
             </h3>
 
             {isAdding && (
-                <div style={{ marginBottom: '1rem', backgroundColor: 'var(--surface)', padding: '0.75rem', borderRadius: '4px' }}>
+                <div style={{ marginBottom: '1rem', backgroundColor: 'var(--surface)', padding: '0.75rem', borderRadius: '4px', flexShrink: 0 }}>
                     <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '0.5rem' }}>
                         <input
                             type="text"
@@ -120,13 +120,14 @@ export default function FeatureManager({ characterId, initialFeatures, staticFea
                 </div>
             )}
 
-            <div style={{ position: 'relative' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <div 
                     style={{ 
+                        flex: 1,
                         display: 'flex', 
                         flexDirection: 'column', 
                         gap: '0.75rem',
-                        maxHeight: isExpanded ? 'none' : '400px',
+                        minHeight: 0,
                         overflowY: isExpanded ? 'visible' : 'auto',
                         paddingRight: isExpanded ? '0' : '0.5rem',
                         marginRight: isExpanded ? '0' : '-0.5rem'
@@ -134,7 +135,7 @@ export default function FeatureManager({ characterId, initialFeatures, staticFea
                 >
                     {/* Static (Read-Only) Features */}
                     {staticFeatures.map((feature, i) => (
-                        <div key={`static-${i}`} style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+                        <div key={`static-${i}`} style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', flexShrink: 0 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.25rem' }}>
                                 <span style={{ fontWeight: 'bold', fontSize: '1rem' }}>{feature.name}</span>
                                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{feature.source}</span>
@@ -147,7 +148,7 @@ export default function FeatureManager({ characterId, initialFeatures, staticFea
 
                     {/* Dynamic Features */}
                     {features.map((feature, i) => (
-                        <div key={i} style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+                        <div key={i} style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', flexShrink: 0 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.25rem' }}>
                                 <span style={{ fontWeight: 'bold', fontSize: '1rem' }}>{feature.name}</span>
                                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -173,14 +174,15 @@ export default function FeatureManager({ characterId, initialFeatures, staticFea
                     )}
                 </div>
 
-                {/* Expand/Collapse Button - only show if there are features and not expanded */}
+                {/* Expand/Collapse Button - pinned to bottom of card */}
                 {(staticFeatures.length > 0 || features.length > 0) && (
                     <div style={{ 
                         display: 'flex', 
                         justifyContent: 'center', 
-                        marginTop: '0.75rem',
+                        marginTop: 'auto',
                         paddingTop: '0.75rem',
-                        borderTop: isExpanded ? '1px solid var(--border)' : 'none'
+                        borderTop: '1px solid var(--border)',
+                        flexShrink: 0
                     }}>
                         <button
                             className="button secondary"

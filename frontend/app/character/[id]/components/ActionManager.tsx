@@ -109,7 +109,7 @@ export default function ActionManager({ characterId, initialActions, onUpdate }:
 
     return (
         <div className="card">
-            <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                 Actions & Bonus Actions
                 <button
                     className="button primary"
@@ -121,7 +121,7 @@ export default function ActionManager({ characterId, initialActions, onUpdate }:
             </h3>
 
             {isAdding && (
-                <div style={{ marginBottom: '1rem', backgroundColor: 'var(--surface)', padding: '0.75rem', borderRadius: '4px' }}>
+                <div style={{ marginBottom: '1rem', backgroundColor: 'var(--surface)', padding: '0.75rem', borderRadius: '4px', flexShrink: 0 }}>
                     <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '0.5rem' }}>
                         <select
                             className="input"
@@ -157,10 +157,11 @@ export default function ActionManager({ characterId, initialActions, onUpdate }:
                 </div>
             )}
 
-            <div style={{ position: 'relative' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <div 
                     style={{ 
-                        maxHeight: isExpanded ? 'none' : '400px',
+                        flex: 1,
+                        minHeight: 0,
                         overflowY: isExpanded ? 'visible' : 'auto',
                         paddingRight: isExpanded ? '0' : '0.5rem',
                         marginRight: isExpanded ? '0' : '-0.5rem'
@@ -176,14 +177,15 @@ export default function ActionManager({ characterId, initialActions, onUpdate }:
                     {renderActionGroup('Other', actionsList.filter(a => a.type === 'other'))}
                 </div>
 
-                {/* Expand/Collapse Button - only show if there are actions */}
+                {/* Expand/Collapse Button - pinned to bottom of card */}
                 {actionsList.length > 0 && (
                     <div style={{ 
                         display: 'flex', 
                         justifyContent: 'center', 
-                        marginTop: '0.75rem',
+                        marginTop: 'auto',
                         paddingTop: '0.75rem',
-                        borderTop: isExpanded ? '1px solid var(--border)' : 'none'
+                        borderTop: '1px solid var(--border)',
+                        flexShrink: 0
                     }}>
                         <button
                             className="button secondary"
