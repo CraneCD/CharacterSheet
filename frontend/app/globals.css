@@ -556,6 +556,109 @@ button {
   }
 }
 
+/* Spellcasting section – responsive */
+.spellcasting-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.spellcasting-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .spellcasting-header {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    gap: 0.75rem;
+  }
+
+  .spellcasting-stats {
+    justify-content: center;
+    gap: 1.25rem;
+  }
+}
+
+/* SpellManager – responsive */
+.spellbook-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .spellbook-header {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .spellbook-header > div:last-child {
+    justify-content: center;
+  }
+}
+
+.spell-level-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .spell-level-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.spell-level-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .spell-level-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.spell-item-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .spell-item-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .spell-item-row > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+}
+
 @media print {
 
   .no-print,

@@ -574,14 +574,16 @@ export default function SpellManager({ characterId, classId, level, initialSpell
 
     return (
         <div className="card">
-            <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                {preparedCaster ? 'Spellbook (Prepare Spells)' : 'Spellbook'}
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div className="spellbook-header" style={{ marginBottom: '0.75rem' }}>
+                <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', margin: 0 }}>
+                    {preparedCaster ? 'Spellbook (Prepare Spells)' : 'Spellbook'}
                     {preparedCaster && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', display: 'block', marginTop: '0.25rem' }}>
                             Prepared: {currentPreparedCount} / {preparedSpellsLimit}
                         </span>
                     )}
+                </h3>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', justifyContent: 'flex-end' }}>
                     <button className="button secondary" onClick={() => setSlotsUsed({})} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>Rest (Reset Slots)</button>
                     {!preparedCaster && (
                         <button
@@ -619,7 +621,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                         </>
                     )}
                 </div>
-            </h3>
+            </div>
 
             {/* Spell Details Modal */}
             <SpellDetailsModal 
@@ -769,16 +771,14 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 return (
                 <div key={group.level} style={{ marginBottom: '1rem' }}>
                     <div 
+                        className="spell-level-row"
                         style={{ 
                             borderBottom: '1px solid var(--border)', 
                             paddingBottom: '0.25rem', 
                             marginBottom: '0.5rem', 
                             fontWeight: 'bold', 
                             fontSize: '0.875rem', 
-                            color: 'var(--text-muted)', 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
-                            alignItems: 'center',
+                            color: 'var(--text-muted)',
                             cursor: 'pointer'
                         }}
                         onClick={() => setExpandedLevels({ ...expandedLevels, [group.level]: !isExpanded })}
@@ -795,7 +795,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
 
                         {/* Spell Slots UI */}
                         {group.level > 0 && group.slots > 0 && (
-                            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+                            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
                                 <span style={{ marginRight: '0.5rem', fontSize: '0.75rem' }}>Slots:</span>
                                 {Array.from({ length: group.slots }).map((_, slotIdx) => {
                                     const isUsed = slotIdx < (slotsUsed[group.level] || 0);
@@ -833,7 +833,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     </div>
 
                     {isExpanded && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem' }}>
+                        <div className="spell-level-grid">
                             {group.spells.map(spell => {
                             // For prepared casters, spell might have isKnown property
                             const isKnown = preparedCaster ? (spell as any).isKnown !== false : true;
@@ -843,12 +843,12 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             const fullSpell = allSpells.find(s => s.id === spell.id);
                             
                             return (
-                                <div key={spell.id} className="spell-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--surface)', padding: '0.5rem', borderRadius: '4px' }}>
+                                <div key={spell.id} className="spell-item spell-item-row" style={{ backgroundColor: 'var(--surface)', padding: '0.5rem', borderRadius: '4px' }}>
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
                                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{spell.school}</div>
                                     </div>
-                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                                         {fullSpell && (
                                             <button
                                                 className="button secondary"

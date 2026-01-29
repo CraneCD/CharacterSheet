@@ -1202,9 +1202,9 @@ export default function CharacterSheet() {
                 return (
                     <div style={{ marginTop: '1rem' }}>
                         <div className="card">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border)' }}>
+                            <div className="spellcasting-header">
                                 <h2 className="heading" style={{ margin: 0, fontSize: '1.5rem' }}>Spellcasting</h2>
-                                <div style={{ display: 'flex', gap: '2rem', textAlign: 'center' }}>
+                                <div className="spellcasting-stats">
                                     <div>
                                         <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Ability</div>
                                         <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase' }}>
