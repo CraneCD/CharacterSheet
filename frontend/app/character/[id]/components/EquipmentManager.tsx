@@ -128,16 +128,22 @@ export default function EquipmentManager({
         }
     };
 
+    const isArmor = (i: CharacterItem) => i.category === 'armor' || i.type === 'armor';
+    const isShield = (i: CharacterItem) => i.category === 'shield' || i.type === 'shield';
+    const isWeapon = (i: CharacterItem) => i.category === 'weapon' || i.type === 'weapon';
+    const isEquipable = (i: CharacterItem) => isArmor(i) || isShield(i) || isWeapon(i);
+
     const handleEquipToggle = async (index: number, item: CharacterItem) => {
         const newEquipped = !item.equipped;
         
         // Handle exclusive equipment (only one armor, one shield can be equipped)
-        if (newEquipped && (item.category === 'armor' || item.category === 'shield')) {
+        if (newEquipped && (isArmor(item) || isShield(item))) {
             const newEquipment = [...equipment];
             newEquipment.forEach((eq, i) => {
                 if (i !== index && typeof eq !== 'string') {
                     const eqItem = eq as CharacterItem;
-                    if (eqItem.category === item.category && eqItem.equipped) {
+                    const sameKind = (isArmor(item) && isArmor(eqItem)) || (isShield(item) && isShield(eqItem));
+                    if (sameKind && eqItem.equipped) {
                         eqItem.equipped = false;
                     }
                 }
@@ -147,7 +153,7 @@ export default function EquipmentManager({
 
         // Weapon attacks are shown only in the Attacks section (CombatManager). Do not create them as actions.
         // Handle Weapon Mastery actions on equip/unequip only.
-        if (item.category === 'weapon' || item.type === 'weapon') {
+        if (isWeapon(item)) {
             if (newEquipped && hasWeaponMastery && onCreateAction) {
                 const masteryActions = getMasteryActionsForWeapon(item.name);
                 for (const ma of masteryActions) {
@@ -453,7 +459,7 @@ export default function EquipmentManager({
                                             <li key={actualIndex} style={{ borderBottom: '1px solid var(--border)', marginBottom: '0.5rem' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                                                        {(itemObj.category === 'armor' || itemObj.category === 'shield' || itemObj.category === 'weapon') && (
+                                                        {(isEquipable(itemObj)) && (
                                                             <input
                                                                 type="checkbox"
                                                                 checked={!!itemObj.equipped}
@@ -556,7 +562,7 @@ export default function EquipmentManager({
                                                                     }}
                                                                 />
                                                             </div>
-                                                            {(itemObj.category === 'armor' || itemObj.category === 'shield') && (
+                                                            {(isArmor(itemObj) || isShield(itemObj)) && (
                                                                 <div>
                                                                     <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Base AC</label>
                                                                     <input
@@ -565,7 +571,7 @@ export default function EquipmentManager({
                                                                         pattern="[0-9]*"
                                                                         className="input"
                                                                         value={(() => {
-                                                                            const ac = itemObj.baseAC || (itemObj.category === 'shield' ? 2 : 11);
+                                                                            const ac = itemObj.baseAC ?? (isShield(itemObj) ? 2 : 11);
                                                                             return ac === 0 ? '' : ac.toString();
                                                                         })()}
                                                                         onChange={e => {
@@ -577,14 +583,14 @@ export default function EquipmentManager({
                                                                         }}
                                                                         onBlur={(e) => {
                                                                             if (e.target.value === '') {
-                                                                                handleUpdateItem(actualIndex, { baseAC: itemObj.category === 'shield' ? 2 : 11 });
+                                                                                handleUpdateItem(actualIndex, { baseAC: isShield(itemObj) ? 2 : 11 });
                                                                             }
                                                                         }}
                                                                     />
                                                                 </div>
                                                             )}
                                                         </div>
-                                                        {itemObj.category === 'armor' && (
+                                                        {isArmor(itemObj) && (
                                                             <div>
                                                                 <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Armor Type</label>
                                                                 <select
@@ -598,7 +604,7 @@ export default function EquipmentManager({
                                                                 </select>
                                                             </div>
                                                         )}
-                                                        {itemObj.category === 'weapon' && (
+                                                        {isWeapon(itemObj) && (
                                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
                                                                 <div>
                                                                     <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Damage</label>

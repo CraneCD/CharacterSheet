@@ -215,14 +215,15 @@ export default function CharacterSheet() {
     // Check if unarmored (no armor equipped)
     const isUnarmored = !armor;
 
-    if (armor && armor.baseAC) {
+    if (armor) {
+        const baseAC = armor.baseAC ?? 11;
         if (armor.armorMethod === 'heavy') {
-            calculatedAC = armor.baseAC;
+            calculatedAC = baseAC;
         } else if (armor.armorMethod === 'medium') {
-            calculatedAC = armor.baseAC + Math.min(effectiveModifiers.dex, 2);
+            calculatedAC = baseAC + Math.min(effectiveModifiers.dex, 2);
         } else {
             // Light or undefined -> Base + Dex
-            calculatedAC = armor.baseAC + effectiveModifiers.dex;
+            calculatedAC = baseAC + effectiveModifiers.dex;
         }
     } else {
         // Unarmored Defense calculations
@@ -236,10 +237,8 @@ export default function CharacterSheet() {
         }
     }
 
-    if (shield && shield.baseAC) {
-        calculatedAC += shield.baseAC;
-    } else if (shield) {
-        calculatedAC += 2;
+    if (shield) {
+        calculatedAC += shield.baseAC ?? 2;
     }
 
     // Defense fighting style: +1 AC while wearing armor

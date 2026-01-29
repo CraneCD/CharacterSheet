@@ -367,6 +367,9 @@ export const baseItems: BaseItem[] = [
         name: 'Armblade',
         category: 'magic-item',
         type: 'weapon',
+        damage: '1d6',
+        damageType: 'piercing',
+        properties: ['finesse', 'light'],
         description: 'This prosthetic arm ends in a weapon. As a bonus action, you can extend or retract the weapon. The weapon can be a dagger, shortsword, or any simple weapon.',
         equipped: false,
         isBaseItem: true
@@ -375,6 +378,8 @@ export const baseItems: BaseItem[] = [
         name: 'Armor of Gleaming',
         category: 'magic-item',
         type: 'armor',
+        armorMethod: 'medium',
+        baseAC: 13,
         description: 'This armor never gets dirty. While wearing it, you gain advantage on Charisma (Persuasion) checks made to interact with nobles or royalty.',
         equipped: false,
         isBaseItem: true
@@ -439,6 +444,8 @@ export const baseItems: BaseItem[] = [
         name: 'Cast-Off Armor',
         category: 'magic-item',
         type: 'armor',
+        armorMethod: 'medium',
+        baseAC: 13,
         description: 'You can doff this armor as an action. When you doff it, the armor magically removes itself and appears in a space within 5 feet of you.',
         equipped: false,
         isBaseItem: true
@@ -767,6 +774,9 @@ export const baseItems: BaseItem[] = [
         name: 'Moon-Touched Sword',
         category: 'magic-item',
         type: 'weapon',
+        damage: '1d8',
+        damageType: 'slashing',
+        properties: ['versatile'],
         description: 'In darkness, the unsheathed blade of this sword sheds moonlight, creating bright light in a 15-foot radius and dim light for an additional 15 feet.',
         equipped: false,
         isBaseItem: true
@@ -935,6 +945,7 @@ export const baseItems: BaseItem[] = [
         name: 'Shield of Expression',
         category: 'magic-item',
         type: 'shield',
+        baseAC: 2,
         description: 'This shield can be commanded to display different facial expressions. It provides no mechanical benefit.',
         equipped: false,
         isBaseItem: true
@@ -951,6 +962,8 @@ export const baseItems: BaseItem[] = [
         name: 'Smoldering Armor',
         category: 'magic-item',
         type: 'armor',
+        armorMethod: 'heavy',
+        baseAC: 16,
         description: 'This armor is always warm to the touch and sheds dim light in a 5-foot radius. While wearing it, you have resistance to cold damage.',
         equipped: false,
         isBaseItem: true
@@ -983,6 +996,9 @@ export const baseItems: BaseItem[] = [
         name: 'Staff of Adornment',
         category: 'magic-item',
         type: 'weapon',
+        damage: '1d6',
+        damageType: 'bludgeoning',
+        properties: ['versatile'],
         description: 'This staff can be used as a spellcasting focus. While holding it, you can use a bonus action to cause it to shed bright light in a 20-foot radius.',
         equipped: false,
         isBaseItem: true
@@ -991,6 +1007,9 @@ export const baseItems: BaseItem[] = [
         name: 'Staff of Birdcalls',
         category: 'magic-item',
         type: 'weapon',
+        damage: '1d6',
+        damageType: 'bludgeoning',
+        properties: ['versatile'],
         description: 'This staff can mimic the calls of birds. You can use an action to cause it to produce the sound of any bird you have heard.',
         equipped: false,
         isBaseItem: true
@@ -999,6 +1018,9 @@ export const baseItems: BaseItem[] = [
         name: 'Staff of Flowers',
         category: 'magic-item',
         type: 'weapon',
+        damage: '1d6',
+        damageType: 'bludgeoning',
+        properties: ['versatile'],
         description: 'This staff can be used to create flowers. You can use an action to cause fresh flowers to bloom from the staff.',
         equipped: false,
         isBaseItem: true
@@ -1047,6 +1069,9 @@ export const baseItems: BaseItem[] = [
         name: 'Unbreakable Arrow',
         category: 'magic-item',
         type: 'weapon',
+        damage: '1d6',
+        damageType: 'piercing',
+        properties: ['ammunition', 'range (80/320)'],
         description: 'This arrow cannot be broken. If it would be destroyed, it instead returns to your quiver at the start of your next turn.',
         equipped: false,
         isBaseItem: true
@@ -1055,6 +1080,9 @@ export const baseItems: BaseItem[] = [
         name: 'Veteran\'s Cane',
         category: 'magic-item',
         type: 'weapon',
+        damage: '1d6',
+        damageType: 'bludgeoning',
+        properties: ['versatile'],
         description: 'This cane can be used as a quarterstaff. While holding it, you have advantage on Wisdom (Insight) checks.',
         equipped: false,
         isBaseItem: true
@@ -1119,6 +1147,8 @@ export const baseItems: BaseItem[] = [
         name: 'Adamantine Armor',
         category: 'magic-item',
         type: 'armor',
+        armorMethod: 'heavy',
+        baseAC: 16,
         description: 'This suit of armor is reinforced with adamantine, one of the hardest substances in existence. While you\'re wearing it, any critical hit against you becomes a normal hit.',
         equipped: false,
         isBaseItem: true
@@ -1199,6 +1229,8 @@ export const baseItems: BaseItem[] = [
         name: 'Armor Of Fungal Spores',
         category: 'magic-item',
         type: 'armor',
+        armorMethod: 'medium',
+        baseAC: 14,
         description: 'While wearing this armor, you can use a bonus action to cause spores to burst from the armor. Each creature of your choice within 5 feet of you must succeed on a Constitution saving throw or be poisoned for 1 minute.',
         equipped: false,
         isBaseItem: true
@@ -1207,6 +1239,8 @@ export const baseItems: BaseItem[] = [
         name: 'Armor Of The Fallen',
         category: 'magic-item',
         type: 'armor',
+        armorMethod: 'heavy',
+        baseAC: 16,
         description: 'This armor is imbued with the essence of fallen warriors. While wearing it, you have advantage on death saving throws.',
         equipped: false,
         isBaseItem: true
@@ -1215,6 +1249,8 @@ export const baseItems: BaseItem[] = [
         name: 'Armor Of Weightlessness',
         category: 'magic-item',
         type: 'armor',
+        armorMethod: 'heavy',
+        baseAC: 16,
         description: 'This armor weighs only 1 pound regardless of its type. While wearing it, you have a climbing speed equal to your walking speed.',
         equipped: false,
         isBaseItem: true
@@ -2295,6 +2331,9 @@ export const baseItems: BaseItem[] = [
         name: 'Seeker Dart',
         category: 'magic-item',
         type: 'weapon',
+        damage: '1d4',
+        damageType: 'piercing',
+        properties: ['finesse', 'thrown', 'range (20/60)'],
         description: 'When you throw this dart, it magically seeks out a target you can see within 120 feet. The dart has a +3 bonus to attack and damage rolls.',
         equipped: false,
         isBaseItem: true
@@ -2319,6 +2358,7 @@ export const baseItems: BaseItem[] = [
         name: 'Sentinel Shield',
         category: 'magic-item',
         type: 'shield',
+        baseAC: 2,
         description: 'While holding this shield, you have advantage on initiative rolls and Wisdom (Perception) checks.',
         equipped: false,
         isBaseItem: true
@@ -2327,6 +2367,8 @@ export const baseItems: BaseItem[] = [
         name: 'Serpent Scale Armor',
         category: 'magic-item',
         type: 'armor',
+        armorMethod: 'medium',
+        baseAC: 14,
         description: 'This armor is made from the scales of a serpent. While wearing it, you have resistance to poison damage and advantage on saving throws against being poisoned.',
         equipped: false,
         isBaseItem: true
@@ -2335,6 +2377,9 @@ export const baseItems: BaseItem[] = [
         name: 'Shatterspike',
         category: 'magic-item',
         type: 'weapon',
+        damage: '1d8',
+        damageType: 'piercing',
+        properties: ['versatile'],
         description: 'When you hit an object with this weapon, the attack deals maximum damage to the object.',
         equipped: false,
         isBaseItem: true
@@ -2343,6 +2388,7 @@ export const baseItems: BaseItem[] = [
         name: 'Shield, +1, +2, +3',
         category: 'magic-item',
         type: 'shield',
+        baseAC: 3,
         description: 'While holding this shield, you have a bonus to AC. The bonus is determined by the shield\'s rarity.',
         equipped: false,
         isBaseItem: true
@@ -2351,6 +2397,7 @@ export const baseItems: BaseItem[] = [
         name: 'Shield Of The Tortoise',
         category: 'magic-item',
         type: 'shield',
+        baseAC: 2,
         description: 'While holding this shield, you can use a bonus action to gain a +2 bonus to AC until the start of your next turn.',
         equipped: false,
         isBaseItem: true
@@ -2367,6 +2414,9 @@ export const baseItems: BaseItem[] = [
         name: 'Skyblinder Staff',
         category: 'magic-item',
         type: 'weapon',
+        damage: '1d6',
+        damageType: 'bludgeoning',
+        properties: ['versatile'],
         description: 'This staff can be used as a spellcasting focus. While holding it, you can use an action to cast the blindness/deafness spell from it.',
         equipped: false,
         isBaseItem: true
@@ -2375,6 +2425,9 @@ export const baseItems: BaseItem[] = [
         name: 'Sling Of Giant Felling',
         category: 'magic-item',
         type: 'weapon',
+        damage: '1d4',
+        damageType: 'bludgeoning',
+        properties: ['ammunition', 'range (30/120)'],
         description: 'When you hit a giant with this sling, the giant must succeed on a Strength saving throw or be knocked prone.',
         equipped: false,
         isBaseItem: true
@@ -2439,6 +2492,9 @@ export const baseItems: BaseItem[] = [
         name: 'Staff of the Adder',
         category: 'magic-item',
         type: 'weapon',
+        damage: '1d6',
+        damageType: 'bludgeoning',
+        properties: ['versatile'],
         description: 'You can use a bonus action to speak this staff\'s command word and cause the head of the staff to transform into that of an animate serpent for 1 minute.',
         equipped: false,
         isBaseItem: true
@@ -2447,6 +2503,9 @@ export const baseItems: BaseItem[] = [
         name: 'Staff of the Python',
         category: 'magic-item',
         type: 'weapon',
+        damage: '1d6',
+        damageType: 'bludgeoning',
+        properties: ['versatile'],
         description: 'You can use an action to speak this staff\'s command word and throw the staff on the ground within 10 feet of you. The staff becomes a giant constrictor snake under your control and acts on its own initiative count.',
         equipped: false,
         isBaseItem: true
@@ -2559,6 +2618,9 @@ export const baseItems: BaseItem[] = [
         name: 'Weapon of Warning',
         category: 'magic-item',
         type: 'weapon',
+        damage: '1d8',
+        damageType: 'slashing',
+        properties: ['versatile'],
         description: 'This magic weapon warns you of danger. While the weapon is on your person, you have advantage on initiative rolls. In addition, you and any of your companions within 30 feet of you can\'t be surprised, except when incapacitated by something other than nonmagical sleep.',
         equipped: false,
         isBaseItem: true
