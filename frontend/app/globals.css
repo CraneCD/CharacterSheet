@@ -349,26 +349,42 @@ button {
 .sheet-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.5rem;
+  gap: 1rem;
+  align-items: start;
 }
 
 @media (min-width: 1024px) {
   .sheet-grid {
-    grid-template-columns: 240px 1fr 1fr;
+    grid-template-columns: 260px 1fr 1fr;
+    gap: 1.25rem;
   }
 }
 
 .sheet-column {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
   min-width: 0;
   width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .sheet-column {
+    gap: 1.25rem;
+  }
 }
 
 @media (max-width: 640px) {
   .sheet-column {
     gap: 1rem;
+  }
+}
+
+/* Slight minimum height on desktop so section cards feel consistent without wasting space */
+@media (min-width: 1024px) {
+  .sheet-grid .sheet-column > .card,
+  .sheet-grid .sheet-column > div > .card {
+    min-height: 100px;
   }
 }
 

@@ -750,11 +750,11 @@ export default function CharacterSheet() {
                 </div>
             )}
 
-            <div className="sheet-grid" style={{ gap: '1rem' }}>
+            <div className="sheet-grid">
                 {/* Left Column: Core Stats */}
                 <div className="sheet-column">
                     {/* Ability Scores */}
-                    <div className="card" style={{ marginBottom: '1rem' }}>
+                    <div className="card">
                         <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '1rem' }}>Ability Scores</h3>
                         <div>
                             {['str', 'dex', 'con', 'int', 'wis', 'cha'].map(stat => (
@@ -825,7 +825,7 @@ export default function CharacterSheet() {
                     </div>
 
                     {/* Saving Throws */}
-                    <div className="card" style={{ marginBottom: '1rem' }}>
+                    <div className="card">
                         <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>Saving Throws</h3>
                         <div>
                             {saves.map(save => (
@@ -987,7 +987,7 @@ export default function CharacterSheet() {
                 {/* Middle Column: Combat & Resources */}
                 <div className="sheet-column">
                     {/* Health */}
-                    <div style={{ marginBottom: '1rem' }}>
+                    <div>
                         <HPManager
                             characterId={character.id}
                             initialHP={data.hp || { current: 0, max: 0, temp: 0 }}
@@ -996,7 +996,7 @@ export default function CharacterSheet() {
                     </div>
 
                     {/* Hit Dice */}
-                    <div style={{ marginBottom: '1rem' }}>
+                    <div>
                         <HitDiceManager
                             characterId={character.id}
                             initialHitDice={data.hitDice}
@@ -1041,7 +1041,7 @@ export default function CharacterSheet() {
                         }
                         
                         return (
-                            <div style={{ marginBottom: '1rem' }}>
+                            <div>
                                 <ClassResourcesManager
                                     characterId={character.id}
                                     initialResources={resources}
@@ -1058,7 +1058,7 @@ export default function CharacterSheet() {
                     })()}
 
                     {/* Attacks */}
-                    <div style={{ marginBottom: '1rem' }}>
+                    <div>
                         <CombatManager
                             equipment={equipment}
                             strMod={effectiveModifiers.str}
@@ -1081,7 +1081,7 @@ export default function CharacterSheet() {
                 {/* Right Column: Equipment & Features */}
                 <div className="sheet-column">
                     {/* Equipment */}
-                    <div style={{ marginBottom: '1rem' }}>
+                    <div>
                         <EquipmentManager
                             characterId={character.id}
                             initialEquipment={data.equipment || []}
@@ -1122,7 +1122,7 @@ export default function CharacterSheet() {
                     </div>
 
                     {/* Currency */}
-                    <div style={{ marginBottom: '1rem' }}>
+                    <div>
                         <CurrencyManager
                             characterId={character.id}
                             initialCurrency={data.currency}
