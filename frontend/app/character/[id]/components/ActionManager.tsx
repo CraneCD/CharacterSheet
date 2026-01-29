@@ -160,8 +160,9 @@ export default function ActionManager({ characterId, initialActions, onUpdate }:
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <div 
                     style={{ 
-                        flex: 1,
+                        flex: isExpanded ? 1 : '0 1 auto',
                         minHeight: 0,
+                        maxHeight: isExpanded ? 'none' : '520px',
                         overflowY: isExpanded ? 'visible' : 'auto',
                         paddingRight: isExpanded ? '0' : '0.5rem',
                         marginRight: isExpanded ? '0' : '-0.5rem'
