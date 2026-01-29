@@ -886,102 +886,6 @@ export default function CharacterSheet() {
                             ))}
                         </div>
                     </div>
-
-                    {/* Languages */}
-                    <div className="card">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                            <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', margin: 0 }}>Languages</h3>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {(data.languages || []).length > 0 ? (
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                    {((data.languages || []) as string[]).map((lang) => (
-                                        <div
-                                            key={lang}
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.5rem',
-                                                padding: '0.25rem 0.75rem',
-                                                backgroundColor: 'var(--surface)',
-                                                borderRadius: '4px',
-                                                border: '1px solid var(--border)'
-                                            }}
-                                        >
-                                            <span>{lang}</span>
-                                            <button
-                                                onClick={() => handleRemoveLanguage(lang)}
-                                                style={{
-                                                    background: 'none',
-                                                    border: 'none',
-                                                    color: 'var(--danger)',
-                                                    cursor: 'pointer',
-                                                    fontSize: '1rem',
-                                                    padding: 0,
-                                                    width: '1.25rem',
-                                                    height: '1.25rem',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    borderRadius: '50%',
-                                                    transition: 'background-color 0.2s'
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    e.currentTarget.style.backgroundColor = 'var(--danger)';
-                                                    e.currentTarget.style.color = '#fff';
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    e.currentTarget.style.backgroundColor = 'transparent';
-                                                    e.currentTarget.style.color = 'var(--danger)';
-                                                }}
-                                                title="Remove language"
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', fontStyle: 'italic' }}>
-                                    No languages recorded
-                                </div>
-                            )}
-                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.5rem' }}>
-                                <select
-                                    className="input"
-                                    style={{ flex: 1 }}
-                                    onChange={(e) => {
-                                        if (e.target.value) {
-                                            handleAddLanguage(e.target.value);
-                                            e.target.value = '';
-                                        }
-                                    }}
-                                    defaultValue=""
-                                >
-                                    <option value="">Add a language...</option>
-                                    {STANDARD_LANGUAGES.filter(lang => !(data.languages || []).includes(lang)).map((lang) => (
-                                        <option key={lang} value={lang}>{lang}</option>
-                                    ))}
-                                </select>
-                                <input
-                                    type="text"
-                                    className="input"
-                                    placeholder="Custom language..."
-                                    style={{ flex: 1 }}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            const input = e.currentTarget;
-                                            const value = input.value.trim();
-                                            if (value) {
-                                                handleAddLanguage(value);
-                                                input.value = '';
-                                            }
-                                        }
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 {/* Middle Column: Combat & Resources */}
@@ -1172,6 +1076,102 @@ export default function CharacterSheet() {
                             ]}
                             onUpdate={(newFeatures) => handleUpdateCharacter({ features: newFeatures })}
                         />
+                    </div>
+
+                    {/* Languages */}
+                    <div className="card">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                            <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', margin: 0 }}>Languages</h3>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {(data.languages || []).length > 0 ? (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                    {((data.languages || []) as string[]).map((lang) => (
+                                        <div
+                                            key={lang}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                padding: '0.25rem 0.75rem',
+                                                backgroundColor: 'var(--surface)',
+                                                borderRadius: '4px',
+                                                border: '1px solid var(--border)'
+                                            }}
+                                        >
+                                            <span>{lang}</span>
+                                            <button
+                                                onClick={() => handleRemoveLanguage(lang)}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    color: 'var(--danger)',
+                                                    cursor: 'pointer',
+                                                    fontSize: '1rem',
+                                                    padding: 0,
+                                                    width: '1.25rem',
+                                                    height: '1.25rem',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    borderRadius: '50%',
+                                                    transition: 'background-color 0.2s'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.backgroundColor = 'var(--danger)';
+                                                    e.currentTarget.style.color = '#fff';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                                    e.currentTarget.style.color = 'var(--danger)';
+                                                }}
+                                                title="Remove language"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', fontStyle: 'italic' }}>
+                                    No languages recorded
+                                </div>
+                            )}
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.5rem' }}>
+                                <select
+                                    className="input"
+                                    style={{ flex: 1 }}
+                                    onChange={(e) => {
+                                        if (e.target.value) {
+                                            handleAddLanguage(e.target.value);
+                                            e.target.value = '';
+                                        }
+                                    }}
+                                    defaultValue=""
+                                >
+                                    <option value="">Add a language...</option>
+                                    {STANDARD_LANGUAGES.filter(lang => !(data.languages || []).includes(lang)).map((lang) => (
+                                        <option key={lang} value={lang}>{lang}</option>
+                                    ))}
+                                </select>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    placeholder="Custom language..."
+                                    style={{ flex: 1 }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            const input = e.currentTarget;
+                                            const value = input.value.trim();
+                                            if (value) {
+                                                handleAddLanguage(value);
+                                                input.value = '';
+                                            }
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
