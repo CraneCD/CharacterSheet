@@ -316,6 +316,45 @@ export default function CharacterSheet() {
         return { ...skill, total, isProficient, hasExpertise };
     });
 
+    const staticFeatureEntries = [
+        ...((racialTraits || []).map((trait: string) => {
+            const traitKey = trait;
+            const traitData = gameData.traits?.[traitKey] || 
+                (trait.includes('(') ? gameData.traits?.[trait.split('(')[0].trim()] : undefined);
+            return {
+                name: trait,
+                source: 'Racial Trait',
+                description: traitData?.description || `Racial trait: ${trait}`
+            };
+        })),
+        ...(background.feature ? [{ name: background.feature.name, source: 'Background Feature', description: background.feature.description }] : []),
+        ...classFeaturesList.map(f => ({
+            name: f.name,
+            source: `Class: ${charClass.name}`,
+            description: f.description
+        })),
+        ...subclassFeaturesList.map(f => ({
+            name: f.name,
+            source: subclass ? `Subclass: ${subclass.name}` : 'Subclass',
+            description: f.description
+        }))
+    ];
+
+    const staticFeatureNameSet = new Set(
+        staticFeatureEntries
+            .map(f => (f.name || '').toLowerCase())
+            .filter(Boolean)
+    );
+
+    const filteredDynamicFeatures = (data.features || []).filter((f: CharacterFeature) => {
+        const nameKey = (f.name || '').toLowerCase();
+        if (!nameKey) return true;
+        const sourceKey = (f.source || '').toLowerCase();
+        const isAutoSource = sourceKey.startsWith('class:') || sourceKey.startsWith('subclass:') || sourceKey === 'racial trait' || sourceKey === 'background feature';
+        if (!isAutoSource) return true;
+        return !staticFeatureNameSet.has(nameKey);
+    });
+
     const handleUpdateCharacter = (updates: Partial<CharacterData>) => {
         setCharacter((prev: any) => ({
             ...prev,
@@ -1038,42 +1077,8 @@ export default function CharacterSheet() {
                     <div className="sheet-column-fill">
                         <FeatureManager
                             characterId={character.id}
-                            initialFeatures={(data.features || []).filter((f: CharacterFeature) => {
-                                // Filter out subclass features that are already shown as static features
-                                // to avoid duplicates
-                                if (subclass && f.source?.startsWith('Subclass:')) {
-                                    const staticSubclassFeatureNames = new Set(
-                                        subclassFeaturesList.map(sf => sf.name.toLowerCase())
-                                    );
-                                    return !staticSubclassFeatureNames.has(f.name.toLowerCase());
-                                }
-                                return true;
-                            })}
-                            staticFeatures={[
-                                ...((racialTraits || []).map((trait: string) => {
-                                    const traitKey = trait;
-                                    const traitData = gameData.traits?.[traitKey] || 
-                                        (trait.includes('(') ? gameData.traits?.[trait.split('(')[0].trim()] : undefined);
-                                    return {
-                                        name: trait,
-                                        source: 'Racial Trait',
-                                        description: traitData?.description || `Racial trait: ${trait}`
-                                    };
-                                })),
-                                ...(background.feature ? [{ name: background.feature.name, source: 'Background Feature', description: background.feature.description }] : []),
-                                // Add class features
-                                ...classFeaturesList.map(f => ({
-                                    name: f.name,
-                                    source: `Class: ${charClass.name}`,
-                                    description: f.description
-                                })),
-                                // Add subclass features
-                                ...subclassFeaturesList.map(f => ({
-                                    name: f.name,
-                                    source: subclass ? `Subclass: ${subclass.name}` : 'Subclass',
-                                    description: f.description
-                                }))
-                            ]}
+                            initialFeatures={filteredDynamicFeatures}
+                            staticFeatures={staticFeatureEntries}
                             onUpdate={(newFeatures) => handleUpdateCharacter({ features: newFeatures })}
                         />
                     </div>
