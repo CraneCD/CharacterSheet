@@ -45,9 +45,11 @@ export function getSpellcastingClasses(
     allClasses: ClassInfo[]
 ): Array<{ classId: string; level: number; classInfo: ClassInfo }> {
     const spellcastingClasses: Array<{ classId: string; level: number; classInfo: ClassInfo }> = [];
+    const safeClasses = classes && typeof classes === 'object' && !Array.isArray(classes) ? classes : {};
+    const safeAllClasses = Array.isArray(allClasses) ? allClasses : [];
 
-    for (const [classId, level] of Object.entries(classes)) {
-        const classInfo = allClasses.find(c => c.id.toLowerCase() === classId.toLowerCase());
+    for (const [classId, level] of Object.entries(safeClasses)) {
+        const classInfo = safeAllClasses.find(c => c?.id?.toLowerCase() === classId?.toLowerCase());
         if (classInfo && classInfo.spellcaster && classId.toLowerCase() !== 'warlock') {
             spellcastingClasses.push({ classId, level, classInfo });
         }

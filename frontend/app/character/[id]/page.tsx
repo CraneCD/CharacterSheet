@@ -333,13 +333,13 @@ export default function CharacterSheet() {
         ? data.racialTraits
         : (canonTraits.length > 0 ? canonTraits : (race?.traits || []));
     const canonSkills = getBackgroundSkills(data.backgroundId);
-    const bgSkills = canonSkills.length > 0 ? canonSkills : (background?.skillProficiencies || []);
+    const bgSkills = canonSkills.length > 0 ? canonSkills : (Array.isArray(background?.skillProficiencies) ? background.skillProficiencies : []);
     const traitSkills = getSkillProficienciesFromTraits(racialTraits);
     const baseSkills = [...bgSkills];
     for (const s of traitSkills) {
         if (!baseSkills.includes(s)) baseSkills.push(s);
     }
-    const storedSkills = data.skills || [];
+    const storedSkills = Array.isArray(data.skills) ? data.skills : [];
     const proficientSkills = [...baseSkills];
     for (const s of storedSkills) {
         if (!proficientSkills.includes(s)) proficientSkills.push(s);
@@ -366,12 +366,12 @@ export default function CharacterSheet() {
             };
         })),
         ...(background?.feature ? [{ name: background.feature.name, source: 'Background Feature', description: background.feature.description }] : []),
-        ...classFeaturesList.map(f => ({
+        ...(classFeaturesList || []).map(f => ({
             name: f.name,
             source: `Class: ${charClass.name}`,
             description: f.description
         })),
-        ...subclassFeaturesList.map(f => ({
+        ...(subclassFeaturesList || []).map(f => ({
             name: f.name,
             source: subclass ? `Subclass: ${subclass.name}` : 'Subclass',
             description: f.description
@@ -402,7 +402,7 @@ export default function CharacterSheet() {
 
     const handleAddLanguage = async (language: string) => {
         if (!language?.trim()) return;
-        const currentLangs = (data.languages || []) as string[];
+        const currentLangs = Array.isArray(data.languages) ? data.languages : [];
         if (currentLangs.includes(language)) return;
         const updated = [...currentLangs, language];
         try {
@@ -418,8 +418,8 @@ export default function CharacterSheet() {
     };
 
     const handleRemoveLanguage = async (language: string) => {
-        const currentLangs = (data.languages || []) as string[];
-        const updated = currentLangs.filter(l => l !== language);
+        const currentLangs = Array.isArray(data.languages) ? data.languages : [];
+        const updated = currentLangs.filter((l: string) => l !== language);
         try {
             await api.put(`/characters/${character.id}`, {
                 ...character,
@@ -434,7 +434,7 @@ export default function CharacterSheet() {
 
     const handleToggleSkillProficiency = async (skillName: string) => {
         const isCurrentlyProficient = proficientSkills.includes(skillName);
-        const currentStored = data.skills || [];
+        const currentStored = Array.isArray(data.skills) ? data.skills : [];
 
         let updatedStored: string[];
         if (isCurrentlyProficient) {
@@ -1066,7 +1066,7 @@ export default function CharacterSheet() {
                     <div className="sheet-column-fill">
                         <ActionManager
                             characterId={character.id}
-                            initialActions={data.actions || []}
+                            initialActions={Array.isArray(data.actions) ? data.actions : []}
                             onUpdate={(updates) => handleUpdateCharacter(updates)}
                             featureActions={
                                 primaryClassId === 'fighter' &&
@@ -1123,7 +1123,7 @@ export default function CharacterSheet() {
                             onEquipChange={() => setCharacter((prev: any) => ({ ...prev }))}
                             abilityScores={abilityScores}
                             proficiencyBonus={pb}
-                            existingActions={data.actions || []}
+                            existingActions={Array.isArray(data.actions) ? data.actions : []}
                             onCreateAction={async (action) => {
                                 try {
                                     await api.post(`/characters/${character.id}/actions`, { action });
@@ -1136,7 +1136,7 @@ export default function CharacterSheet() {
                             }}
                             hasWeaponMastery={(classFeaturesList || []).some(f => f.name === 'Weapon Mastery')}
                             onDeleteMasteryActionsForWeapon={async (weaponName) => {
-                                const actions = (data.actions || []) as { name: string }[];
+                                const actions = (Array.isArray(data.actions) ? data.actions : []) as { name: string }[];
                                 const indices = actions
                                     .map((a, i) => (isMasteryActionForWeapon(a.name, weaponName) ? i : -1))
                                     .filter(i => i >= 0)
@@ -1243,7 +1243,7 @@ export default function CharacterSheet() {
                                     defaultValue=""
                                 >
                                     <option value="">Add a language...</option>
-                                    {STANDARD_LANGUAGES.filter(lang => !(data.languages || []).includes(lang)).map((lang) => (
+                                    {STANDARD_LANGUAGES.filter(lang => !(Array.isArray(data.languages) ? data.languages : []).includes(lang)).map((lang) => (
                                         <option key={lang} value={lang}>{lang}</option>
                                     ))}
                                 </select>
@@ -1358,20 +1358,20 @@ export default function CharacterSheet() {
                                 elvenLineage={(character.race || '').toLowerCase() === 'elf' ? data.elvenLineage : undefined}
                                 subclassId={primarySpellcastingClass.id !== 'innate' ? (data.subclassId || '').toLowerCase().replace(/\s+/g, '_') : undefined}
                                 subclassClassLevel={primarySpellcastingClass?.level ?? level}
-                                initialSpells={data.spells || []}
+                                initialSpells={Array.isArray(data.spells) ? data.spells : []}
                                 initialSlotsUsed={data.spellSlotsUsed || {}}
                                 spellcastingAbility={primarySpellcastingAbility}
                                 preparedCaster={primarySpellcastingClass.classInfo?.preparedCaster || false}
                                 spellbook={
                                     (primarySpellcastingClass.id === 'wizard' || primarySpellcastingClass.id === 'Wizard')
-                                        ? (data.spellbook ?? (data.spells || []).filter((s: any) => s.level > 0).map((s: any) => s.id))
+                                        ? (data.spellbook ?? (Array.isArray(data.spells) ? data.spells : []).filter((s: any) => s.level > 0).map((s: any) => s.id))
                                         : undefined
                                 }
                                 abilityScores={effectiveAbilityScores}
                                 classes={data.classes}
                                 allClasses={gameData.classes || []}
                                 onUpdate={(updates) => handleUpdateCharacter(updates)}
-                                existingActions={data.actions || []}
+                                existingActions={Array.isArray(data.actions) ? data.actions : []}
                                 onCreateAction={async (action) => {
                                     try {
                                         await api.post(`/characters/${character.id}/actions`, { action });

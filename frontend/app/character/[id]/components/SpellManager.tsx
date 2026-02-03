@@ -161,7 +161,7 @@ const THIRD_CASTER_SPELLS_KNOWN: number[] = [0, 0, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6,
 const THIRD_CASTER_CANTRIPS: Record<string, number> = { arcane_trickster: 3, eldritch_knight: 2 };
 
 export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel }: SpellManagerProps) {
-    const [mySpells, setMySpells] = useState<CharacterSpell[]>(initialSpells || []);
+    const [mySpells, setMySpells] = useState<CharacterSpell[]>(Array.isArray(initialSpells) ? initialSpells : []);
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
     const [allSpells, setAllSpells] = useState<Spell[]>([]);
     const [isAdding, setIsAdding] = useState(false);
@@ -179,13 +179,14 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     const [spellDetailsModal, setSpellDetailsModal] = useState<{ isOpen: boolean, spell: Spell | null }>({ isOpen: false, spell: null });
     const [isAddingToSpellbook, setIsAddingToSpellbook] = useState(false);
 
+    const safeMySpells = Array.isArray(mySpells) ? mySpells : [];
     const isWizardSpellbook = classId === 'wizard' && preparedCaster;
     const isInnateOnly = classId === 'innate'; // Elven lineage spells only, no class spellcasting
-    const effectiveSpellbook: string[] = spellbookProp ?? [];
+    const effectiveSpellbook: string[] = Array.isArray(spellbookProp) ? spellbookProp : [];
 
     useEffect(() => {
-        setMySpells(initialSpells || []);
-        setSlotsUsed(initialSlotsUsed || {});
+        setMySpells(Array.isArray(initialSpells) ? initialSpells : []);
+        setSlotsUsed(initialSlotsUsed && typeof initialSlotsUsed === 'object' && !Array.isArray(initialSlotsUsed) ? initialSlotsUsed : {});
     }, [initialSpells, initialSlotsUsed]);
 
 
@@ -234,9 +235,10 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         }
     };
 
+    const safeExistingActions = Array.isArray(existingActions) ? existingActions : [];
     // Helper function to find action index by name
     const findActionIndex = (actionName: string): number => {
-        return existingActions.findIndex(a => a.name === actionName);
+        return safeExistingActions.findIndex(a => a?.name === actionName);
     };
 
     // Helper function to remove action by name
@@ -285,8 +287,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         try {
             // Check spells known limit for subclass spellcasting (Arcane Trickster, Eldritch Knight)
             if (isSubclassSpellcasting && spellsKnownLimit > 0) {
-                const currentCantrips = mySpells.filter(s => s.level === 0).length;
-                const currentSpells = mySpells.filter(s => s.level > 0).length;
+                const currentCantrips = safeMySpells.filter(s => s.level === 0).length;
+                const currentSpells = safeMySpells.filter(s => s.level > 0).length;
                 if (spell.level === 0 && currentCantrips >= cantripsKnownLimit) {
                     alert(`You can only know ${cantripsKnownLimit} cantrips. Unlearn a cantrip first.`);
                     return;
@@ -336,13 +338,13 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         setSpellToDelete(null);
         
         try {
-            const spellToRemove = mySpells.find(s => s.id === spellId);
+            const spellToRemove = safeMySpells.find(s => s.id === spellId);
             if (!spellToRemove) return;
 
             console.log('Attempting to delete spell:', `/characters/${characterId}/spells/${spellId}`);
             const response = await api.delete(`/characters/${characterId}/spells/${spellId}`);
             console.log('Delete response:', response);
-            const updated = mySpells.filter(s => s.id !== spellId);
+            const updated = safeMySpells.filter(s => s.id !== spellId);
             setMySpells(updated);
             updateParent(updated, slotsUsed);
             
@@ -380,10 +382,10 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         try {
             await api.delete(`/characters/${characterId}/spellbook`, { data: { spellIds: [spellId] } });
             const newSpellbook = effectiveSpellbook.filter(id => id !== spellId);
-            const updatedSpells = mySpells.filter(s => s.id !== spellId);
+            const updatedSpells = safeMySpells.filter(s => s.id !== spellId);
             setMySpells(updatedSpells);
             onUpdate({ spellbook: newSpellbook, spells: updatedSpells });
-            const spellToRemove = mySpells.find(s => s.id === spellId);
+            const spellToRemove = safeMySpells.find(s => s.id === spellId);
             if (spellToRemove) {
                 const fullSpell = safeAllSpells.find(s => s.id === spellId);
                 if (fullSpell) {
@@ -401,7 +403,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         // For prepared casters: add spell and prepare it in one action
         try {
             // Check if spell already exists
-            const existingSpell = mySpells.find(s => s.id === spell.id);
+            const existingSpell = safeMySpells.find(s => s.id === spell.id);
             if (existingSpell) {
                 // Just toggle preparation
                 await togglePrepared(spell.id, existingSpell.prepared);
@@ -445,7 +447,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
 
     const togglePrepared = async (spellId: string, currentStatus: boolean) => {
         try {
-            const spell = mySpells.find(s => s.id === spellId);
+            const spell = safeMySpells.find(s => s.id === spellId);
             if (!spell) return;
 
             // Check prepared spells limit when preparing (only for non-cantrip spells)
@@ -459,7 +461,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             await api.patch(`/characters/${characterId}/spells/${spellId}/prepare`, {
                 prepared: !currentStatus
             });
-            const updated = mySpells.map(s => s.id === spellId ? { ...s, prepared: !currentStatus } : s);
+            const updated = safeMySpells.map(s => s.id === spellId ? { ...s, prepared: !currentStatus } : s);
             setMySpells(updated);
             updateParent(updated, slotsUsed);
             
@@ -553,7 +555,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     };
 
     const preparedSpellsLimit = getPreparedSpellsLimit();
-    const currentPreparedCount = mySpells.filter(s => s.prepared && s.level > 0).length;
+    const currentPreparedCount = safeMySpells.filter(s => s.prepared && s.level > 0).length;
 
     // Get all spellcasting classes for multiclassed characters, or subclass spellcasting
     const spellcastingClasses = isSubclassSpellcasting && subclassSpellcasting
@@ -591,7 +593,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             if (preparedCaster || spellcastingClasses.some(sc => sc.classInfo.preparedCaster)) {
                 if (isCantripMode) {
                     // Cantrip mode: only show unlearned cantrips
-                    return s.level === 0 && !mySpells.find(ms => ms.id === s.id);
+                    return s.level === 0 && !safeMySpells.find(ms => ms.id === s.id);
                 } else {
                     // Prepare mode: wizard = only spellbook spells; other prepared casters = all non-cantrip
                     if (isWizardSpellbook) {
@@ -601,7 +603,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 }
             } else {
                 // Known casters: only show unlearned spells
-                return !mySpells.find(ms => ms.id === s.id);
+                return !safeMySpells.find(ms => ms.id === s.id);
             }
         }
         return false;
@@ -636,7 +638,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
 
     // Elven lineage spells (2024 PHB): granted at character levels 1, 3, 5. Always prepared.
     const lineageKey = (elvenLineage || '').toLowerCase().replace(/\s+/g, '_');
-    const lineageSpellsConfig = lineageKey ? ELVEN_LINEAGE_SPELLS[lineageKey] : [];
+    const lineageSpellsConfigRaw = lineageKey ? ELVEN_LINEAGE_SPELLS[lineageKey] : null;
+    const lineageSpellsConfig = Array.isArray(lineageSpellsConfigRaw) ? lineageSpellsConfigRaw : [];
     const lineageSpellsForLevel = lineageSpellsConfig
         .filter(entry => level >= entry.level)
         .map(entry => ({ ...entry, spell: safeAllSpells.find(s => s.id === entry.spellId) }))
@@ -645,7 +648,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     // Subclass bonus spells (e.g. Gloom Stalker): granted at class levels 3, 5, 9, 13, 17. Always prepared.
     const subclassKey = (subclassIdProp || '').toLowerCase().replace(/\s+/g, '_');
     const subclassClassLvl = subclassClassLevel ?? level;
-    const subclassSpellsConfig = subclassKey ? SUBCLASS_BONUS_SPELLS[subclassKey] : [];
+    const subclassSpellsConfigRaw = subclassKey ? SUBCLASS_BONUS_SPELLS[subclassKey] : null;
+    const subclassSpellsConfig = Array.isArray(subclassSpellsConfigRaw) ? subclassSpellsConfigRaw : [];
     const subclassSpellsForLevel = subclassSpellsConfig
         .filter(entry => subclassClassLvl >= entry.level)
         .map(entry => ({ ...entry, spell: safeAllSpells.find(s => s.id === entry.spellId) }))
@@ -671,7 +675,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             }
             
             spellsAtLevel = availableAtLevel.map(spell => {
-                const knownSpell = mySpells.find(ms => ms.id === spell.id);
+                const knownSpell = safeMySpells.find(ms => ms.id === spell.id);
                 return {
                     id: spell.id,
                     name: spell.name,
@@ -716,7 +720,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             }
         } else if (lvl === 0) {
             // Cantrips: learned spells + elven lineage cantrip
-            spellsAtLevel = mySpells.filter(ms => ms.level === 0).map(ms => ({
+            spellsAtLevel = safeMySpells.filter(ms => ms.level === 0).map(ms => ({
                 id: ms.id,
                 name: ms.name,
                 level: 0,
@@ -739,7 +743,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             }
         } else {
             // Known casters (non-cantrip): only show learned spells
-            spellsAtLevel = mySpells.filter(ms => ms.level === lvl).map(ms => ({
+            spellsAtLevel = safeMySpells.filter(ms => ms.level === lvl).map(ms => ({
                 id: ms.id,
                 name: ms.name,
                 level: ms.level,
@@ -809,7 +813,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     )}
                     {isSubclassSpellcasting && spellsKnownLimit > 0 && (
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', display: 'block', marginTop: '0.25rem' }}>
-                            Spells: {mySpells.filter(s => s.level > 0).length} / {spellsKnownLimit} • Cantrips: {mySpells.filter(s => s.level === 0).length} / {cantripsKnownLimit}
+                            Spells: {safeMySpells.filter(s => s.level > 0).length} / {spellsKnownLimit} • Cantrips: {safeMySpells.filter(s => s.level === 0).length} / {cantripsKnownLimit}
                         </span>
                     )}
                 </h3>
@@ -933,14 +937,14 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                         />
                         <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.5rem', overflowY: 'auto', flex: 1 }}>
                             {filteredSpells.map(spell => {
-                                const isPrepared = mySpells.find(ms => ms.id === spell.id)?.prepared || false;
-                                const isKnown = mySpells.some(ms => ms.id === spell.id);
+                                const isPrepared = safeMySpells.find(ms => ms.id === spell.id)?.prepared || false;
+                                const isKnown = safeMySpells.some(ms => ms.id === spell.id);
                                 // For prepared casters: if in cantrip mode, use learn. Otherwise use prepare.
                                 const shouldLearn = !preparedCaster || isCantripMode;
                                 // Subclass spellcasting (AT/EK): enforce spells known limit
                                 const atSpellsLimit = isSubclassSpellcasting && (
-                                    (spell.level === 0 && mySpells.filter(s => s.level === 0).length >= cantripsKnownLimit && !isKnown) ||
-                                    (spell.level > 0 && mySpells.filter(s => s.level > 0).length >= spellsKnownLimit && !isKnown)
+                                    (spell.level === 0 && safeMySpells.filter(s => s.level === 0).length >= cantripsKnownLimit && !isKnown) ||
+                                    (spell.level > 0 && safeMySpells.filter(s => s.level > 0).length >= spellsKnownLimit && !isKnown)
                                 );
                                 // Check if spell can be prepared/learned (not at limit)
                                 const canPrepare = !atSpellsLimit && (
