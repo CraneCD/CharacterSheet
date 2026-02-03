@@ -45,10 +45,12 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
         setFeatsLoading(true);
         api.get('/reference/feats')
             .then((list: any[]) => {
-                const ids = new Set(ORIGIN_FEAT_IDS.map((id: string) => id.toLowerCase()));
-                const filtered = list
-                    .filter((f: any) => ids.has((f.id || '').toLowerCase()))
-                    .map((f: any) => ({ id: f.id, name: f.name }));
+                const byId = new Map(
+                    (list || []).map((f: any) => [(f.id || '').toLowerCase(), { id: f.id, name: f.name }])
+                );
+                const filtered = ORIGIN_FEAT_IDS
+                    .map((id) => byId.get(id.toLowerCase()))
+                    .filter((f): f is { id: string; name: string } => Boolean(f));
                 setFeats(filtered);
             })
             .catch(() => setFeats([]))
