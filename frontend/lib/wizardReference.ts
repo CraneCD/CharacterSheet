@@ -126,12 +126,10 @@ export function getBackgroundSkills(backgroundId: string): string[] {
     return BACKGROUND_SKILLS[k] ?? [];
 }
 
-/** Origin feats (1st-level) for Versatile. IDs from /reference/feats. */
+/** Origin feats (1st-level) for Versatile (2024 PHB). Only these appear for human feat pick. IDs from /reference/feats. */
 export const ORIGIN_FEAT_IDS = [
-    'alert', 'athlete', 'actor', 'charger', 'durable', 'healer', 'lucky',
-    'magic-initiate', 'savage-attacker', 'skilled', 'tavern-brawler', 'tough',
-    'crossbow-expert', 'dual-wielder', 'dungeon-delver', 'inspiring-leader',
-    'keen-mind', 'linguist', 'observant', 'resilient', 'ritual-caster'
+    'alert', 'healer', 'lucky', 'magic-initiate', 'savage-attacker', 'skilled',
+    'tavern-brawler', 'tough'
 ];
 
 /** All skills for Skillful "choose one" picker. */
