@@ -147,6 +147,11 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     const scholarSkillOptions = scholarProficientSkills.length > 0 ? scholarProficientSkills : SCHOLAR_SKILL_OPTIONS;
     const [selectedScholarSkill, setSelectedScholarSkill] = useState<string | null>(null);
 
+    // Wizard: add 2 spells to spellbook when leveling up
+    const needsWizardSpellbook = classId === 'wizard';
+    const [wizardSpellbookChoices, setWizardSpellbookChoices] = useState<string[]>([]);
+    const [wizardSpellsList, setWizardSpellsList] = useState<{ id: string; name: string; level: number }[]>([]);
+
     // Get hit die for the class being leveled up
     const getHitDie = () => {
         if (levelUpMode === 'multiclass' && selectedMulticlass) {
@@ -340,6 +345,25 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     }, [needsScholar]);
 
     useEffect(() => {
+        if (needsWizardSpellbook) {
+            api.get('/reference/spells')
+                .then((spells: { id: string; name: string; level: number; classes: string[] }[]) => {
+                    const maxSpellLevel = Math.ceil(nextLevel / 2);
+                    const wizardSpells = spells.filter(s =>
+                        s.level > 0 &&
+                        s.level <= maxSpellLevel &&
+                        s.classes.some(c => c.toLowerCase() === 'wizard')
+                    );
+                    setWizardSpellsList(wizardSpells.map(s => ({ id: s.id, name: s.name, level: s.level })));
+                })
+                .catch(() => setWizardSpellsList([]));
+        } else {
+            setWizardSpellsList([]);
+            setWizardSpellbookChoices([]);
+        }
+    }, [needsWizardSpellbook, nextLevel]);
+
+    useEffect(() => {
         if (needsFightingStyle) {
             api.get('/reference/fighting-styles')
                 .then((list: { id: string; name: string; description: string }[]) => {
@@ -376,6 +400,11 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
             }
             if (needsScholar && !selectedScholarSkill) {
                 alert('Please choose a skill for your Scholar feature (proficiency and expertise).');
+                setIsSubmitting(false);
+                return;
+            }
+            if (needsWizardSpellbook && wizardSpellbookChoices.filter(Boolean).length < 2) {
+                alert('As a wizard, you must add 2 spells to your spellbook when you gain a level.');
                 setIsSubmitting(false);
                 return;
             }
@@ -473,7 +502,8 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                 multiclass: payload.multiclass,
                 classToLevel: payload.classToLevel,
                 fightingStyle: needsFightingStyle && selectedFightingStyle ? selectedFightingStyle : undefined,
-                scholarSkill: needsScholar && selectedScholarSkill ? selectedScholarSkill : undefined
+                scholarSkill: needsScholar && selectedScholarSkill ? selectedScholarSkill : undefined,
+                wizardSpellbookSpells: needsWizardSpellbook && wizardSpellbookChoices.filter(Boolean).length >= 2 ? wizardSpellbookChoices.filter(Boolean) : undefined
             });
 
             setIsSubmitting(false);
@@ -681,6 +711,45 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                 <option key={skill} value={skill}>{skill}</option>
                             ))}
                         </select>
+                    </div>
+                )}
+
+                {/* Wizard: Add 2 spells to spellbook */}
+                {needsWizardSpellbook && (
+                    <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
+                        <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                            Add to Spellbook
+                        </h3>
+                        <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                            When you gain a wizard level, you add two wizard spells of your choice to your spellbook. Choose 2 spells.
+                        </p>
+                        {[0, 1].map(idx => (
+                            <div key={idx} style={{ marginBottom: '0.75rem' }}>
+                                <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Spell {idx + 1}</label>
+                                <select
+                                    className="input"
+                                    value={wizardSpellbookChoices[idx] || ''}
+                                    onChange={(e) => {
+                                        const val = e.target.value || '';
+                                        const next = [...wizardSpellbookChoices];
+                                        next[idx] = val;
+                                        setWizardSpellbookChoices(next);
+                                    }}
+                                    style={{ width: '100%', maxWidth: '24rem' }}
+                                >
+                                    <option value="">Select a spell...</option>
+                                    {wizardSpellsList
+                                        .filter(s => {
+                                            const alreadyChosen = wizardSpellbookChoices.includes(s.id) && wizardSpellbookChoices[idx] !== s.id;
+                                            const inSpellbook = (character.data?.spellbook || []).includes(s.id);
+                                            return !alreadyChosen && !inSpellbook;
+                                        })
+                                        .map(s => (
+                                            <option key={s.id} value={s.id}>{s.name} (Level {s.level})</option>
+                                        ))}
+                                </select>
+                            </div>
+                        ))}
                     </div>
                 )}
 

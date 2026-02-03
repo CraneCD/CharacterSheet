@@ -1309,6 +1309,11 @@ export default function CharacterSheet() {
                                 initialSlotsUsed={data.spellSlotsUsed || {}}
                                 spellcastingAbility={primarySpellcastingAbility}
                                 preparedCaster={primarySpellcastingClass.classInfo?.preparedCaster || false}
+                                spellbook={
+                                    (primarySpellcastingClass.id === 'wizard' || primarySpellcastingClass.id === 'Wizard')
+                                        ? (data.spellbook ?? (data.spells || []).filter((s: any) => s.level > 0).map((s: any) => s.id))
+                                        : undefined
+                                }
                                 abilityScores={effectiveAbilityScores}
                                 classes={data.classes}
                                 allClasses={gameData.classes}

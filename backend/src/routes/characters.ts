@@ -525,7 +525,7 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
     try {
         const characterId = req.params.id;
         const userId = req.user!.id;
-        const { hpIncrease, subclassId, newSpells, newFeatures, abilityScoreImprovement, multiclass, classToLevel, fightingStyle, scholarSkill } = req.body;
+        const { hpIncrease, subclassId, newSpells, newFeatures, abilityScoreImprovement, multiclass, classToLevel, fightingStyle, scholarSkill, wizardSpellbookSpells } = req.body;
 
         const character = await prisma.character.findUnique({ where: { id: characterId } });
         if (!character || character.userId !== userId) {
@@ -743,6 +743,20 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
             }
         }
 
+        // Wizard level-up: add 2 spells to spellbook
+        if (wizardSpellbookSpells && Array.isArray(wizardSpellbookSpells) && classId === 'wizard') {
+            const spellbook = data.spellbook || [];
+            const seen = new Set(spellbook);
+            for (const id of wizardSpellbookSpells) {
+                const sid = typeof id === 'string' ? id.trim() : String(id);
+                if (sid && !seen.has(sid)) {
+                    seen.add(sid);
+                    spellbook.push(sid);
+                }
+            }
+            data.spellbook = spellbook;
+        }
+
         // Scholar (Wizard level 2) - add skill proficiency and expertise
         if (scholarSkill && typeof scholarSkill === 'string') {
             const skillName = scholarSkill.trim();
@@ -802,6 +816,7 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
             abilityScoreImprovement: abilityScoreImprovement || null,
             hitDiceAdded: true, // Track that we added a hit die
             scholarSkill: scholarSkill && typeof scholarSkill === 'string' ? scholarSkill.trim() : null,
+            wizardSpellbookSpells: wizardSpellbookSpells && Array.isArray(wizardSpellbookSpells) ? wizardSpellbookSpells : null,
             timestamp: new Date().toISOString()
         });
         data.levelHistory = levelHistory;
@@ -929,6 +944,13 @@ router.post('/:id/level-down', authenticateToken, async (req: AuthRequest, res) 
             data.abilityScores = scores;
         }
 
+        // Reverse Wizard spellbook (remove spells added at this level)
+        if (lastLevelUp.wizardSpellbookSpells && Array.isArray(lastLevelUp.wizardSpellbookSpells)) {
+            const spellbook = data.spellbook || [];
+            const toRemove = new Set(lastLevelUp.wizardSpellbookSpells);
+            data.spellbook = spellbook.filter((id: string) => !toRemove.has(id));
+        }
+
         // Reverse Scholar skill (remove from skills and expertise if it was added at this level)
         if (lastLevelUp.scholarSkill) {
             const skillName = lastLevelUp.scholarSkill;
@@ -1051,6 +1073,45 @@ router.patch('/:id/spells/:spellId/prepare', authenticateToken, async (req: Auth
         res.json(updated);
     } catch (error) {
         res.status(500).json({ error: 'Failed to update spell preparation' });
+    }
+});
+
+// Add Spells to Wizard Spellbook
+router.post('/:id/spellbook', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const characterId = req.params.id;
+        const userId = req.user!.id;
+        const { spellIds } = req.body;
+
+        if (!spellIds || !Array.isArray(spellIds)) {
+            return res.status(400).json({ error: 'spellIds array is required' });
+        }
+
+        const character = await prisma.character.findUnique({ where: { id: characterId } });
+        if (!character || character.userId !== userId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const data = character.data as any;
+        const spellbook = data.spellbook || [];
+        const seen = new Set(spellbook);
+        for (const id of spellIds) {
+            const sid = typeof id === 'string' ? id.trim() : String(id);
+            if (sid && !seen.has(sid)) {
+                seen.add(sid);
+                spellbook.push(sid);
+            }
+        }
+        data.spellbook = spellbook;
+
+        const updated = await prisma.character.update({
+            where: { id: characterId },
+            data: { data }
+        });
+
+        res.json(updated);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to add spells to spellbook' });
     }
 });
 

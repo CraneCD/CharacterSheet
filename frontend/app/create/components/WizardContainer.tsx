@@ -174,6 +174,9 @@ export default function WizardContainer() {
             if (selectedFightingStyle) {
                 data.fightingStyles = [selectedFightingStyle];
             }
+            if (formData.classId === 'wizard') {
+                data.spellbook = ['detect-magic', 'feather-fall', 'mage-armor', 'magic-missile', 'sleep', 'thunderwave'];
+            }
 
             const payload = {
                 name: formData.name,

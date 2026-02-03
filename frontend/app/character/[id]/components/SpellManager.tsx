@@ -96,6 +96,8 @@ interface SpellManagerProps {
     initialSlotsUsed: { [level: number]: number };
     spellcastingAbility: string;
     preparedCaster?: boolean; // If true, class knows all spells and prepares a subset
+    /** Wizard only: spell IDs in the spellbook. If set, wizard can only prepare spells in the spellbook. */
+    spellbook?: string[];
     abilityScores?: { [key: string]: number }; // For calculating prepared spells limit
     onUpdate: (data: Partial<CharacterData>) => void;
     existingActions?: any[];
@@ -151,7 +153,7 @@ const getSlotsForClass = (classId: string, level: number, casterLevelDivisor?: n
 const THIRD_CASTER_SPELLS_KNOWN: number[] = [0, 0, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9];
 const THIRD_CASTER_CANTRIPS: Record<string, number> = { arcane_trickster: 3, eldritch_knight: 2 };
 
-export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting }: SpellManagerProps) {
+export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp }: SpellManagerProps) {
     const [mySpells, setMySpells] = useState<CharacterSpell[]>(initialSpells || []);
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
     const [allSpells, setAllSpells] = useState<Spell[]>([]);
@@ -168,6 +170,10 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         return expanded;
     });
     const [spellDetailsModal, setSpellDetailsModal] = useState<{ isOpen: boolean, spell: Spell | null }>({ isOpen: false, spell: null });
+    const [isAddingToSpellbook, setIsAddingToSpellbook] = useState(false);
+
+    const isWizardSpellbook = classId === 'wizard' && preparedCaster;
+    const effectiveSpellbook: string[] = spellbookProp ?? [];
 
     useEffect(() => {
         setMySpells(initialSpells || []);
@@ -348,6 +354,19 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         setSpellToDelete(null);
     };
 
+    const addToSpellbook = async (spell: Spell) => {
+        if (!isWizardSpellbook || effectiveSpellbook.includes(spell.id)) return;
+        try {
+            await api.post(`/characters/${characterId}/spellbook`, { spellIds: [spell.id] });
+            const newSpellbook = [...effectiveSpellbook, spell.id];
+            onUpdate({ spellbook: newSpellbook });
+            setIsAddingToSpellbook(false);
+        } catch (err) {
+            console.error('Failed to add spell to spellbook', err);
+            alert('Failed to add spell to spellbook');
+        }
+    };
+
     const prepareSpellDirectly = async (spell: Spell) => {
         // For prepared casters: add spell and prepare it in one action
         try {
@@ -521,7 +540,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         : 0;
     
     // For prepared casters in cantrip mode: show only cantrips not yet learned
-    // For prepared casters in prepare mode: show all non-cantrip spells (they know all)
+    // For prepared casters in prepare mode: show spells they can prepare (wizard = spellbook only; others = all)
     // For known casters: only show spells not yet learned
     const availableSpells = allSpells.filter(s => {
         // Check if spell is available to any of the character's spellcasting classes
@@ -538,7 +557,10 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     // Cantrip mode: only show unlearned cantrips
                     return s.level === 0 && !mySpells.find(ms => ms.id === s.id);
                 } else {
-                    // Prepare mode: show all non-cantrip spells (they know all)
+                    // Prepare mode: wizard = only spellbook spells; other prepared casters = all non-cantrip
+                    if (isWizardSpellbook) {
+                        return s.level > 0 && effectiveSpellbook.includes(s.id);
+                    }
                     return s.level > 0;
                 }
             } else {
@@ -547,6 +569,18 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             }
         }
         return false;
+    });
+
+    // For "Add to Spellbook" modal: wizard spells NOT yet in spellbook (level 1+ only)
+    const spellsToAddToSpellbook = allSpells.filter(s => {
+        if (s.level === 0) return false;
+        const spellAvailableToClass = s.classes.some(spellClass => 
+            availableClassIds.includes(spellClass.toLowerCase())
+        );
+        if (!spellAvailableToClass) return false;
+        const maxSpellLevel = Math.ceil(effectiveCasterLevel / 2);
+        if (s.level > maxSpellLevel) return false;
+        return !effectiveSpellbook.includes(s.id);
     });
 
     // Filter available spells by search term
@@ -572,13 +606,16 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         let spellsAtLevel: any[] = [];
         
         if ((preparedCaster || spellcastingClasses.some(sc => sc.classInfo.preparedCaster)) && lvl > 0) {
-            // For prepared casters: show all available spells at this level (not cantrips)
+            // For prepared casters: show spells at this level. Wizard = spellbook only; others = all.
             const maxSpellLevel = Math.ceil(effectiveCasterLevel / 2);
-            const availableAtLevel = allSpells.filter(s => 
+            let availableAtLevel = allSpells.filter(s => 
                 s.classes.some(spellClass => availableClassIds.includes(spellClass.toLowerCase())) &&
                 s.level === lvl &&
                 s.level <= maxSpellLevel
             );
+            if (isWizardSpellbook) {
+                availableAtLevel = availableAtLevel.filter(s => effectiveSpellbook.includes(s.id));
+            }
             
             spellsAtLevel = availableAtLevel.map(spell => {
                 const knownSpell = mySpells.find(ms => ms.id === spell.id);
@@ -653,6 +690,18 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             >
                                 + Learn Cantrip
                             </button>
+                            {isWizardSpellbook && (
+                                <button
+                                    className="button secondary"
+                                    style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
+                                    onClick={() => {
+                                        setSearchTerm('');
+                                        setIsAddingToSpellbook(true);
+                                    }}
+                                >
+                                    + Add to Spellbook
+                                </button>
+                            )}
                             <button
                                 className="button primary"
                                 style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
@@ -705,7 +754,9 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                         </h3>
                         {preparedCaster && !isCantripMode && (
                             <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                                You know all spells of your class (except cantrips). Select a spell to prepare it. Prepared: {currentPreparedCount} / {preparedSpellsLimit}
+                                {isWizardSpellbook
+                                    ? 'Select a spell from your spellbook to prepare it. Add spells via "Add to Spellbook". Prepared: ' + currentPreparedCount + ' / ' + preparedSpellsLimit
+                                    : 'You know all spells of your class (except cantrips). Select a spell to prepare it. Prepared: ' + currentPreparedCount + ' / ' + preparedSpellsLimit}
                             </p>
                         )}
                         {preparedCaster && isCantripMode && (
@@ -814,6 +865,73 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                 setSearchTerm('');
                             }}>Close</button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {isAddingToSpellbook && (
+                <div className="modal-overlay" onClick={() => setIsAddingToSpellbook(false)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+                        <h3>Add to Spellbook</h3>
+                        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                            Choose a wizard spell to add to your spellbook (e.g. from copying a scroll or research). You can then prepare it.
+                        </p>
+                        <input
+                            type="text"
+                            placeholder="Search spells..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '0.75rem',
+                                marginBottom: '1rem',
+                                border: '1px solid var(--border)',
+                                borderRadius: '4px',
+                                backgroundColor: 'var(--surface)',
+                                color: 'var(--text)',
+                                fontSize: '0.875rem'
+                            }}
+                        />
+                        <div style={{ display: 'grid', gap: '0.5rem', overflowY: 'auto', flex: 1 }}>
+                            {spellsToAddToSpellbook
+                                .filter(spell => !searchTerm.trim() || spell.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                .map(spell => (
+                                    <div
+                                        key={spell.id}
+                                        className="spell-row"
+                                        style={{ cursor: 'pointer', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '4px' }}
+                                        onClick={() => addToSpellbook(spell)}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
+                                            <button
+                                                className="button secondary"
+                                                onClick={(e) => { e.stopPropagation(); setSpellDetailsModal({ isOpen: true, spell }); }}
+                                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                            >
+                                                View
+                                            </button>
+                                        </div>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                            Level {spell.level} {spell.school} • {spell.castingTime}
+                                        </div>
+                                    </div>
+                                ))}
+                            {spellsToAddToSpellbook.filter(s => !searchTerm.trim() || s.name.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
+                                <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                    {spellsToAddToSpellbook.length === 0
+                                        ? 'All wizard spells at your level are already in your spellbook.'
+                                        : 'No spells match your search.'}
+                                </p>
+                            )}
+                        </div>
+                        <button
+                            className="button secondary"
+                            onClick={() => { setIsAddingToSpellbook(false); setSearchTerm(''); }}
+                            style={{ marginTop: '1rem' }}
+                        >
+                            Close
+                        </button>
                     </div>
                 </div>
             )}

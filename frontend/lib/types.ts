@@ -94,6 +94,8 @@ export interface CharacterData {
     equipment: (string | CharacterItem)[];
     spells: CharacterSpell[];
     spellSlotsUsed?: { [level: number]: number };
+    /** Wizard only: spell IDs in the spellbook. Spells can only be prepared if in the spellbook. */
+    spellbook?: string[];
     features: CharacterFeature[];
     actions?: CharacterAction[];
     subclassId?: string;
