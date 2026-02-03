@@ -52,7 +52,7 @@ export default function EquipmentManager({
         const fetchBaseItems = async () => {
             try {
                 const data = await api.get('/reference/base-items');
-                setBaseItems(data);
+                setBaseItems(Array.isArray(data) ? data : []);
             } catch (err) {
                 console.error('Failed to fetch base items', err);
             }
@@ -256,9 +256,10 @@ export default function EquipmentManager({
     };
 
     const categories: ItemCategory[] = ['armor', 'weapon', 'shield', 'tool', 'magic-item', 'potion', 'scroll', 'miscellaneous'];
+    const safeBaseItems = Array.isArray(baseItems) ? baseItems : [];
     const filteredBaseItems = selectedCategory === 'custom' 
         ? [] 
-        : baseItems.filter(item => {
+        : safeBaseItems.filter(item => {
             if (item.category !== selectedCategory) return false;
             if (!searchTerm.trim()) return true;
             const searchLower = searchTerm.toLowerCase();
@@ -273,7 +274,7 @@ export default function EquipmentManager({
     // Resolve category for string items (e.g. "Shortbow" from starting equipment) using baseItems so they appear in the right section
     const getCategoryForItem = (item: string | CharacterItem): ItemCategory => {
         if (typeof item !== 'string') return (item.category || 'miscellaneous') as ItemCategory;
-        const base = baseItems.find(b => b.name.toLowerCase() === (item as string).toLowerCase());
+        const base = safeBaseItems.find(b => b.name?.toLowerCase() === (item as string).toLowerCase());
         return (base?.category as ItemCategory) || 'miscellaneous';
     };
 

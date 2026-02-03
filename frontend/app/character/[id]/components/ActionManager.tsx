@@ -13,14 +13,16 @@ interface ActionManagerProps {
 }
 
 export default function ActionManager({ characterId, initialActions, onUpdate, featureActions = [] }: ActionManagerProps) {
-    const [actions, setActions] = useState<CharacterAction[]>(initialActions || []);
+    const safeActions = Array.isArray(initialActions) ? initialActions : [];
+    const safeFeatureActions = Array.isArray(featureActions) ? featureActions : [];
+    const [actions, setActions] = useState<CharacterAction[]>(safeActions);
 
     useEffect(() => {
-        setActions(initialActions || []);
+        setActions(Array.isArray(initialActions) ? initialActions : []);
     }, [initialActions]);
 
     // Weapon attacks live only in the Attacks section (CombatManager). Never show them here.
-    const filteredActions = actions.filter(action => !action.name.endsWith(' Attack'));
+    const filteredActions = (actions || []).filter(action => !action.name?.endsWith?.(' Attack'));
     const [isAdding, setIsAdding] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
     const [newItem, setNewItem] = useState<Partial<CharacterAction>>({
@@ -77,7 +79,7 @@ export default function ActionManager({ characterId, initialActions, onUpdate, f
     const reactions = actionsList.filter(a => a.type === 'reaction');
     const otherActions = actionsList.filter(a => a.type === 'other');
     // Group feature actions by type
-    const featureByType = (t: string) => featureActions.filter(a => a.type === t);
+    const featureByType = (t: string) => safeFeatureActions.filter(a => a.type === t);
 
     const renderActionGroup = (title: string, featureItems: CharacterAction[], customItems: CharacterAction[]) => {
         if (featureItems.length === 0 && customItems.length === 0) return null;
@@ -176,7 +178,7 @@ export default function ActionManager({ characterId, initialActions, onUpdate, f
                         marginRight: isExpanded ? '0' : '-0.5rem'
                     }}
                 >
-                    {actionsList.length === 0 && featureActions.length === 0 && (
+                    {actionsList.length === 0 && safeFeatureActions.length === 0 && (
                         <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.875rem' }}>No custom actions recorded.</div>
                     )}
 
@@ -187,7 +189,7 @@ export default function ActionManager({ characterId, initialActions, onUpdate, f
                 </div>
 
                 {/* Expand/Collapse Button - pinned to bottom of card */}
-                {(actionsList.length > 0 || featureActions.length > 0) && (
+                {(actionsList.length > 0 || safeFeatureActions.length > 0) && (
                     <div style={{ 
                         display: 'flex', 
                         justifyContent: 'center', 

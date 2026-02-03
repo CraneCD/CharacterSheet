@@ -105,7 +105,7 @@ export default function CharacterSheet() {
                     try {
                         const classFeatures: ClassFeature[] = await api.get(`/reference/class-features/${cls.id}`);
                         // Filter features up to class level
-                        const featuresForClass = classFeatures.filter(f => f.level <= cls.level);
+                        const featuresForClass = (Array.isArray(classFeatures) ? classFeatures : []).filter(f => f.level <= cls.level);
                         allClassFeatures.push(...featuresForClass);
                     } catch (err) {
                         console.error(`Failed to load features for ${cls.id}`, err);
@@ -242,7 +242,7 @@ export default function CharacterSheet() {
     let calculatedAC = 10 + effectiveModifiers.dex;
 
     // Check equipped items
-    const equipment: (string | CharacterItem)[] = data.equipment || [];
+    const equipment: (string | CharacterItem)[] = Array.isArray(data.equipment) ? data.equipment : [];
     const equippedItems = equipment
         .map(item => (typeof item === 'string' ? { name: item } : item))
         .filter(item => item.equipped);
@@ -384,7 +384,7 @@ export default function CharacterSheet() {
             .filter(Boolean)
     );
 
-    const filteredDynamicFeatures = (data.features || []).filter((f: CharacterFeature) => {
+    const filteredDynamicFeatures = (Array.isArray(data.features) ? data.features : []).filter((f: CharacterFeature) => {
         const nameKey = (f.name || '').toLowerCase();
         if (!nameKey) return true;
         const sourceKey = (f.source || '').toLowerCase();
@@ -1134,7 +1134,7 @@ export default function CharacterSheet() {
                                     throw err;
                                 }
                             }}
-                            hasWeaponMastery={classFeaturesList.some(f => f.name === 'Weapon Mastery')}
+                            hasWeaponMastery={(classFeaturesList || []).some(f => f.name === 'Weapon Mastery')}
                             onDeleteMasteryActionsForWeapon={async (weaponName) => {
                                 const actions = (data.actions || []) as { name: string }[];
                                 const indices = actions

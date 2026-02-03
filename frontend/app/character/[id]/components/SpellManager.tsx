@@ -193,7 +193,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         const fetchSpells = async () => {
             try {
                 const data = await api.get('/reference/spells');
-                setAllSpells(data);
+                setAllSpells(Array.isArray(data) ? data : []);
             } catch (err) {
                 console.error('Failed to fetch spells', err);
             }
@@ -256,7 +256,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     const createSpellAction = async (spell: Spell | CharacterSpell) => {
         if (!onCreateAction) return;
         
-        const spellData = 'description' in spell ? spell : allSpells.find(s => s.id === spell.id);
+        const spellData = 'description' in spell ? spell : safeAllSpells.find(s => s.id === spell.id);
         if (!spellData) return;
 
         // Determine action type from casting time
@@ -385,7 +385,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             onUpdate({ spellbook: newSpellbook, spells: updatedSpells });
             const spellToRemove = mySpells.find(s => s.id === spellId);
             if (spellToRemove) {
-                const fullSpell = allSpells.find(s => s.id === spellId);
+                const fullSpell = safeAllSpells.find(s => s.id === spellId);
                 if (fullSpell) {
                     const actionType = getActionTypeFromCastingTime(fullSpell.castingTime);
                     await removeActionByName(getActionName(spellToRemove.name, actionType));
@@ -464,7 +464,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             updateParent(updated, slotsUsed);
             
             // Get spell data to determine action type from casting time
-            const spellData = allSpells.find(s => s.id === spell.id);
+            const spellData = safeAllSpells.find(s => s.id === spell.id);
             if (spellData) {
                 const actionType = getActionTypeFromCastingTime(spellData.castingTime);
                 const actionName = getActionName(spell.name, actionType);
@@ -576,7 +576,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     // For prepared casters in cantrip mode: show only cantrips not yet learned
     // For prepared casters in prepare mode: show spells they can prepare (wizard = spellbook only; others = all)
     // For known casters: only show spells not yet learned
-    const availableSpells = allSpells.filter(s => {
+    const safeAllSpells = Array.isArray(allSpells) ? allSpells : [];
+    const availableSpells = safeAllSpells.filter(s => {
         // Check if spell is available to any of the character's spellcasting classes
         const spellClasses = s.classes || [];
         const spellAvailableToClass = spellClasses.some((spellClass: string) => 
@@ -607,7 +608,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     });
 
     // For "Add to Spellbook" modal: wizard spells NOT yet in spellbook (level 1+ only)
-    const spellsToAddToSpellbook = allSpells.filter(s => {
+    const spellsToAddToSpellbook = safeAllSpells.filter(s => {
         if (s.level === 0) return false;
         const spellAvailableToClass = (s.classes || []).some((spellClass: string) => 
             availableClassIds.includes(spellClass.toLowerCase())
@@ -638,7 +639,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     const lineageSpellsConfig = lineageKey ? ELVEN_LINEAGE_SPELLS[lineageKey] : [];
     const lineageSpellsForLevel = lineageSpellsConfig
         .filter(entry => level >= entry.level)
-        .map(entry => ({ ...entry, spell: allSpells.find(s => s.id === entry.spellId) }))
+        .map(entry => ({ ...entry, spell: safeAllSpells.find(s => s.id === entry.spellId) }))
         .filter((x): x is typeof x & { spell: Spell } => !!x.spell);
 
     // Subclass bonus spells (e.g. Gloom Stalker): granted at class levels 3, 5, 9, 13, 17. Always prepared.
@@ -647,7 +648,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     const subclassSpellsConfig = subclassKey ? SUBCLASS_BONUS_SPELLS[subclassKey] : [];
     const subclassSpellsForLevel = subclassSpellsConfig
         .filter(entry => subclassClassLvl >= entry.level)
-        .map(entry => ({ ...entry, spell: allSpells.find(s => s.id === entry.spellId) }))
+        .map(entry => ({ ...entry, spell: safeAllSpells.find(s => s.id === entry.spellId) }))
         .filter((x): x is typeof x & { spell: Spell } => !!x.spell);
 
     // Group spells by level
@@ -660,7 +661,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         if ((preparedCaster || spellcastingClasses.some(sc => sc.classInfo.preparedCaster) || isInnateOnly) && lvl > 0) {
             // For prepared casters: show spells at this level. Wizard = spellbook only; others = all.
             const maxSpellLevel = Math.ceil(effectiveCasterLevel / 2);
-            let availableAtLevel = allSpells.filter(s => 
+            let availableAtLevel = safeAllSpells.filter(s => 
                 (s.classes || []).some((spellClass: string) => availableClassIds.includes(spellClass.toLowerCase())) &&
                 s.level === lvl &&
                 s.level <= maxSpellLevel
@@ -1164,7 +1165,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             const spellPrepared = spell.prepared || false;
                             
                             // Get full spell data for details modal
-                            const fullSpell = allSpells.find(s => s.id === spell.id);
+                            const fullSpell = safeAllSpells.find(s => s.id === spell.id);
                             
                             const isElvenLineageSpell = (spell as any).isElvenLineage === true;
                             const isSubclassBonusSpell = (spell as any).isSubclassBonus === true;
@@ -1202,7 +1203,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                                 style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
                                                 onClick={() => {
                                                     if (preparedCaster && !isKnown) {
-                                                        const fullSpell = allSpells.find(s => s.id === spell.id);
+                                                        const fullSpell = safeAllSpells.find(s => s.id === spell.id);
                                                         if (fullSpell) prepareSpellDirectly(fullSpell);
                                                     } else {
                                                         togglePrepared(spell.id, spellPrepared);

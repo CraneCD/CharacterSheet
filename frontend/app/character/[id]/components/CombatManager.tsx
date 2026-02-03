@@ -11,7 +11,8 @@ interface CombatManagerProps {
 }
 
 export default function CombatManager({ equipment, strMod, dexMod, profBonus, fightingStyles = [] }: CombatManagerProps) {
-    const equippedWeapons = equipment
+    const safeEquipment = Array.isArray(equipment) ? equipment : [];
+    const equippedWeapons = safeEquipment
         .map(item => (typeof item === 'string' ? { name: item } : item))
         .filter(item => item.equipped && (item.type === 'weapon' || item.category === 'weapon')) as CharacterItem[];
 
