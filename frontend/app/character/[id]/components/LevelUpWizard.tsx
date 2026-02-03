@@ -141,7 +141,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
         const raceTraits = character.data?.racialTraits || [];
         const traitSkills = getSkillProficienciesFromTraits(raceTraits);
         const storedSkills = character.data?.skills || [];
-        const proficient = [...new Set([...bgSkills, ...traitSkills, ...storedSkills])];
+        const proficient = Array.from(new Set([...bgSkills, ...traitSkills, ...storedSkills]));
         return SCHOLAR_SKILL_OPTIONS.filter(s => proficient.includes(s));
     })();
     const scholarSkillOptions = scholarProficientSkills.length > 0 ? scholarProficientSkills : SCHOLAR_SKILL_OPTIONS;
