@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Spell, CharacterSpell, CharacterData } from '@/lib/types';
 import { calculateMulticlassSpellcasterLevel, getSpellcastingClasses, calculatePreparedSpellsLimitForClass } from '@/lib/multiclassSpellcasting';
+import { ELVEN_LINEAGE_SPELLS } from '@/lib/wizardReference';
 
 // Spell Details Modal Component
 const SpellDetailsModal = ({ spell, isOpen, onClose }: { spell: Spell | null, isOpen: boolean, onClose: () => void }) => {
@@ -93,6 +94,8 @@ interface SpellManagerProps {
     classId: string;
     level: number;
     initialSpells: CharacterSpell[];
+    /** Elf lineage (drow, high_elf, wood_elf). Lineage spells are always prepared at the appropriate levels. */
+    elvenLineage?: string;
     initialSlotsUsed: { [level: number]: number };
     spellcastingAbility: string;
     preparedCaster?: boolean; // If true, class knows all spells and prepares a subset
@@ -153,7 +156,7 @@ const getSlotsForClass = (classId: string, level: number, casterLevelDivisor?: n
 const THIRD_CASTER_SPELLS_KNOWN: number[] = [0, 0, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9];
 const THIRD_CASTER_CANTRIPS: Record<string, number> = { arcane_trickster: 3, eldritch_knight: 2 };
 
-export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp }: SpellManagerProps) {
+export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage }: SpellManagerProps) {
     const [mySpells, setMySpells] = useState<CharacterSpell[]>(initialSpells || []);
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
     const [allSpells, setAllSpells] = useState<Spell[]>([]);
@@ -620,6 +623,14 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         );
     });
 
+    // Elven lineage spells (2024 PHB): granted at character levels 1, 3, 5. Always prepared.
+    const lineageKey = (elvenLineage || '').toLowerCase().replace(/\s+/g, '_');
+    const lineageSpellsConfig = lineageKey ? ELVEN_LINEAGE_SPELLS[lineageKey] : [];
+    const lineageSpellsForLevel = lineageSpellsConfig
+        .filter(entry => level >= entry.level)
+        .map(entry => ({ ...entry, spell: allSpells.find(s => s.id === entry.spellId) }))
+        .filter((x): x is typeof x & { spell: Spell } => !!x.spell);
+
     // Group spells by level
     // For prepared casters: show all available spells EXCEPT cantrips (level 0)
     // Cantrips must be learned one by one even for prepared casters
@@ -647,12 +658,73 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     level: spell.level,
                     school: spell.school,
                     prepared: knownSpell?.prepared || false,
-                    isKnown: !!knownSpell
+                    isKnown: !!knownSpell,
+                    isElvenLineage: false
                 };
             });
+
+            // Add elven lineage spells for this level (always prepared, from racial trait)
+            for (const { spell } of lineageSpellsForLevel) {
+                if (spell.level === lvl && !spellsAtLevel.some(s => s.id === spell.id)) {
+                    spellsAtLevel.push({
+                        id: spell.id,
+                        name: spell.name,
+                        level: spell.level,
+                        school: spell.school,
+                        prepared: true,
+                        isKnown: true,
+                        isElvenLineage: true
+                    });
+                }
+            }
+        } else if (lvl === 0) {
+            // Cantrips: learned spells + elven lineage cantrip
+            spellsAtLevel = mySpells.filter(ms => ms.level === 0).map(ms => ({
+                id: ms.id,
+                name: ms.name,
+                level: 0,
+                school: ms.school,
+                prepared: true,
+                isKnown: true,
+                isElvenLineage: false
+            }));
+            const lineageCantrip = lineageSpellsForLevel.find(l => l.spell.level === 0);
+            if (lineageCantrip && !spellsAtLevel.some(s => s.id === lineageCantrip.spell.id)) {
+                spellsAtLevel.push({
+                    id: lineageCantrip.spell.id,
+                    name: lineageCantrip.spell.name,
+                    level: 0,
+                    school: lineageCantrip.spell.school,
+                    prepared: true,
+                    isKnown: true,
+                    isElvenLineage: true
+                });
+            }
         } else {
-            // For known casters OR cantrips (level 0): only show learned spells
-            spellsAtLevel = mySpells.filter(ms => ms.level === lvl);
+            // Known casters (non-cantrip): only show learned spells
+            spellsAtLevel = mySpells.filter(ms => ms.level === lvl).map(ms => ({
+                id: ms.id,
+                name: ms.name,
+                level: ms.level,
+                school: ms.school,
+                prepared: ms.prepared,
+                isKnown: true,
+                isElvenLineage: false
+            }));
+            // Add elven lineage spells for this level
+            for (const { spell } of lineageSpellsForLevel) {
+                if (spell.level === lvl && !spellsAtLevel.some(s => s.id === spell.id)) {
+                    spellsAtLevel.push({
+                        id: spell.id,
+                        name: spell.name,
+                        level: spell.level,
+                        school: spell.school,
+                        prepared: true,
+                        isKnown: true,
+                        isElvenLineage: true
+                    });
+                }
+            }
         }
 
         // Sort spells: prepared spells first, then alphabetically by name
@@ -1040,10 +1112,16 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             // Get full spell data for details modal
                             const fullSpell = allSpells.find(s => s.id === spell.id);
                             
+                            const isElvenLineageSpell = (spell as any).isElvenLineage === true;
                             return (
                                 <div key={spell.id} className="spell-item spell-item-row" style={{ backgroundColor: 'var(--surface)', padding: '0.5rem', borderRadius: '4px' }}>
                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
+                                        <div style={{ fontWeight: 'bold' }}>
+                                            {spell.name}
+                                            {isElvenLineageSpell && (
+                                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: '0.35rem' }}>(Elven Lineage)</span>
+                                            )}
+                                        </div>
                                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{spell.school}</div>
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1060,7 +1138,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                                 View
                                             </button>
                                         )}
-                                        {spell.level > 0 && (
+                                        {spell.level > 0 && !isElvenLineageSpell && (
                                             <button
                                                 className={`button ${spellPrepared ? 'primary' : 'secondary'}`}
                                                 style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
@@ -1080,7 +1158,10 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                                 {spellPrepared ? 'Prepared' : 'Prepare'}
                                             </button>
                                         )}
-                                        {!preparedCaster && (
+                                        {spell.level > 0 && isElvenLineageSpell && (
+                                            <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 'bold' }}>Always prepared</span>
+                                        )}
+                                        {!preparedCaster && !isElvenLineageSpell && (
                                             <button
                                                 type="button"
                                                 className="button plain"
@@ -1096,7 +1177,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                                 &times;
                                             </button>
                                         )}
-                                        {isWizardSpellbook && spell.level > 0 && (
+                                        {isWizardSpellbook && spell.level > 0 && !isElvenLineageSpell && (
                                             <button
                                                 type="button"
                                                 className="button plain"

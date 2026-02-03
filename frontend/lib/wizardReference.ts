@@ -11,6 +11,25 @@ export const ELVEN_LINEAGES = [
     { id: 'wood_elf', name: 'Wood Elf' }
 ] as const;
 
+/** Elven lineage spells by character level (2024 PHB). Level 1 = cantrip, level 3 = 1st-level spell, level 5 = 2nd-level spell. */
+export const ELVEN_LINEAGE_SPELLS: Record<string, { level: number; spellId: string }[]> = {
+    drow: [
+        { level: 1, spellId: 'dancing-lights' },
+        { level: 3, spellId: 'faerie-fire' },
+        { level: 5, spellId: 'darkness' }
+    ],
+    high_elf: [
+        { level: 1, spellId: 'prestidigitation' },
+        { level: 3, spellId: 'detect-magic' },
+        { level: 5, spellId: 'misty-step' }
+    ],
+    wood_elf: [
+        { level: 1, spellId: 'druidcraft' },
+        { level: 3, spellId: 'longstrider' },
+        { level: 5, spellId: 'pass-without-trace' }
+    ]
+};
+
 /** Elf traits by lineage (2024 PHB). Base traits + lineage-specific. */
 export const ELF_TRAITS_BY_LINEAGE: Record<string, string[]> = {
     drow: ['Darkvision', 'Elven Lineage (Drow)', 'Fey Ancestry', 'Keen Senses', 'Trance', 'Superior Darkvision', 'Dancing Lights'],

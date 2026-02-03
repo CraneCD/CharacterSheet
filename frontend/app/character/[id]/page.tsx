@@ -1305,6 +1305,7 @@ export default function CharacterSheet() {
                                 classId={character.classId || primarySpellcastingClass.id}
                                 level={level}
                                 subclassSpellcasting={subclassSpellcasting}
+                                elvenLineage={(character.race || '').toLowerCase() === 'elf' ? data.elvenLineage : undefined}
                                 initialSpells={data.spells || []}
                                 initialSlotsUsed={data.spellSlotsUsed || {}}
                                 spellcastingAbility={primarySpellcastingAbility}
