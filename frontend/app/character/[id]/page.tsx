@@ -477,7 +477,8 @@ export default function CharacterSheet() {
 
     const startEditingAbility = (stat: string) => {
         setEditingAbility(stat);
-        setAbilityEditValue(abilityScores[stat].toString());
+        const val = abilityScores[stat as keyof typeof abilityScores];
+        setAbilityEditValue(String(val ?? 10));
     };
 
     const cancelEditingAbility = () => {
@@ -491,7 +492,8 @@ export default function CharacterSheet() {
             handleAbilityScoreChange(stat, value);
         } else {
             // Restore original value if empty or invalid
-            setAbilityEditValue(abilityScores[stat].toString());
+            const val = abilityScores[stat as keyof typeof abilityScores];
+            setAbilityEditValue(String(val ?? 10));
             cancelEditingAbility();
         }
     };
@@ -883,7 +885,7 @@ export default function CharacterSheet() {
                                                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                                 title="Click to edit"
                                             >
-                                                {abilityScores[stat]}
+                                                {abilityScores[stat as keyof typeof abilityScores]}
                                             </div>
                                         )}
                                     </div>
