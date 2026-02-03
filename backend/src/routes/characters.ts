@@ -1115,6 +1115,42 @@ router.post('/:id/spellbook', authenticateToken, async (req: AuthRequest, res) =
     }
 });
 
+// Remove Spells from Wizard Spellbook
+router.delete('/:id/spellbook', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const characterId = req.params.id;
+        const userId = req.user!.id;
+        const { spellIds } = req.body;
+
+        if (!spellIds || !Array.isArray(spellIds)) {
+            return res.status(400).json({ error: 'spellIds array is required' });
+        }
+
+        const character = await prisma.character.findUnique({ where: { id: characterId } });
+        if (!character || character.userId !== userId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const data = character.data as any;
+        const spellbook = data.spellbook || [];
+        const toRemove = new Set(spellIds.map((id: any) => typeof id === 'string' ? id.trim() : String(id)));
+        data.spellbook = spellbook.filter((id: string) => !toRemove.has(id));
+
+        // Also remove those spells from data.spells (unprepare / remove from known) so they don't appear as prepared
+        const spells = data.spells || [];
+        data.spells = spells.filter((s: any) => !toRemove.has(s.id || s.spellId));
+
+        const updated = await prisma.character.update({
+            where: { id: characterId },
+            data: { data }
+        });
+
+        res.json(updated);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to remove spells from spellbook' });
+    }
+});
+
 // Add Feature
 router.post('/:id/features', authenticateToken, async (req: AuthRequest, res) => {
     try {

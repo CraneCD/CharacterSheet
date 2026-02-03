@@ -21,6 +21,34 @@ export const traits: { [key: string]: Trait } = {
         name: 'Elven Lineage',
         description: 'You are part of an elven lineage that grants you supernatural abilities. Choose one lineage: Drow, High Elf, or Wood Elf. Your choice grants you certain traits (see the 2024 PHB).'
     },
+    'Elven Lineage (Drow)': {
+        name: 'Elven Lineage (Drow)',
+        description: 'Drow are shaped by the Underdark. The range of your Darkvision increases to 120 feet. You know the Dancing Lights cantrip. At 3rd level you learn Faerie Fire; at 5th level you learn Darkness. Intelligence, Wisdom, or Charisma is your spellcasting ability (choose when you select this lineage).'
+    },
+    'Elven Lineage (High Elf)': {
+        name: 'Elven Lineage (High Elf)',
+        description: 'High elves have been infused with magic from crossings between the Feywild and the Material Plane. You know the Prestidigitation cantrip. Whenever you finish a Long Rest, you can replace that cantrip with a different cantrip from the Wizard spell list. At 3rd level you learn Detect Magic; at 5th level you learn Misty Step.'
+    },
+    'Elven Lineage (Wood Elf)': {
+        name: 'Elven Lineage (Wood Elf)',
+        description: 'Wood elves carry the magic of primeval forests. Your Speed increases to 35 feet. You know the Druidcraft cantrip. At 3rd level you learn Longstrider; at 5th level you learn Pass without Trace.'
+    },
+    'Dancing Lights': {
+        name: 'Dancing Lights',
+        description: 'You know the Dancing Lights cantrip. You can cast it at will, without expending a spell slot.'
+    },
+    'Cantrip (Prestidigitation)': {
+        name: 'Cantrip (Prestidigitation)',
+        description: 'You know the Prestidigitation cantrip. Whenever you finish a Long Rest, you can replace it with a different cantrip from the Wizard spell list.'
+    },
+    'Fleet of Foot': {
+        name: 'Fleet of Foot',
+        description: 'Your base walking speed increases to 35 feet.'
+    },
+    'Druidcraft': {
+        name: 'Druidcraft',
+        description: 'You know the Druidcraft cantrip. You can cast it at will, without expending a spell slot.'
+    },
     'Fey Ancestry': {
         name: 'Fey Ancestry',
         description: 'You have advantage on saving throws against being charmed, and magic can\'t put you to sleep.'

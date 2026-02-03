@@ -26,6 +26,7 @@ export default function WizardContainer() {
         backgroundId: '',
         skillfulChoice: '' as string,
         versatileFeatId: '' as string,
+        elvenLineageChoice: '' as string,
         startingEquipmentChoices: [] as string[],
         expertiseChoices: [] as string[],
         languageChoices: [] as string[]
@@ -73,8 +74,8 @@ export default function WizardContainer() {
             const bgSkills = getBackgroundSkills(formData.backgroundId).length > 0
                 ? getBackgroundSkills(formData.backgroundId)
                 : (bgFromApi?.skillProficiencies ?? []);
-            const raceTraits = getRaceTraits(formData.raceId).length > 0
-                ? getRaceTraits(formData.raceId)
+            const raceTraits = getRaceTraits(formData.raceId, formData.elvenLineageChoice).length > 0
+                ? getRaceTraits(formData.raceId, formData.elvenLineageChoice)
                 : (selectedRace?.traits ?? []);
 
             let classResources = selectedClass 
@@ -148,6 +149,8 @@ export default function WizardContainer() {
                 alignment: formData.alignment,
                 skills,
                 racialTraits: raceTraits,
+                ...(formData.elvenLineageChoice ? { elvenLineage: formData.elvenLineageChoice } : {}),
+                ...(formData.elvenLineageChoice === 'wood_elf' ? { speed: 35 } : {}),
                 features,
                 hp: { current: maxHp, max: maxHp, temp: 0 },
                 hitDice: { 
@@ -214,7 +217,8 @@ export default function WizardContainer() {
                 return true;
             }
             case 6: {
-                const rt = getRaceTraits(formData.raceId).length > 0 ? getRaceTraits(formData.raceId) : (selectedRace?.traits ?? []);
+                const rt = getRaceTraits(formData.raceId, formData.elvenLineageChoice).length > 0 ? getRaceTraits(formData.raceId, formData.elvenLineageChoice) : (selectedRace?.traits ?? []);
+                if (formData.raceId === 'elf' && !formData.elvenLineageChoice) return false;
                 if (hasSkillful(rt) && !formData.skillfulChoice) return false;
                 if (hasVersatile(rt) && !formData.versatileFeatId) return false;
                 if (formData.classId === 'rogue') {
@@ -276,6 +280,7 @@ export default function WizardContainer() {
                             setFormData({
                                 ...formData,
                                 raceId: race.id,
+                                elvenLineageChoice: race.id === 'elf' ? formData.elvenLineageChoice : '',
                                 skillfulChoice: '',
                                 versatileFeatId: '',
                                 expertiseChoices: [],
@@ -334,7 +339,7 @@ export default function WizardContainer() {
                     />
                 )}
                 {step === 6 && (() => {
-                    const rt = getRaceTraits(formData.raceId).length > 0 ? getRaceTraits(formData.raceId) : (selectedRace?.traits ?? []);
+                    const rt = getRaceTraits(formData.raceId, formData.elvenLineageChoice).length > 0 ? getRaceTraits(formData.raceId, formData.elvenLineageChoice) : (selectedRace?.traits ?? []);
                     const bgSkills = getBackgroundSkills(formData.backgroundId);
                     const traitSkills = getSkillProficienciesFromTraits(rt);
                     const proficientSkills = [...bgSkills];

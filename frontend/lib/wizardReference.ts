@@ -4,6 +4,20 @@
  * Keep in sync with backend src/data/races.ts and backgrounds.ts.
  */
 
+/** Elven lineage options (2024 PHB). */
+export const ELVEN_LINEAGES = [
+    { id: 'drow', name: 'Drow' },
+    { id: 'high_elf', name: 'High Elf' },
+    { id: 'wood_elf', name: 'Wood Elf' }
+] as const;
+
+/** Elf traits by lineage (2024 PHB). Base traits + lineage-specific. */
+export const ELF_TRAITS_BY_LINEAGE: Record<string, string[]> = {
+    drow: ['Darkvision', 'Elven Lineage (Drow)', 'Fey Ancestry', 'Keen Senses', 'Trance', 'Superior Darkvision', 'Dancing Lights'],
+    high_elf: ['Darkvision', 'Elven Lineage (High Elf)', 'Fey Ancestry', 'Keen Senses', 'Trance', 'Cantrip (Prestidigitation)'],
+    wood_elf: ['Darkvision', 'Elven Lineage (Wood Elf)', 'Fey Ancestry', 'Keen Senses', 'Trance', 'Fleet of Foot', 'Druidcraft']
+};
+
 export const RACE_TRAITS: Record<string, string[]> = {
     human: ['Resourceful', 'Skillful', 'Versatile'],
     elf: ['Darkvision', 'Elven Lineage', 'Fey Ancestry', 'Keen Senses', 'Trance'],
@@ -111,8 +125,12 @@ export const BACKGROUND_SKILLS: Record<string, string[]> = {
     wayfarer: ['Insight', 'Stealth'],
 };
 
-export function getRaceTraits(raceId: string): string[] {
+export function getRaceTraits(raceId: string, elvenLineage?: string): string[] {
     const k = (raceId || '').toLowerCase();
+    if (k === 'elf' && elvenLineage) {
+        const lineage = (elvenLineage || '').toLowerCase().replace(/\s+/g, '_');
+        return ELF_TRAITS_BY_LINEAGE[lineage] ?? RACE_TRAITS.elf;
+    }
     return RACE_TRAITS[k] ?? [];
 }
 

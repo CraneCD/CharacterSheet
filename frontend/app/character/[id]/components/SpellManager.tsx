@@ -367,6 +367,28 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         }
     };
 
+    const removeFromSpellbook = async (spellId: string) => {
+        if (!isWizardSpellbook || !effectiveSpellbook.includes(spellId)) return;
+        try {
+            await api.delete(`/characters/${characterId}/spellbook`, { data: { spellIds: [spellId] } });
+            const newSpellbook = effectiveSpellbook.filter(id => id !== spellId);
+            const updatedSpells = mySpells.filter(s => s.id !== spellId);
+            setMySpells(updatedSpells);
+            onUpdate({ spellbook: newSpellbook, spells: updatedSpells });
+            const spellToRemove = mySpells.find(s => s.id === spellId);
+            if (spellToRemove) {
+                const fullSpell = allSpells.find(s => s.id === spellId);
+                if (fullSpell) {
+                    const actionType = getActionTypeFromCastingTime(fullSpell.castingTime);
+                    await removeActionByName(getActionName(spellToRemove.name, actionType));
+                }
+            }
+        } catch (err) {
+            console.error('Failed to remove spell from spellbook', err);
+            alert('Failed to remove spell from spellbook');
+        }
+    };
+
     const prepareSpellDirectly = async (spell: Spell) => {
         // For prepared casters: add spell and prepare it in one action
         try {
@@ -1072,6 +1094,23 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                                 title="Remove Spell"
                                             >
                                                 &times;
+                                            </button>
+                                        )}
+                                        {isWizardSpellbook && spell.level > 0 && (
+                                            <button
+                                                type="button"
+                                                className="button plain"
+                                                style={{ color: 'var(--error)', fontSize: '1rem', lineHeight: 1 }}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    if (confirm(`Remove ${spell.name} from your spellbook? It will also be unprepared if currently prepared.`)) {
+                                                        removeFromSpellbook(spell.id);
+                                                    }
+                                                }}
+                                                title="Remove from Spellbook"
+                                            >
+                                                Remove
                                             </button>
                                         )}
                                     </div>

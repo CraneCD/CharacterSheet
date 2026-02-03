@@ -91,6 +91,8 @@ export interface CharacterData {
     languages?: string[];
     /** Stored at creation from race; used for Features & Traits display. */
     racialTraits?: string[];
+    /** Elf only: chosen lineage (drow, high_elf, wood_elf). */
+    elvenLineage?: string;
     equipment: (string | CharacterItem)[];
     spells: CharacterSpell[];
     spellSlotsUsed?: { [level: number]: number };

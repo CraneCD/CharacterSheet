@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { hasSkillful, hasVersatile } from '@/lib/racialTraitBonuses';
-import { ORIGIN_FEAT_IDS, SKILLS_FOR_SKILLFUL, STANDARD_LANGUAGES, getRaceLanguages, getRaceLanguageChoices, getBackgroundLanguageChoices } from '@/lib/wizardReference';
+import { ORIGIN_FEAT_IDS, SKILLS_FOR_SKILLFUL, STANDARD_LANGUAGES, ELVEN_LINEAGES, getRaceLanguages, getRaceLanguageChoices, getBackgroundLanguageChoices } from '@/lib/wizardReference';
 
 interface StepReviewProps {
     data: any;
@@ -27,6 +27,7 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
     const [featsLoading, setFeatsLoading] = useState(false);
     const needsSkillful = hasSkillful(raceTraits);
     const needsVersatile = hasVersatile(raceTraits);
+    const needsElvenLineage = raceId === 'elf';
     
     // Level 1 expertise: Rogue gets 2 skills
     const needsExpertise = data.classId === 'rogue';
@@ -61,9 +62,29 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
         <div>
             <h2 className="heading" style={{ marginBottom: '1rem' }}>Review Character</h2>
 
-            {(needsSkillful || needsVersatile || needsExpertise || needsLanguageSelection) && onUpdate && (
+            {(needsSkillful || needsVersatile || needsExpertise || needsElvenLineage || needsLanguageSelection) && onUpdate && (
                 <div className="card" style={{ marginBottom: '1rem' }}>
                     <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>Trait, class, and language choices</h3>
+                    {needsElvenLineage && (
+                        <div style={{ marginBottom: (needsSkillful || needsVersatile || needsExpertise || needsLanguageSelection) ? '1rem' : 0 }}>
+                            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.35rem', fontSize: '0.875rem' }}>
+                                Elven Lineage — choose your lineage
+                            </label>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                                Your choice determines additional traits: Drow (Superior Darkvision, Dancing Lights), High Elf (Prestidigitation), Wood Elf (Speed 35 ft, Druidcraft).
+                            </p>
+                            <select
+                                className="input"
+                                value={data.elvenLineageChoice || ''}
+                                onChange={(e) => onUpdate({ elvenLineageChoice: e.target.value })}
+                            >
+                                <option value="">Select a lineage...</option>
+                                {ELVEN_LINEAGES.map((l) => (
+                                    <option key={l.id} value={l.id}>{l.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                     {needsSkillful && (
                         <div style={{ marginBottom: needsVersatile ? '1rem' : 0 }}>
                             <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.35rem', fontSize: '0.875rem' }}>
@@ -193,7 +214,14 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
                         <div style={{ fontWeight: 'bold', fontSize: '1.25rem', marginBottom: '1rem' }}>{data.name}</div>
 
                         <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Race</div>
-                        <div style={{ fontWeight: 'bold', marginBottom: '1rem' }}>{raceName}</div>
+                        <div style={{ fontWeight: 'bold', marginBottom: '1rem' }}>
+                            {raceName}
+                            {data.raceId === 'elf' && data.elvenLineageChoice && (
+                                <span style={{ fontWeight: 'normal', color: 'var(--text-muted)', marginLeft: '0.25rem' }}>
+                                    ({ELVEN_LINEAGES.find(l => l.id === data.elvenLineageChoice)?.name || data.elvenLineageChoice})
+                                </span>
+                            )}
+                        </div>
 
                         <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Class</div>
                         <div style={{ fontWeight: 'bold', marginBottom: '1rem' }}>{className}</div>
