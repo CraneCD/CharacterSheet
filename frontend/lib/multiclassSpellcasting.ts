@@ -66,6 +66,11 @@ const PALADIN_RANGER_PREPARED_SPELLS_BY_LEVEL: number[] = [
     2, 3, 4, 5, 6, 6, 7, 7, 8, 8, 10, 10, 11, 11, 12, 12, 14, 14, 15, 15
 ];
 
+/** 2024 PHB: fixed prepared spells by level for Wizard (does NOT depend on ability modifier). */
+const WIZARD_PREPARED_SPELLS_BY_LEVEL: number[] = [
+    4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 16, 16, 17, 18, 19, 21, 22, 23, 24, 25
+];
+
 /**
  * Calculate prepared spells limit for a specific class.
  * All classes use fixed tables or level-only; ability scores do NOT affect prepared spell count.
@@ -83,6 +88,9 @@ export function calculatePreparedSpellsLimitForClass(
     }
     if (cid === 'paladin' || cid === 'ranger') {
         return PALADIN_RANGER_PREPARED_SPELLS_BY_LEVEL[idx] ?? 2;
+    }
+    if (cid === 'wizard') {
+        return WIZARD_PREPARED_SPELLS_BY_LEVEL[idx] ?? 4;
     }
     // Fallback for other prepared casters: use level only (no ability modifier)
     return Math.max(1, classLevel);

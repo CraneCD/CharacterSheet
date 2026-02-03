@@ -42,13 +42,14 @@ export const classes: ClassInfo[] = [
         primaryAbility: ['int'],
         savingThrows: ['int', 'wis'],
         skillChoices: 2,
-        skillOptions: ['Arcana', 'History', 'Insight', 'Investigation', 'Medicine', 'Religion'],
+        skillOptions: ['Arcana', 'History', 'Insight', 'Investigation', 'Medicine', 'Nature', 'Religion'],
         armorProficiencies: ['None'],
-        weaponProficiencies: ['Daggers', 'Darts', 'Slings', 'Quarterstaffs', 'Light crossbows'],
+        weaponProficiencies: ['Simple weapons'],
         startingEquipment: ['Quarterstaff or dagger', 'Component pouch or arcane focus', 'Scholar\'s pack or Explorer\'s pack', 'Spellbook'],
         spellcaster: true,
         spellcastingAbility: 'int',
-        subclassLevel: 2,
+        preparedCaster: true,
+        subclassLevel: 3,
         multiclassPrerequisites: { int: 13 }
     },
     {
