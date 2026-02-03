@@ -1239,11 +1239,12 @@ export default function CharacterSheet() {
                 const primaryLevel = characterClasses[0]?.level ?? level;
                 const subclassGrantsSpellcasting = subclass?.spellcasting && primaryLevel >= 3
                     && ['arcane_trickster', 'eldritch_knight'].includes(subclassId);
-                const hasSpellcasting = hasBaseSpellcasting || subclassGrantsSpellcasting;
+                const hasElvenLineageSpells = (character.race || '').toLowerCase() === 'elf' && !!data.elvenLineage;
+                const hasSpellcasting = hasBaseSpellcasting || subclassGrantsSpellcasting || hasElvenLineageSpells;
 
                 if (!hasSpellcasting) return null;
 
-                // Get primary spellcasting class, or virtual entry for subclass spellcasting
+                // Get primary spellcasting class, or virtual entry for subclass spellcasting or elven lineage
                 let spellcastingClasses = characterClasses
                     .map(c => ({
                         ...c,
@@ -1270,6 +1271,15 @@ export default function CharacterSheet() {
                         classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: subclass.spellcasting.spellcastingAbility }
                     };
                     primarySpellcastingAbility = subclass.spellcasting.spellcastingAbility;
+                } else if (!primarySpellcastingClass && hasElvenLineageSpells) {
+                    // Virtual spellcasting for elven lineage only (no class spellcasting)
+                    primarySpellcastingClass = {
+                        id: 'innate',
+                        name: 'Elven Lineage',
+                        level,
+                        classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: 'cha' }
+                    };
+                    primarySpellcastingAbility = 'cha';
                 } else if (!primarySpellcastingClass) return null;
                 
                 return (

@@ -176,6 +176,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     const [isAddingToSpellbook, setIsAddingToSpellbook] = useState(false);
 
     const isWizardSpellbook = classId === 'wizard' && preparedCaster;
+    const isInnateOnly = classId === 'innate'; // Elven lineage spells only, no class spellcasting
     const effectiveSpellbook: string[] = spellbookProp ?? [];
 
     useEffect(() => {
@@ -499,7 +500,11 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     let maxSlots: number[];
     let effectiveCasterLevel = level;
 
-    if (isSubclassSpellcasting && subclassSpellcasting) {
+    if (classId === 'innate') {
+        // Elven lineage spells only: no spell slots from class (spells cast 1/LR for free)
+        maxSlots = [];
+        effectiveCasterLevel = level;
+    } else if (isSubclassSpellcasting && subclassSpellcasting) {
         effectiveCasterLevel = Math.floor(level / subclassSpellcasting.casterLevelDivisor);
         maxSlots = getSlotsForClass(subclassSpellcasting.spellListClass, level, subclassSpellcasting.casterLevelDivisor);
     } else if (hasMultipleClasses && allClassesData) {
@@ -638,7 +643,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     const spellsByLevel = Array.from({ length: 10 }, (_, i) => i).map(lvl => {
         let spellsAtLevel: any[] = [];
         
-        if ((preparedCaster || spellcastingClasses.some(sc => sc.classInfo.preparedCaster)) && lvl > 0) {
+        if ((preparedCaster || spellcastingClasses.some(sc => sc.classInfo.preparedCaster) || isInnateOnly) && lvl > 0) {
             // For prepared casters: show spells at this level. Wizard = spellbook only; others = all.
             const maxSpellLevel = Math.ceil(effectiveCasterLevel / 2);
             let availableAtLevel = allSpells.filter(s => 
@@ -748,7 +753,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         <div className="card">
             <div className="spellbook-header" style={{ marginBottom: '0.75rem' }}>
                 <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', margin: 0 }}>
-                    {preparedCaster ? 'Spellbook (Prepare Spells)' : 'Spellbook'}
+                    {isInnateOnly ? 'Elven Lineage Spells' : preparedCaster ? 'Spellbook (Prepare Spells)' : 'Spellbook'}
                     {preparedCaster && (
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', display: 'block', marginTop: '0.25rem' }}>
                             Prepared: {currentPreparedCount} / {preparedSpellsLimit}
@@ -761,8 +766,10 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     )}
                 </h3>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', justifyContent: 'flex-end' }}>
+                    {!isInnateOnly && (
                     <button className="button secondary" onClick={() => setSlotsUsed({})} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>Rest (Reset Slots)</button>
-                    {!preparedCaster && (
+                    )}
+                    {!preparedCaster && !isInnateOnly && (
                         <button
                             className="button primary"
                             style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
@@ -771,7 +778,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             + Learn Spell
                         </button>
                     )}
-                    {preparedCaster && (
+                    {preparedCaster && !isInnateOnly && (
                         <>
                             <button
                                 className="button primary"
