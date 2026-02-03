@@ -131,9 +131,9 @@ export default function CharacterSheet() {
 
     if (!character || !gameData) return <div className="p-8 text-center">Loading character sheet...</div>;
 
-    const data = character.data;
+    const data = character.data || {};
     const raceId = (character.race || '').toLowerCase();
-    const race = gameData.races.find((r: any) => (r.id || '').toLowerCase() === raceId) || { name: character.race, traits: [] };
+    const race = (gameData.races || []).find((r: any) => (r.id || '').toLowerCase() === raceId) || { name: character.race, traits: [] };
     
     // Handle multiclassing
     const classesData = data.classes || {};
@@ -142,22 +142,23 @@ export default function CharacterSheet() {
     // Get all classes
     const characterClasses = Object.keys(classesData).length > 0 
         ? Object.entries(classesData).map(([classId, level]: [string, any]) => {
-            const classInfo = gameData.classes.find(c => c.id.toLowerCase() === classId.toLowerCase()) || { name: classId };
+            const classInfo = (gameData.classes || []).find((c: any) => (c.id || '').toLowerCase() === (classId || '').toLowerCase()) || { name: classId };
             return { id: classId, name: classInfo.name, level, classInfo };
         })
         : (() => {
-            const primaryClassInfo = gameData.classes.find(c => c.id.toLowerCase() === character.class.toLowerCase()) || { name: character.class };
-            return [{ id: character.class.toLowerCase(), name: character.class, level: character.level, classInfo: primaryClassInfo }];
+            const cls = character.class || character.classId || 'fighter';
+            const primaryClassInfo = (gameData.classes || []).find((c: any) => (c.id || '').toLowerCase() === (cls || '').toLowerCase()) || { name: cls };
+            return [{ id: (cls || '').toLowerCase(), name: cls, level: character.level || 1, classInfo: primaryClassInfo }];
         })();
     
     // Get full class info for primary class (for backward compatibility)
-    const primaryClassId = characterClasses[0]?.id || character.class.toLowerCase();
-    const charClass = gameData.classes.find(c => c.id.toLowerCase() === primaryClassId) || { name: character.class };
+    const primaryClassId = characterClasses[0]?.id || (character.class || character.classId || 'fighter').toLowerCase();
+    const charClass = (gameData.classes || []).find((c: any) => (c.id || '').toLowerCase() === primaryClassId) || { name: character.class || 'Unknown' };
     const bgId = (data.backgroundId || '').toLowerCase();
-    const background = gameData.backgrounds.find((b: any) => (b.id || '').toLowerCase() === bgId) || { name: 'Custom', feature: { name: 'Custom Feature', description: '' } };
+    const background = (gameData.backgrounds || []).find((b: any) => (b.id || '').toLowerCase() === bgId) || { name: 'Custom', feature: { name: 'Custom Feature', description: '' } };
 
     // Subclass (for now, only primary class can have subclass)
-    const subclass = data.subclassId ? gameData.subclasses.find((s: any) => s.id === data.subclassId) : null;
+    const subclass = data.subclassId ? (gameData.subclasses || []).find((s: any) => (s.id || '') === data.subclassId) : null;
     
     // Build class name display
     let classNameDisplay = '';
@@ -1231,8 +1232,8 @@ export default function CharacterSheet() {
             {/* Spells Section (Full Width) */}
             {(() => {
                 // Check if character has spellcasting from base class or subclass (Arcane Trickster, Eldritch Knight)
-                const hasBaseSpellcasting = characterClasses.some(c => {
-                    const clsInfo = gameData.classes.find(gc => gc.id.toLowerCase() === c.id.toLowerCase());
+                const hasBaseSpellcasting = characterClasses.some((c: any) => {
+                    const clsInfo = (gameData.classes || []).find((gc: any) => (gc.id || '').toLowerCase() === (c.id || '').toLowerCase());
                     return clsInfo?.spellcaster;
                 });
                 const subclassId = (data.subclassId || '').toLowerCase();
@@ -1246,9 +1247,9 @@ export default function CharacterSheet() {
 
                 // Get primary spellcasting class, or virtual entry for subclass spellcasting or elven lineage
                 let spellcastingClasses = characterClasses
-                    .map(c => ({
+                    .map((c: any) => ({
                         ...c,
-                        classInfo: gameData.classes.find(gc => gc.id.toLowerCase() === c.id.toLowerCase())
+                        classInfo: (gameData.classes || []).find((gc: any) => (gc.id || '').toLowerCase() === (c.id || '').toLowerCase())
                     }))
                     .filter(c => c.classInfo?.spellcaster && c.id.toLowerCase() !== 'warlock')
                     .sort((a, b) => b.level - a.level);
@@ -1317,7 +1318,7 @@ export default function CharacterSheet() {
                                 subclassSpellcasting={subclassSpellcasting}
                                 elvenLineage={(character.race || '').toLowerCase() === 'elf' ? data.elvenLineage : undefined}
                                 subclassId={primarySpellcastingClass.id !== 'innate' ? (data.subclassId || '').toLowerCase().replace(/\s+/g, '_') : undefined}
-                                subclassClassLevel={primarySpellcastingClass.level}
+                                subclassClassLevel={primarySpellcastingClass?.level ?? level}
                                 initialSpells={data.spells || []}
                                 initialSlotsUsed={data.spellSlotsUsed || {}}
                                 spellcastingAbility={primarySpellcastingAbility}
@@ -1329,7 +1330,7 @@ export default function CharacterSheet() {
                                 }
                                 abilityScores={effectiveAbilityScores}
                                 classes={data.classes}
-                                allClasses={gameData.classes}
+                                allClasses={gameData.classes || []}
                                 onUpdate={(updates) => handleUpdateCharacter(updates)}
                                 existingActions={data.actions || []}
                                 onCreateAction={async (action) => {

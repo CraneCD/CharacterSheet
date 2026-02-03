@@ -578,7 +578,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     // For known casters: only show spells not yet learned
     const availableSpells = allSpells.filter(s => {
         // Check if spell is available to any of the character's spellcasting classes
-        const spellAvailableToClass = s.classes.some(spellClass => 
+        const spellClasses = s.classes || [];
+        const spellAvailableToClass = spellClasses.some((spellClass: string) => 
             availableClassIds.includes(spellClass.toLowerCase())
         );
         if (!spellAvailableToClass) return false;
@@ -608,7 +609,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     // For "Add to Spellbook" modal: wizard spells NOT yet in spellbook (level 1+ only)
     const spellsToAddToSpellbook = allSpells.filter(s => {
         if (s.level === 0) return false;
-        const spellAvailableToClass = s.classes.some(spellClass => 
+        const spellAvailableToClass = (s.classes || []).some((spellClass: string) => 
             availableClassIds.includes(spellClass.toLowerCase())
         );
         if (!spellAvailableToClass) return false;
@@ -660,7 +661,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             // For prepared casters: show spells at this level. Wizard = spellbook only; others = all.
             const maxSpellLevel = Math.ceil(effectiveCasterLevel / 2);
             let availableAtLevel = allSpells.filter(s => 
-                s.classes.some(spellClass => availableClassIds.includes(spellClass.toLowerCase())) &&
+                (s.classes || []).some((spellClass: string) => availableClassIds.includes(spellClass.toLowerCase())) &&
                 s.level === lvl &&
                 s.level <= maxSpellLevel
             );
