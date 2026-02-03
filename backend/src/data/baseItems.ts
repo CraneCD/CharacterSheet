@@ -262,6 +262,17 @@ export const baseItems: BaseItem[] = [
         isBaseItem: true
     },
     {
+        name: 'Sling',
+        category: 'weapon',
+        type: 'weapon',
+        damage: '1d4',
+        damageType: 'bludgeoning',
+        properties: ['ammunition'],
+        description: 'A simple ranged weapon with a range of 30/120 feet.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
         name: 'Palm Pistol',
         category: 'weapon',
         type: 'weapon',
