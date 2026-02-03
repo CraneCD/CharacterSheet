@@ -8,9 +8,11 @@ interface ActionManagerProps {
     characterId: string;
     initialActions: CharacterAction[];
     onUpdate: (data: Partial<CharacterData>) => void;
+    /** Read-only actions from class features (e.g. Psi Warrior Psionic Power). */
+    featureActions?: CharacterAction[];
 }
 
-export default function ActionManager({ characterId, initialActions, onUpdate }: ActionManagerProps) {
+export default function ActionManager({ characterId, initialActions, onUpdate, featureActions = [] }: ActionManagerProps) {
     const [actions, setActions] = useState<CharacterAction[]>(initialActions || []);
 
     useEffect(() => {
@@ -69,32 +71,38 @@ export default function ActionManager({ characterId, initialActions, onUpdate }:
     };
 
     const actionsList = filteredActions;
-    // Group by type
+    // Group custom actions by type
     const mainActions = actionsList.filter(a => a.type === 'action');
     const bonusActions = actionsList.filter(a => a.type === 'bonus');
-    const reactions = actionsList.filter(a => a.type === 'reaction'); // If we want to support reactions too
+    const reactions = actionsList.filter(a => a.type === 'reaction');
+    const otherActions = actionsList.filter(a => a.type === 'other');
+    // Group feature actions by type
+    const featureByType = (t: string) => featureActions.filter(a => a.type === t);
 
-    const renderActionGroup = (title: string, items: CharacterAction[]) => {
-        if (items.length === 0) return null;
+    const renderActionGroup = (title: string, featureItems: CharacterAction[], customItems: CharacterAction[]) => {
+        if (featureItems.length === 0 && customItems.length === 0) return null;
+        const allItems = [...featureItems, ...customItems];
         return (
             <div style={{ marginBottom: '1rem' }}>
                 <h4 style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>{title}</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {items.map((action, i) => {
-                        // Find the index in the original actions array (not filtered)
-                        const originalIndex = actions.findIndex(a => a.name === action.name && a.description === action.description);
+                    {allItems.map((action, i) => {
+                        const isFeature = i < featureItems.length;
+                        const originalIndex = !isFeature ? actions.findIndex(a => a.name === action.name && a.description === action.description) : -1;
                         return (
                             <div key={i} style={{ backgroundColor: 'var(--surface)', padding: '0.5rem', borderRadius: '4px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
                                     <div style={{ fontWeight: 'bold' }}>{action.name}</div>
-                                    <button
-                                        className="button plain"
-                                        style={{ color: 'var(--text-muted)', fontSize: '1.25rem', lineHeight: 1, padding: '0 0.25rem' }}
-                                        onClick={() => handleRemove(originalIndex)}
-                                        title="Remove"
-                                    >
-                                        &times;
-                                    </button>
+                                    {!isFeature && originalIndex >= 0 && (
+                                        <button
+                                            className="button plain"
+                                            style={{ color: 'var(--text-muted)', fontSize: '1.25rem', lineHeight: 1, padding: '0 0.25rem' }}
+                                            onClick={() => handleRemove(originalIndex)}
+                                            title="Remove"
+                                        >
+                                            &times;
+                                        </button>
+                                    )}
                                 </div>
                                 <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', whiteSpace: 'pre-wrap' }}>
                                     {action.description}
@@ -168,18 +176,18 @@ export default function ActionManager({ characterId, initialActions, onUpdate }:
                         marginRight: isExpanded ? '0' : '-0.5rem'
                     }}
                 >
-                    {actionsList.length === 0 && (
+                    {actionsList.length === 0 && featureActions.length === 0 && (
                         <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.875rem' }}>No custom actions recorded.</div>
                     )}
 
-                    {renderActionGroup('Actions', mainActions)}
-                    {renderActionGroup('Bonus Actions', bonusActions)}
-                    {renderActionGroup('Reactions', reactions)}
-                    {renderActionGroup('Other', actionsList.filter(a => a.type === 'other'))}
+                    {renderActionGroup('Actions', featureByType('action'), mainActions)}
+                    {renderActionGroup('Bonus Actions', featureByType('bonus'), bonusActions)}
+                    {renderActionGroup('Reactions', featureByType('reaction'), reactions)}
+                    {renderActionGroup('Other', featureByType('other'), otherActions)}
                 </div>
 
                 {/* Expand/Collapse Button - pinned to bottom of card */}
-                {actionsList.length > 0 && (
+                {(actionsList.length > 0 || featureActions.length > 0) && (
                     <div style={{ 
                         display: 'flex', 
                         justifyContent: 'center', 

@@ -64,6 +64,19 @@ export function calculateClassResources(
                     description: 'You spend grit to perform trick shots with firearms. Regain grit on a short rest, when you score a critical hit with a firearm, or when you reduce a creature to 0 HP with a firearm attack.'
                 };
             }
+            // Psi Warrior (Fighter subclass): Psionic Energy dice (level 3+)
+            if ((subclassId === 'psi_warrior' || subclassId === 'psi warrior') && level >= 3) {
+                const pb = Math.ceil(level / 4) + 1;
+                const diceMax = 2 * pb;
+                const dieSize = level >= 17 ? 'd12' : level >= 11 ? 'd10' : level >= 5 ? 'd8' : 'd6';
+                resources['Psionic Energy Dice'] = {
+                    name: 'Psionic Energy Dice',
+                    current: diceMax,
+                    max: diceMax,
+                    resetType: 'long',
+                    description: `You have ${diceMax} Psionic Energy dice (${dieSize}). They fuel Protective Field, Psionic Strike, Telekinetic Movement, and other psionic powers. You regain all expended dice when you finish a long rest.`
+                };
+            }
             break;
 
         case 'barbarian':
