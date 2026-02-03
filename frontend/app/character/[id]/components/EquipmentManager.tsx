@@ -270,14 +270,26 @@ export default function EquipmentManager({
             );
         });
 
-    // Group equipment by category
+    // Resolve category for string items (e.g. "Shortbow" from starting equipment) using baseItems so they appear in the right section
+    const getCategoryForItem = (item: string | CharacterItem): ItemCategory => {
+        if (typeof item !== 'string') return (item.category || 'miscellaneous') as ItemCategory;
+        const base = baseItems.find(b => b.name.toLowerCase() === (item as string).toLowerCase());
+        return (base?.category as ItemCategory) || 'miscellaneous';
+    };
+
+    // Group equipment by category, keeping each item's index in the full equipment array
+    type EquipmentEntry = { item: string | CharacterItem; index: number };
     const equipmentByCategory = categories.reduce((acc, cat) => {
-        acc[cat] = equipment.filter((item, i) => {
-            const itemObj = typeof item === 'string' ? { name: item, category: 'miscellaneous' as ItemCategory } : item;
-            return (itemObj.category || 'miscellaneous') === cat;
+        const entries: EquipmentEntry[] = [];
+        equipment.forEach((item, idx) => {
+            const category = getCategoryForItem(item);
+            if (category === cat) {
+                entries.push({ item, index: idx });
+            }
         });
+        acc[cat] = entries;
         return acc;
-    }, {} as Record<ItemCategory, (string | CharacterItem)[]>);
+    }, {} as Record<ItemCategory, EquipmentEntry[]>);
 
     return (
         <div className="card">
@@ -419,8 +431,8 @@ export default function EquipmentManager({
                     }}
                 >
                     {categories.map(category => {
-                        const categoryItems = equipmentByCategory[category];
-                        if (categoryItems.length === 0) return null;
+                        const categoryEntries = equipmentByCategory[category];
+                        if (categoryEntries.length === 0) return null;
 
                         return (
                             <div key={category} style={{ marginBottom: '1rem' }}>
@@ -436,23 +448,10 @@ export default function EquipmentManager({
                                     {category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
                                 </h4>
                                 <ul className="equipment-list" style={{ listStyle: 'none', padding: 0 }}>
-                                    {categoryItems.map((item, i) => {
-                                        // Find the actual index in the full equipment array
-                                        let actualIndex = -1;
-                                        let foundCount = 0;
-                                        equipment.forEach((eq, idx) => {
-                                            const itemObj = typeof item === 'string' ? { name: item, category: category as ItemCategory } : item;
-                                            const eqObj = typeof eq === 'string' ? { name: eq } : eq;
-                                            const eqCategory = (eqObj as CharacterItem).category || 'miscellaneous';
-                                            if (itemObj.name === eqObj.name && eqCategory === category) {
-                                                if (foundCount === i) {
-                                                    actualIndex = idx;
-                                                }
-                                                foundCount++;
-                                            }
-                                        });
-                                        if (actualIndex === -1) actualIndex = i; // Fallback
-                                        const itemObj = typeof item === 'string' ? { name: item, category: 'miscellaneous' as ItemCategory } : item;
+                                    {categoryEntries.map(({ item, index: actualIndex }) => {
+                                        const itemObj = typeof item === 'string'
+                                            ? { name: item, category: getCategoryForItem(item) as ItemCategory }
+                                            : item;
                                         const isItemExpanded = expandedIndex === actualIndex;
 
                                         return (
