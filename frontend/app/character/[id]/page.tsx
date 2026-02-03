@@ -57,10 +57,12 @@ export default function CharacterSheet() {
     const [acEditValue, setAcEditValue] = useState<string>('');
 
     useEffect(() => {
+        const charId = Array.isArray(id) ? id?.[0] : id;
+        if (!charId) return;
         const loadData = async () => {
             try {
                 const [char, races, classes, backgrounds, subclasses, traits] = await Promise.all([
-                    api.get(`/characters/${id}`),
+                    api.get(`/characters/${charId}`),
                     api.get('/reference/races'),
                     api.get('/reference/classes'),
                     api.get('/reference/backgrounds'),
@@ -86,9 +88,10 @@ export default function CharacterSheet() {
                 const classesData = data.classes || {};
                 
                 // Get all classes
+                const cls = character.class || character.classId || 'fighter';
                 const characterClasses = Object.keys(classesData).length > 0 
                     ? Object.entries(classesData).map(([classId, level]: [string, any]) => ({ id: classId, level }))
-                    : [{ id: character.class.toLowerCase(), level: character.level }];
+                    : [{ id: (cls || '').toLowerCase(), level: character.level ?? 1 }];
                 
                 // Load features for all classes
                 const allClassFeatures: ClassFeature[] = [];
@@ -129,7 +132,28 @@ export default function CharacterSheet() {
         loadFeatures();
     }, [character, gameData]);
 
-    if (!character || !gameData) return <div className="p-8 text-center">Loading character sheet...</div>;
+    if (!character || !gameData) {
+        return (
+            <div className="p-8 text-center">
+                <div>Loading character sheet...</div>
+            </div>
+        );
+    }
+
+    // Validate character has required fields
+    if (typeof character !== 'object') {
+        return (
+            <div className="p-8 text-center">
+                <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>Invalid character data.</p>
+                <Link href="/dashboard">Back to Dashboard</Link>
+            </div>
+        );
+    }
+
+    // Safe accessors - API may return classId instead of class, or missing fields
+    const primaryClass = (character.class || character.classId || 'fighter').toLowerCase?.() || 'fighter';
+    const level = character.level ?? 1;
+    const characterName = character.name ?? 'Unknown';
 
     const data = character.data || {};
     const raceId = (character.race || '').toLowerCase();
@@ -137,7 +161,7 @@ export default function CharacterSheet() {
     
     // Handle multiclassing
     const classesData = data.classes || {};
-    const hasMultipleClasses = Object.keys(classesData).length > 1 || (Object.keys(classesData).length === 0 && character.class);
+    const hasMultipleClasses = Object.keys(classesData).length > 1 || (Object.keys(classesData).length === 0 && primaryClass);
     
     // Get all classes
     const characterClasses = Object.keys(classesData).length > 0 
@@ -168,14 +192,21 @@ export default function CharacterSheet() {
         classNameDisplay = subclass ? `${charClass.name} (${subclass.name})` : charClass.name;
     }
 
-    // Derived Stats
-    const level = character.level;
+    // Derived Stats (level already defined above)
     const pb = Math.ceil(level / 4) + 1;
     const mod = (score: number) => Math.floor((score - 10) / 2);
     const formatMod = (m: number) => m >= 0 ? `+${m}` : `${m}`;
 
 
-    const abilityScores = data.abilityScores || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+    const rawScores = data.abilityScores || {};
+    const abilityScores = {
+        str: typeof rawScores.str === 'number' ? rawScores.str : 10,
+        dex: typeof rawScores.dex === 'number' ? rawScores.dex : 10,
+        con: typeof rawScores.con === 'number' ? rawScores.con : 10,
+        int: typeof rawScores.int === 'number' ? rawScores.int : 10,
+        wis: typeof rawScores.wis === 'number' ? rawScores.wis : 10,
+        cha: typeof rawScores.cha === 'number' ? rawScores.cha : 10,
+    };
     // Note: modifiers will be calculated after feature ability increases are applied
 
     // Get all features
@@ -201,7 +232,7 @@ export default function CharacterSheet() {
     };
 
     // Calculate AC (use manual override if set, otherwise calculate)
-    const acCalculationMethod = getACCalculationFromFeatures(allFeatures, character.class.toLowerCase());
+    const acCalculationMethod = getACCalculationFromFeatures(allFeatures, primaryClass);
     let calculatedAC = 10 + effectiveModifiers.dex;
 
     // Check equipped items
@@ -252,7 +283,7 @@ export default function CharacterSheet() {
     
     // Speed: calculate base speed, then add feature bonuses
     const baseSpeed = data.speed !== undefined ? data.speed : (race.speed || 30);
-    const speedBonus = calculateSpeedBonusFromFeatures(allFeatures, character.class.toLowerCase(), level);
+    const speedBonus = calculateSpeedBonusFromFeatures(allFeatures, primaryClass, level);
     const speed = baseSpeed + speedBonus;
     
     // Store speedBonus for display
@@ -261,7 +292,7 @@ export default function CharacterSheet() {
     // Saving Throws - include feature-granted proficiencies
     const savingThrowProficiencies = getSavingThrowProficienciesFromFeatures(
         allFeatures,
-        charClass.savingThrows || []
+        charClass?.savingThrows || []
     );
     const saves = ['str', 'dex', 'con', 'int', 'wis', 'cha'].map(stat => {
         const isProficient = savingThrowProficiencies.includes(stat);
@@ -328,7 +359,7 @@ export default function CharacterSheet() {
                 description: traitData?.description || `Racial trait: ${trait}`
             };
         })),
-        ...(background.feature ? [{ name: background.feature.name, source: 'Background Feature', description: background.feature.description }] : []),
+        ...(background?.feature ? [{ name: background.feature.name, source: 'Background Feature', description: background.feature.description }] : []),
         ...classFeaturesList.map(f => ({
             name: f.name,
             source: `Class: ${charClass.name}`,
@@ -567,7 +598,7 @@ export default function CharacterSheet() {
                 <div style={{ flex: '1 1 auto', minWidth: 0, maxWidth: '100%' }}>
                     <Link href="/dashboard" style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'inline-block' }}>&larr; Back to Dashboard</Link>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                        <h1 className="heading" style={{ marginBottom: '0.25rem', flex: '1 1 auto', minWidth: 0, wordBreak: 'break-word' }}>{character.name}</h1>
+                        <h1 className="heading" style={{ marginBottom: '0.25rem', flex: '1 1 auto', minWidth: 0, wordBreak: 'break-word' }}>{characterName}</h1>
                         <div className="no-print" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <button
                                 className="button primary"
@@ -594,7 +625,7 @@ export default function CharacterSheet() {
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement('a');
                                     a.href = url;
-                                    a.download = `${character.name.replace(/\s+/g, '_').toLowerCase()}.json`;
+                                    a.download = `${(character.name || 'character').replace(/\s+/g, '_').toLowerCase()}.json`;
                                     a.click();
                                 }}
                             >
@@ -955,26 +986,26 @@ export default function CharacterSheet() {
                         let resources = data.classResources;
                         let didChange = false;
                         if (!resources || Object.keys(resources).length === 0) {
-                            resources = calculateClassResources(character.class.toLowerCase(), level, abilityScores, data.subclassId);
+                            resources = calculateClassResources(primaryClass, level, abilityScores, data.subclassId);
                             if (Object.keys(resources).length > 0) didChange = true;
                         } else if (
-                            character.class.toLowerCase() === 'fighter' &&
+                            primaryClass === 'fighter' &&
                             data.subclassId === 'gunslinger' &&
                             level >= 3 &&
                             !resources['Grit Points']
                         ) {
-                            const withGrit = calculateClassResources(character.class.toLowerCase(), level, abilityScores, data.subclassId);
+                            const withGrit = calculateClassResources(primaryClass, level, abilityScores, data.subclassId);
                             if (withGrit['Grit Points']) {
                                 resources = { ...resources, 'Grit Points': withGrit['Grit Points'] };
                                 didChange = true;
                             }
                         } else if (
-                            character.class.toLowerCase() === 'fighter' &&
+                            primaryClass === 'fighter' &&
                             (data.subclassId === 'psi_warrior' || data.subclassId === 'psi warrior') &&
                             level >= 3 &&
                             !resources['Psionic Energy Dice']
                         ) {
-                            const withPsi = calculateClassResources(character.class.toLowerCase(), level, abilityScores, data.subclassId);
+                            const withPsi = calculateClassResources(primaryClass, level, abilityScores, data.subclassId);
                             if (withPsi['Psionic Energy Dice']) {
                                 resources = { ...resources, 'Psionic Energy Dice': withPsi['Psionic Energy Dice'] };
                                 didChange = true;
