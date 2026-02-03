@@ -1,10 +1,14 @@
 import './globals.css'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 
 export const metadata: Metadata = {
     title: 'D&D 5.5e Character Sheet',
     description: 'Manage your One D&D characters',
-    viewport: 'width=device-width, initial-scale=1',
+}
+
+export const viewport: Viewport = {
+    width: 'device-width',
+    initialScale: 1,
 }
 
 export default function RootLayout({
