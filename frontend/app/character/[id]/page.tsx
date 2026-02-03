@@ -70,7 +70,13 @@ export default function CharacterSheet() {
                     api.get('/reference/traits')
                 ]);
                 setCharacter(char);
-                setGameData({ races, classes, backgrounds, subclasses, traits });
+                setGameData({
+                    races: Array.isArray(races) ? races : [],
+                    classes: Array.isArray(classes) ? classes : [],
+                    backgrounds: Array.isArray(backgrounds) ? backgrounds : [],
+                    subclasses: Array.isArray(subclasses) ? subclasses : [],
+                    traits: traits && typeof traits === 'object' ? traits : undefined
+                });
             } catch (err) {
                 console.error(err);
             }
@@ -110,11 +116,11 @@ export default function CharacterSheet() {
 
                 // Load subclass features if character has a subclass (for now, only primary class)
                 if (data.subclassId) {
-                    const subclass = gameData.subclasses.find((s: any) => s.id === data.subclassId);
+                    const subclass = (gameData.subclasses || []).find((s: any) => (s?.id || '') === data.subclassId);
                     if (subclass) {
-                        const primaryClassLevel = characterClasses[0]?.level || character.level;
-                        // Filter subclass features up to primary class level
-                        const availableSubclassFeatures = subclass.features.filter((f: ClassFeature) => f.level <= primaryClassLevel);
+                        const primaryClassLevel = characterClasses[0]?.level ?? character.level ?? 1;
+                        const subclassFeatures = subclass.features || [];
+                        const availableSubclassFeatures = subclassFeatures.filter((f: ClassFeature) => f.level <= primaryClassLevel);
                         setSubclassFeaturesList(availableSubclassFeatures);
                     } else {
                         setSubclassFeaturesList([]);
