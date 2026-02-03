@@ -460,11 +460,13 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             
             return totalLimit;
         } else {
-            // Single class
-            const abilityScore = abilityScores[spellcastingAbility] || 10;
-            const modifier = Math.floor((abilityScore - 10) / 2);
-            const limit = level + modifier;
-            return Math.max(1, limit); // Minimum of 1 prepared spell
+            // Single class: use shared logic (Ranger uses fixed table; others use level + modifier)
+            return calculatePreparedSpellsLimitForClass(
+                classId,
+                level,
+                spellcastingAbility,
+                abilityScores
+            );
         }
     };
 

@@ -56,18 +56,35 @@ export function getSpellcastingClasses(
     return spellcastingClasses;
 }
 
+/** 2024 PHB: fixed prepared spells by level for Cleric and Druid (does NOT depend on ability modifier). */
+const CLERIC_DRUID_PREPARED_SPELLS_BY_LEVEL: number[] = [
+    4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 16, 16, 17, 17, 18, 18, 19, 20, 21, 22
+];
+
+/** 2024 PHB: fixed prepared spells by level for Paladin and Ranger (does NOT depend on ability modifier). */
+const PALADIN_RANGER_PREPARED_SPELLS_BY_LEVEL: number[] = [
+    2, 3, 4, 5, 6, 6, 7, 7, 8, 8, 10, 10, 11, 11, 12, 12, 14, 14, 15, 15
+];
+
 /**
- * Calculate prepared spells limit for a specific class in a multiclassed character
+ * Calculate prepared spells limit for a specific class.
+ * All classes use fixed tables or level-only; ability scores do NOT affect prepared spell count.
  */
 export function calculatePreparedSpellsLimitForClass(
     classId: string,
     classLevel: number,
-    spellcastingAbility: string,
-    abilityScores: { [key: string]: number }
+    _spellcastingAbility: string,
+    _abilityScores: { [key: string]: number }
 ): number {
-    const abilityScore = abilityScores[spellcastingAbility] || 10;
-    const modifier = Math.floor((abilityScore - 10) / 2);
-    const limit = classLevel + modifier;
-    return Math.max(1, limit); // Minimum of 1 prepared spell
+    const cid = classId.toLowerCase();
+    const idx = Math.min(Math.max(0, classLevel - 1), 19);
+    if (cid === 'cleric' || cid === 'druid') {
+        return CLERIC_DRUID_PREPARED_SPELLS_BY_LEVEL[idx] ?? 4;
+    }
+    if (cid === 'paladin' || cid === 'ranger') {
+        return PALADIN_RANGER_PREPARED_SPELLS_BY_LEVEL[idx] ?? 2;
+    }
+    // Fallback for other prepared casters: use level only (no ability modifier)
+    return Math.max(1, classLevel);
 }
 
