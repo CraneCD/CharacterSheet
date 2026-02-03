@@ -61,6 +61,7 @@ export const BACKGROUND_ASI: Record<string, Record<string, number>> = {
     shipwright: { int: 2, str: 1 },
     smuggler: { dex: 2, cha: 1 },
     spy: { dex: 2, int: 1 },
+    wayfarer: { dex: 2, cha: 1 },
 };
 
 export const BACKGROUND_SKILLS: Record<string, string[]> = {
@@ -107,6 +108,7 @@ export const BACKGROUND_SKILLS: Record<string, string[]> = {
     shipwright: ['History', 'Investigation'],
     smuggler: ['Deception', 'Stealth'],
     spy: ['Deception', 'Stealth'],
+    wayfarer: ['Insight', 'Stealth'],
 };
 
 export function getRaceTraits(raceId: string): string[] {

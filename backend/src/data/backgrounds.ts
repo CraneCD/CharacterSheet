@@ -616,5 +616,19 @@ export const backgrounds: Background[] = [
             name: 'Criminal Contact',
             description: 'You have a reliable and trustworthy contact who acts as your liaison to a network of other criminals. You know how to get messages to and from your contact, even over great distances; specifically, you know the local messengers, corrupt caravan masters, and seedy sailors who can deliver messages for you.'
         }
+    },
+    {
+        id: 'wayfarer',
+        name: 'Wayfarer',
+        description: 'You grew up on the streets surrounded by similarly ill-fated castoffs, a few of them friends and a few of them rivals. You slept where you could and did odd jobs for food. At times, when the hunger became unbearable, you resorted to theft. Still, you never lost your pride and never abandoned hope. Fate is not yet finished with you.',
+        skillProficiencies: ['Insight', 'Stealth'],
+        toolProficiencies: ['Thieves\' tools'],
+        languages: 0,
+        equipment: ['2 Daggers', 'Thieves\' tools', 'One type of gaming set', 'Bedroll', '2 Pouches', 'Traveler\'s clothes', '16 gp'],
+        abilityScoreIncrease: { dex: 2, cha: 1 },
+        feature: {
+            name: 'Lucky',
+            description: 'You have the Lucky feat. You have 3 luck points. Whenever you make an attack roll, an ability check, or a saving throw, you can spend one luck point to roll an additional d20 and choose which of the d20s to use. You regain expended luck points when you finish a long rest.'
+        }
     }
 ];

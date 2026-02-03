@@ -1244,7 +1244,13 @@ export default function CharacterSheet() {
                                     try {
                                         await api.post(`/characters/${character.id}/actions`, { action });
                                         const updatedChar = await api.get(`/characters/${character.id}`);
-                                        setCharacter(updatedChar);
+                                        setCharacter((prev: any) => ({
+                                            ...updatedChar,
+                                            data: {
+                                                ...updatedChar.data,
+                                                spellSlotsUsed: prev?.data?.spellSlotsUsed ?? updatedChar.data?.spellSlotsUsed ?? {}
+                                            }
+                                        }));
                                     } catch (err) {
                                         console.error('Failed to create action', err);
                                         throw err;
@@ -1256,7 +1262,13 @@ export default function CharacterSheet() {
                                             data: { index }
                                         });
                                         const updatedChar = await api.get(`/characters/${character.id}`);
-                                        setCharacter(updatedChar);
+                                        setCharacter((prev: any) => ({
+                                            ...updatedChar,
+                                            data: {
+                                                ...updatedChar.data,
+                                                spellSlotsUsed: prev?.data?.spellSlotsUsed ?? updatedChar.data?.spellSlotsUsed ?? {}
+                                            }
+                                        }));
                                     } catch (err) {
                                         console.error('Failed to delete action', err);
                                         throw err;
