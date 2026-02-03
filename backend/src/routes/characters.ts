@@ -525,7 +525,7 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
     try {
         const characterId = req.params.id;
         const userId = req.user!.id;
-        const { hpIncrease, subclassId, newSpells, newFeatures, abilityScoreImprovement, multiclass, classToLevel, fightingStyle } = req.body;
+        const { hpIncrease, subclassId, newSpells, newFeatures, abilityScoreImprovement, multiclass, classToLevel, fightingStyle, scholarSkill } = req.body;
 
         const character = await prisma.character.findUnique({ where: { id: characterId } });
         if (!character || character.userId !== userId) {
@@ -743,6 +743,21 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
             }
         }
 
+        // Scholar (Wizard level 2) - add skill proficiency and expertise
+        if (scholarSkill && typeof scholarSkill === 'string') {
+            const skillName = scholarSkill.trim();
+            if (skillName) {
+                const skills = data.skills || [];
+                if (!skills.includes(skillName)) {
+                    data.skills = [...skills, skillName];
+                }
+                const expertise = data.expertise || [];
+                if (!expertise.includes(skillName)) {
+                    data.expertise = [...expertise, skillName];
+                }
+            }
+        }
+
         // Update Class Resources - if provided in request, use it; otherwise recalculate
         if (req.body.classResources) {
             data.classResources = req.body.classResources;
@@ -786,6 +801,7 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
             newFeatures: allNewFeatures.map((f: any) => ({ name: f.name, level: f.level })),
             abilityScoreImprovement: abilityScoreImprovement || null,
             hitDiceAdded: true, // Track that we added a hit die
+            scholarSkill: scholarSkill && typeof scholarSkill === 'string' ? scholarSkill.trim() : null,
             timestamp: new Date().toISOString()
         });
         data.levelHistory = levelHistory;
@@ -911,6 +927,17 @@ router.post('/:id/level-down', authenticateToken, async (req: AuthRequest, res) 
                 }
             }
             data.abilityScores = scores;
+        }
+
+        // Reverse Scholar skill (remove from skills and expertise if it was added at this level)
+        if (lastLevelUp.scholarSkill) {
+            const skillName = lastLevelUp.scholarSkill;
+            if (data.skills && Array.isArray(data.skills)) {
+                data.skills = data.skills.filter((s: string) => s !== skillName);
+            }
+            if (data.expertise && Array.isArray(data.expertise)) {
+                data.expertise = data.expertise.filter((s: string) => s !== skillName);
+            }
         }
 
         // Remove this level-up entry from history

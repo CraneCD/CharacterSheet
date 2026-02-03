@@ -5,6 +5,8 @@ import { api } from '@/lib/api';
 import { Subclass } from '@/lib/types';
 import { updateClassResourcesForLevel } from '@/lib/classResources';
 import { getAbilityScoreIncreasesFromFeatures } from '@/lib/featureStatModifiers';
+import { getBackgroundSkills } from '@/lib/wizardReference';
+import { getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
 
 interface LevelUpWizardProps {
     character: any;
@@ -49,6 +51,9 @@ function getFightingStyleForLevel(
     }
     return { needed: false };
 }
+
+/** Scholar-eligible skills for Wizard level 2 (must pick one in which you have proficiency). */
+const SCHOLAR_SKILL_OPTIONS = ['Arcana', 'History', 'Investigation', 'Medicine', 'Nature', 'Religion'];
 
 // Helper function to determine if a level grants ASI/Feat
 const getASILevels = (classId: string): number[] => {
@@ -127,6 +132,20 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     // Fighting Style (level-up)
     const [fightingStylesList, setFightingStylesList] = useState<{ id: string; name: string; description: string }[]>([]);
     const [selectedFightingStyle, setSelectedFightingStyle] = useState<string | null>(null);
+
+    // Scholar (Wizard level 2) - pick one skill for proficiency + expertise
+    const needsScholar = classId === 'wizard' && nextLevel === 2;
+    const scholarProficientSkills = (() => {
+        if (!needsScholar) return [];
+        const bgSkills = getBackgroundSkills(character.data?.backgroundId || '') || [];
+        const raceTraits = character.data?.racialTraits || [];
+        const traitSkills = getSkillProficienciesFromTraits(raceTraits);
+        const storedSkills = character.data?.skills || [];
+        const proficient = [...new Set([...bgSkills, ...traitSkills, ...storedSkills])];
+        return SCHOLAR_SKILL_OPTIONS.filter(s => proficient.includes(s));
+    })();
+    const scholarSkillOptions = scholarProficientSkills.length > 0 ? scholarProficientSkills : SCHOLAR_SKILL_OPTIONS;
+    const [selectedScholarSkill, setSelectedScholarSkill] = useState<string | null>(null);
 
     // Get hit die for the class being leveled up
     const getHitDie = () => {
@@ -315,6 +334,12 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     }, [needsASI, character.data.abilityScores, character.race, classId]);
 
     useEffect(() => {
+        if (!needsScholar) {
+            setSelectedScholarSkill(null);
+        }
+    }, [needsScholar]);
+
+    useEffect(() => {
         if (needsFightingStyle) {
             api.get('/reference/fighting-styles')
                 .then((list: { id: string; name: string; description: string }[]) => {
@@ -346,6 +371,11 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
             }
             if (levelUpMode === 'existing' && Object.keys(effectiveClasses).length > 1 && !selectedClassToLevel) {
                 alert('Please select which class to level up');
+                setIsSubmitting(false);
+                return;
+            }
+            if (needsScholar && !selectedScholarSkill) {
+                alert('Please choose a skill for your Scholar feature (proficiency and expertise).');
                 setIsSubmitting(false);
                 return;
             }
@@ -442,7 +472,8 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                 classResources: updatedClassResources,
                 multiclass: payload.multiclass,
                 classToLevel: payload.classToLevel,
-                fightingStyle: needsFightingStyle && selectedFightingStyle ? selectedFightingStyle : undefined
+                fightingStyle: needsFightingStyle && selectedFightingStyle ? selectedFightingStyle : undefined,
+                scholarSkill: needsScholar && selectedScholarSkill ? selectedScholarSkill : undefined
             });
 
             setIsSubmitting(false);
@@ -627,6 +658,29 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                     </div>
                                 ))}
                         </div>
+                    </div>
+                )}
+
+                {/* Scholar (Wizard level 2) */}
+                {needsScholar && (
+                    <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
+                        <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                            Scholar
+                        </h3>
+                        <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                            Choose one of the following skills. You gain proficiency (if you don&apos;t have it) and Expertise in the chosen skill.
+                        </p>
+                        <select
+                            className="input"
+                            value={selectedScholarSkill || ''}
+                            onChange={(e) => setSelectedScholarSkill(e.target.value || null)}
+                            style={{ width: '100%', maxWidth: '20rem' }}
+                        >
+                            <option value="">Select a skill...</option>
+                            {scholarSkillOptions.map(skill => (
+                                <option key={skill} value={skill}>{skill}</option>
+                            ))}
+                        </select>
                     </div>
                 )}
 
