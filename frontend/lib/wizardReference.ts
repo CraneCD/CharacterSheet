@@ -30,6 +30,17 @@ export const ELVEN_LINEAGE_SPELLS: Record<string, { level: number; spellId: stri
     ]
 };
 
+/** Subclass bonus spells that are always prepared (2024 PHB). Level = class level when spell is gained. */
+export const SUBCLASS_BONUS_SPELLS: Record<string, { level: number; spellId: string }[]> = {
+    gloom_stalker: [
+        { level: 3, spellId: 'disguise-self' },
+        { level: 5, spellId: 'rope-trick' },
+        { level: 9, spellId: 'fear' },
+        { level: 13, spellId: 'greater-invisibility' },
+        { level: 17, spellId: 'seeming' }
+    ]
+};
+
 /** Elf traits by lineage (2024 PHB). Base traits + lineage-specific. */
 export const ELF_TRAITS_BY_LINEAGE: Record<string, string[]> = {
     drow: ['Darkvision', 'Elven Lineage (Drow)', 'Fey Ancestry', 'Keen Senses', 'Trance', 'Superior Darkvision', 'Dancing Lights'],

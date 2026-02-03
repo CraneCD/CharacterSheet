@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Spell, CharacterSpell, CharacterData } from '@/lib/types';
 import { calculateMulticlassSpellcasterLevel, getSpellcastingClasses, calculatePreparedSpellsLimitForClass } from '@/lib/multiclassSpellcasting';
-import { ELVEN_LINEAGE_SPELLS } from '@/lib/wizardReference';
+import { ELVEN_LINEAGE_SPELLS, SUBCLASS_BONUS_SPELLS } from '@/lib/wizardReference';
 
 // Spell Details Modal Component
 const SpellDetailsModal = ({ spell, isOpen, onClose }: { spell: Spell | null, isOpen: boolean, onClose: () => void }) => {
@@ -96,6 +96,10 @@ interface SpellManagerProps {
     initialSpells: CharacterSpell[];
     /** Elf lineage (drow, high_elf, wood_elf). Lineage spells are always prepared at the appropriate levels. */
     elvenLineage?: string;
+    /** Subclass ID (e.g. gloom_stalker). Subclass bonus spells are always prepared at the appropriate class levels. */
+    subclassId?: string;
+    /** Level in the class that has the subclass (for subclass bonus spells). Defaults to level if not multiclassed. */
+    subclassClassLevel?: number;
     initialSlotsUsed: { [level: number]: number };
     spellcastingAbility: string;
     preparedCaster?: boolean; // If true, class knows all spells and prepares a subset
@@ -156,7 +160,7 @@ const getSlotsForClass = (classId: string, level: number, casterLevelDivisor?: n
 const THIRD_CASTER_SPELLS_KNOWN: number[] = [0, 0, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9];
 const THIRD_CASTER_CANTRIPS: Record<string, number> = { arcane_trickster: 3, eldritch_knight: 2 };
 
-export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage }: SpellManagerProps) {
+export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel }: SpellManagerProps) {
     const [mySpells, setMySpells] = useState<CharacterSpell[]>(initialSpells || []);
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
     const [allSpells, setAllSpells] = useState<Spell[]>([]);
@@ -636,6 +640,15 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         .map(entry => ({ ...entry, spell: allSpells.find(s => s.id === entry.spellId) }))
         .filter((x): x is typeof x & { spell: Spell } => !!x.spell);
 
+    // Subclass bonus spells (e.g. Gloom Stalker): granted at class levels 3, 5, 9, 13, 17. Always prepared.
+    const subclassKey = (subclassIdProp || '').toLowerCase().replace(/\s+/g, '_');
+    const subclassClassLvl = subclassClassLevel ?? level;
+    const subclassSpellsConfig = subclassKey ? SUBCLASS_BONUS_SPELLS[subclassKey] : [];
+    const subclassSpellsForLevel = subclassSpellsConfig
+        .filter(entry => subclassClassLvl >= entry.level)
+        .map(entry => ({ ...entry, spell: allSpells.find(s => s.id === entry.spellId) }))
+        .filter((x): x is typeof x & { spell: Spell } => !!x.spell);
+
     // Group spells by level
     // For prepared casters: show all available spells EXCEPT cantrips (level 0)
     // Cantrips must be learned one by one even for prepared casters
@@ -664,7 +677,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     school: spell.school,
                     prepared: knownSpell?.prepared || false,
                     isKnown: !!knownSpell,
-                    isElvenLineage: false
+                    isElvenLineage: false,
+                    isSubclassBonus: false
                 };
             });
 
@@ -678,7 +692,23 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                         school: spell.school,
                         prepared: true,
                         isKnown: true,
-                        isElvenLineage: true
+                        isElvenLineage: true,
+                        isSubclassBonus: false
+                    });
+                }
+            }
+            // Add subclass bonus spells for this level (e.g. Gloom Stalker; always prepared)
+            for (const { spell } of subclassSpellsForLevel) {
+                if (spell.level === lvl && !spellsAtLevel.some(s => s.id === spell.id)) {
+                    spellsAtLevel.push({
+                        id: spell.id,
+                        name: spell.name,
+                        level: spell.level,
+                        school: spell.school,
+                        prepared: true,
+                        isKnown: true,
+                        isElvenLineage: false,
+                        isSubclassBonus: true
                     });
                 }
             }
@@ -726,7 +756,23 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                         school: spell.school,
                         prepared: true,
                         isKnown: true,
-                        isElvenLineage: true
+                        isElvenLineage: true,
+                        isSubclassBonus: false
+                    });
+                }
+            }
+            // Add subclass bonus spells for this level
+            for (const { spell } of subclassSpellsForLevel) {
+                if (spell.level === lvl && !spellsAtLevel.some(s => s.id === spell.id)) {
+                    spellsAtLevel.push({
+                        id: spell.id,
+                        name: spell.name,
+                        level: spell.level,
+                        school: spell.school,
+                        prepared: true,
+                        isKnown: true,
+                        isElvenLineage: false,
+                        isSubclassBonus: true
                     });
                 }
             }
@@ -1120,6 +1166,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             const fullSpell = allSpells.find(s => s.id === spell.id);
                             
                             const isElvenLineageSpell = (spell as any).isElvenLineage === true;
+                            const isSubclassBonusSpell = (spell as any).isSubclassBonus === true;
                             return (
                                 <div key={spell.id} className="spell-item spell-item-row" style={{ backgroundColor: 'var(--surface)', padding: '0.5rem', borderRadius: '4px' }}>
                                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -1127,6 +1174,9 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                             {spell.name}
                                             {isElvenLineageSpell && (
                                                 <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: '0.35rem' }}>(Elven Lineage)</span>
+                                            )}
+                                            {isSubclassBonusSpell && (
+                                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: '0.35rem' }}>(Subclass)</span>
                                             )}
                                         </div>
                                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{spell.school}</div>
@@ -1145,7 +1195,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                                 View
                                             </button>
                                         )}
-                                        {spell.level > 0 && !isElvenLineageSpell && (
+                                        {spell.level > 0 && !isElvenLineageSpell && !isSubclassBonusSpell && (
                                             <button
                                                 className={`button ${spellPrepared ? 'primary' : 'secondary'}`}
                                                 style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
@@ -1165,10 +1215,10 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                                 {spellPrepared ? 'Prepared' : 'Prepare'}
                                             </button>
                                         )}
-                                        {spell.level > 0 && isElvenLineageSpell && (
+                                        {(spell.level > 0 && (isElvenLineageSpell || isSubclassBonusSpell)) && (
                                             <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 'bold' }}>Always prepared</span>
                                         )}
-                                        {!preparedCaster && !isElvenLineageSpell && (
+                                        {!preparedCaster && !isElvenLineageSpell && !isSubclassBonusSpell && (
                                             <button
                                                 type="button"
                                                 className="button plain"
@@ -1184,7 +1234,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                                 &times;
                                             </button>
                                         )}
-                                        {isWizardSpellbook && spell.level > 0 && !isElvenLineageSpell && (
+                                        {isWizardSpellbook && spell.level > 0 && !isElvenLineageSpell && !isSubclassBonusSpell && (
                                             <button
                                                 type="button"
                                                 className="button plain"
