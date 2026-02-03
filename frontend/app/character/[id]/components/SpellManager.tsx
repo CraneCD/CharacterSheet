@@ -80,6 +80,14 @@ const SpellDetailsModal = ({ spell, isOpen, onClose }: { spell: Spell | null, is
     );
 };
 
+/** Subclass spellcasting (Arcane Trickster, Eldritch Knight). */
+interface SubclassSpellcasting {
+    subclassId: string;
+    spellListClass: string;
+    spellcastingAbility: string;
+    casterLevelDivisor: number;
+}
+
 interface SpellManagerProps {
     characterId: string;
     classId: string;
@@ -95,6 +103,7 @@ interface SpellManagerProps {
     onDeleteAction?: (index: number) => Promise<void>;
     classes?: { [classId: string]: number }; // Multiclass support
     allClasses?: any[]; // All available classes for reference
+    subclassSpellcasting?: SubclassSpellcasting;
 }
 
 // 5e Standard Spell Slots Table (Wizard, Cleric, Druid, Sorcerer, Bard)
@@ -123,21 +132,26 @@ const SPELL_SLOTS_TABLE: { [level: number]: number[] } = {
     20: [4, 3, 3, 3, 3, 2, 2, 1, 1],
 };
 
-const getSlotsForClass = (classId: string, level: number) => {
+const getSlotsForClass = (classId: string, level: number, casterLevelDivisor?: number) => {
     let effectiveLevel = level;
-    if (['ranger', 'paladin'].includes(classId.toLowerCase())) {
+    if (casterLevelDivisor) {
+        effectiveLevel = Math.floor(level / casterLevelDivisor);
+    } else if (['ranger', 'paladin'].includes(classId.toLowerCase())) {
         effectiveLevel = Math.floor(level / 2);
     }
     // Warlock logic is unique, ignore for now (treat as full caster or 0 for MVP)
 
     if (effectiveLevel < 1) return [];
 
-    // safe fallback
     const slots = SPELL_SLOTS_TABLE[Math.min(effectiveLevel, 20)] || [];
     return slots;
 };
 
-export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData }: SpellManagerProps) {
+/** Third caster (AT/EK) spells known by class level: 3,4,5,6,7,8,9 at levels 3,4,7,10,13,16,19. */
+const THIRD_CASTER_SPELLS_KNOWN: number[] = [0, 0, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9];
+const THIRD_CASTER_CANTRIPS: Record<string, number> = { arcane_trickster: 3, eldritch_knight: 2 };
+
+export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting }: SpellManagerProps) {
     const [mySpells, setMySpells] = useState<CharacterSpell[]>(initialSpells || []);
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
     const [allSpells, setAllSpells] = useState<Spell[]>([]);
@@ -255,6 +269,19 @@ export default function SpellManager({ characterId, classId, level, initialSpell
 
     const learnSpell = async (spell: Spell) => {
         try {
+            // Check spells known limit for subclass spellcasting (Arcane Trickster, Eldritch Knight)
+            if (isSubclassSpellcasting && spellsKnownLimit > 0) {
+                const currentCantrips = mySpells.filter(s => s.level === 0).length;
+                const currentSpells = mySpells.filter(s => s.level > 0).length;
+                if (spell.level === 0 && currentCantrips >= cantripsKnownLimit) {
+                    alert(`You can only know ${cantripsKnownLimit} cantrips. Unlearn a cantrip first.`);
+                    return;
+                }
+                if (spell.level > 0 && currentSpells >= spellsKnownLimit) {
+                    alert(`You can only know ${spellsKnownLimit} spells. Unlearn a spell first.`);
+                    return;
+                }
+            }
             await api.post(`/characters/${characterId}/spells`, {
                 spellId: spell.id,
                 name: spell.name,
@@ -422,17 +449,19 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         updateParent(mySpells, newSlots);
     };
 
-    // Calculate spell slots - handle multiclassing
+    // Calculate spell slots - handle multiclassing and subclass spellcasting (Arcane Trickster, Eldritch Knight)
     const hasMultipleClasses = classesData && Object.keys(classesData).length > 1;
+    const isSubclassSpellcasting = !!subclassSpellcasting;
     let maxSlots: number[];
     let effectiveCasterLevel = level;
-    
-    if (hasMultipleClasses && allClassesData) {
-        // Multiclassed: calculate combined spellcaster level
+
+    if (isSubclassSpellcasting && subclassSpellcasting) {
+        effectiveCasterLevel = Math.floor(level / subclassSpellcasting.casterLevelDivisor);
+        maxSlots = getSlotsForClass(subclassSpellcasting.spellListClass, level, subclassSpellcasting.casterLevelDivisor);
+    } else if (hasMultipleClasses && allClassesData) {
         effectiveCasterLevel = calculateMulticlassSpellcasterLevel(classesData, allClassesData);
-        maxSlots = getSlotsForClass('wizard', effectiveCasterLevel); // Use full caster table for combined level
+        maxSlots = getSlotsForClass('wizard', effectiveCasterLevel);
     } else {
-        // Single class
         maxSlots = getSlotsForClass(classId, level);
     }
 
@@ -473,13 +502,23 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     const preparedSpellsLimit = getPreparedSpellsLimit();
     const currentPreparedCount = mySpells.filter(s => s.prepared && s.level > 0).length;
 
-    // Get all spellcasting classes for multiclassed characters
-    const spellcastingClasses = hasMultipleClasses && allClassesData 
-        ? getSpellcastingClasses(classesData, allClassesData)
-        : [{ classId, level, classInfo: { spellcaster: true, preparedCaster, spellcastingAbility } }];
-    
-    // Get all class IDs that can cast spells
+    // Get all spellcasting classes for multiclassed characters, or subclass spellcasting
+    const spellcastingClasses = isSubclassSpellcasting && subclassSpellcasting
+        ? [{ classId: subclassSpellcasting.spellListClass, level, classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: subclassSpellcasting.spellcastingAbility } }]
+        : (hasMultipleClasses && allClassesData
+            ? getSpellcastingClasses(classesData, allClassesData)
+            : [{ classId, level, classInfo: { spellcaster: true, preparedCaster, spellcastingAbility } }]);
+
+    // Get all class IDs that can cast spells (for spell list filtering)
     const availableClassIds = spellcastingClasses.map(sc => sc.classId.toLowerCase());
+
+    // Spells known limits for third casters (Arcane Trickster, Eldritch Knight)
+    const spellsKnownLimit = isSubclassSpellcasting && subclassSpellcasting
+        ? THIRD_CASTER_SPELLS_KNOWN[Math.min(Math.max(0, level - 1), 19)] ?? 0
+        : 0;
+    const cantripsKnownLimit = isSubclassSpellcasting && subclassSpellcasting
+        ? (THIRD_CASTER_CANTRIPS[subclassSpellcasting.subclassId] ?? 2)
+        : 0;
     
     // For prepared casters in cantrip mode: show only cantrips not yet learned
     // For prepared casters in prepare mode: show all non-cantrip spells (they know all)
@@ -582,6 +621,11 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     {preparedCaster && (
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', display: 'block', marginTop: '0.25rem' }}>
                             Prepared: {currentPreparedCount} / {preparedSpellsLimit}
+                        </span>
+                    )}
+                    {isSubclassSpellcasting && spellsKnownLimit > 0 && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', display: 'block', marginTop: '0.25rem' }}>
+                            Spells: {mySpells.filter(s => s.level > 0).length} / {spellsKnownLimit} • Cantrips: {mySpells.filter(s => s.level === 0).length} / {cantripsKnownLimit}
                         </span>
                     )}
                 </h3>
@@ -690,10 +734,18 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                         <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.5rem', overflowY: 'auto', flex: 1 }}>
                             {filteredSpells.map(spell => {
                                 const isPrepared = mySpells.find(ms => ms.id === spell.id)?.prepared || false;
+                                const isKnown = mySpells.some(ms => ms.id === spell.id);
                                 // For prepared casters: if in cantrip mode, use learn. Otherwise use prepare.
                                 const shouldLearn = !preparedCaster || isCantripMode;
-                                // Check if spell can be prepared (not at limit)
-                                const canPrepare = shouldLearn || spell.level === 0 || isPrepared || currentPreparedCount < preparedSpellsLimit;
+                                // Subclass spellcasting (AT/EK): enforce spells known limit
+                                const atSpellsLimit = isSubclassSpellcasting && (
+                                    (spell.level === 0 && mySpells.filter(s => s.level === 0).length >= cantripsKnownLimit && !isKnown) ||
+                                    (spell.level > 0 && mySpells.filter(s => s.level > 0).length >= spellsKnownLimit && !isKnown)
+                                );
+                                // Check if spell can be prepared/learned (not at limit)
+                                const canPrepare = !atSpellsLimit && (
+                                    shouldLearn || spell.level === 0 || isPrepared || currentPreparedCount < preparedSpellsLimit
+                                );
                                 
                                 return (
                                     <div 
@@ -710,6 +762,10 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                         onClick={() => {
                                             if (canPrepare) {
                                                 shouldLearn ? learnSpell(spell) : prepareSpellDirectly(spell);
+                                            } else if (atSpellsLimit) {
+                                                alert(spell.level === 0
+                                                    ? `You can only know ${cantripsKnownLimit} cantrips. Unlearn a cantrip first.`
+                                                    : `You can only know ${spellsKnownLimit} spells. Unlearn a spell first.`);
                                             } else if (!shouldLearn && spell.level > 0) {
                                                 alert(`You have reached your prepared spells limit (${preparedSpellsLimit}). Unprepare a spell first to prepare a new one.`);
                                             }

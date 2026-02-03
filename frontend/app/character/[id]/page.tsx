@@ -1182,27 +1182,47 @@ export default function CharacterSheet() {
             </div>
             {/* Spells Section (Full Width) */}
             {(() => {
-                // Check if character has any spellcasting classes
-                const hasSpellcasting = characterClasses.some(c => {
+                // Check if character has spellcasting from base class or subclass (Arcane Trickster, Eldritch Knight)
+                const hasBaseSpellcasting = characterClasses.some(c => {
                     const clsInfo = gameData.classes.find(gc => gc.id.toLowerCase() === c.id.toLowerCase());
                     return clsInfo?.spellcaster;
                 });
-                
+                const subclassId = (data.subclassId || '').toLowerCase();
+                const primaryLevel = characterClasses[0]?.level ?? level;
+                const subclassGrantsSpellcasting = subclass?.spellcasting && primaryLevel >= 3
+                    && ['arcane_trickster', 'eldritch_knight'].includes(subclassId);
+                const hasSpellcasting = hasBaseSpellcasting || subclassGrantsSpellcasting;
+
                 if (!hasSpellcasting) return null;
-                
-                // Get primary spellcasting class (first spellcasting class, or highest level)
-                const spellcastingClasses = characterClasses
+
+                // Get primary spellcasting class, or virtual entry for subclass spellcasting
+                let spellcastingClasses = characterClasses
                     .map(c => ({
                         ...c,
                         classInfo: gameData.classes.find(gc => gc.id.toLowerCase() === c.id.toLowerCase())
                     }))
                     .filter(c => c.classInfo?.spellcaster && c.id.toLowerCase() !== 'warlock')
                     .sort((a, b) => b.level - a.level);
-                
-                const primarySpellcastingClass = spellcastingClasses[0];
-                if (!primarySpellcastingClass) return null;
-                
-                const primarySpellcastingAbility = primarySpellcastingClass.classInfo?.spellcastingAbility || 'int';
+
+                let primarySpellcastingClass = spellcastingClasses[0];
+                let primarySpellcastingAbility = primarySpellcastingClass?.classInfo?.spellcastingAbility || 'int';
+                let subclassSpellcasting: { subclassId: string; spellListClass: string; spellcastingAbility: string; casterLevelDivisor: number } | undefined;
+
+                if (!primarySpellcastingClass && subclassGrantsSpellcasting && subclass?.spellcasting) {
+                    subclassSpellcasting = {
+                        subclassId,
+                        spellListClass: subclass.spellcasting.spellListClass,
+                        spellcastingAbility: subclass.spellcasting.spellcastingAbility,
+                        casterLevelDivisor: subclass.spellcasting.casterLevelDivisor
+                    };
+                    primarySpellcastingClass = {
+                        id: subclass.spellcasting.spellListClass,
+                        name: subclass.name,
+                        level: primaryLevel,
+                        classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: subclass.spellcasting.spellcastingAbility }
+                    };
+                    primarySpellcastingAbility = subclass.spellcasting.spellcastingAbility;
+                } else if (!primarySpellcastingClass) return null;
                 
                 return (
                     <div style={{ marginTop: '1rem' }}>
@@ -1236,6 +1256,7 @@ export default function CharacterSheet() {
                                 characterId={character.id}
                                 classId={character.classId || primarySpellcastingClass.id}
                                 level={level}
+                                subclassSpellcasting={subclassSpellcasting}
                                 initialSpells={data.spells || []}
                                 initialSlotsUsed={data.spellSlotsUsed || {}}
                                 spellcastingAbility={primarySpellcastingAbility}

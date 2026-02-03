@@ -9,6 +9,13 @@ export interface SubclassSpell {
     spellId: string;
 }
 
+/** Spellcasting granted by subclass (e.g. Arcane Trickster, Eldritch Knight). */
+export interface SubclassSpellcasting {
+    spellListClass: string;  // e.g. 'wizard' - which class's spell list to use
+    spellcastingAbility: string;  // e.g. 'int'
+    casterLevelDivisor: number;  // 3 for third casters
+}
+
 export interface Subclass {
     id: string;
     classId: string;
@@ -16,6 +23,8 @@ export interface Subclass {
     description: string;
     features: SubclassFeature[];
     spells?: SubclassSpell[];
+    /** If set, this subclass grants spellcasting to a non-spellcasting base class. */
+    spellcasting?: SubclassSpellcasting;
 }
 
 export const subclasses: Subclass[] = [
@@ -425,6 +434,7 @@ export const subclasses: Subclass[] = [
         classId: 'fighter',
         name: 'Eldritch Knight',
         description: 'The archetypal Eldritch Knight combines the martial mastery common to all fighters with a careful study of magic.',
+        spellcasting: { spellListClass: 'wizard', spellcastingAbility: 'int', casterLevelDivisor: 3 },
         features: [
             { level: 3, name: 'Spellcasting', description: 'You augment your martial prowess with the ability to cast spells.' },
             { level: 3, name: 'Weapon Bond', description: 'You learn a ritual that creates a magical bond between yourself and one weapon. You perform the ritual over the course of 1 hour, which can be done during a short rest. The weapon must be within your reach throughout the ritual, at the conclusion of which you touch the weapon and forge the bond.' },
@@ -565,6 +575,7 @@ export const subclasses: Subclass[] = [
         classId: 'rogue',
         name: 'Arcane Trickster',
         description: 'Some rogues enhance their fine-honed skills of stealth and agility with magic, learning tricks of enchantment and illusion.',
+        spellcasting: { spellListClass: 'wizard', spellcastingAbility: 'int', casterLevelDivisor: 3 },
         features: [
             { level: 3, name: 'Spellcasting', description: 'You gain the ability to cast spells.' },
             { level: 3, name: 'Mage Hand Legerdemain', description: 'When you cast mage hand, you can make the spectral hand invisible, and you can perform the following additional tasks with it: stow object, retrieve object, use thieves\' tools.' },
