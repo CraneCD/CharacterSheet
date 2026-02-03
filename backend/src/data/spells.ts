@@ -144,7 +144,7 @@ export const spells: Spell[] = [
         components: 'V, S',
         duration: '1 round',
         classes: ['sorcerer', 'warlock', 'wizard'],
-        description: 'You create a ghostly, skeletal hand in the space of a creature within range. Make a ranged spell attack against the creature to assail it with the chill of the grave. On a hit, the target takes 1d8 necrotic damage, and it can\'t regain hit points until the start of your next turn. Until then, the hand clings to the target. If you hit an undead target, it also has disadvantage on attack rolls against you until the end of your next turn.'
+        description: 'You create a ghostly, skeletal hand in a creature\'s space within range and make a ranged spell attack. On a hit, the target takes 1d8 necrotic damage and can\'t regain hit points until the start of your next turn. The hand clings to the target until then. If you hit an undead target, it has disadvantage on attack rolls against you until the end of your next turn.'
     },
     {
         id: 'control-flames',
@@ -390,13 +390,13 @@ export const spells: Spell[] = [
         id: 'poison-spray',
         level: 0,
         name: 'Poison Spray',
-        school: 'Conjuration',
+        school: 'Necromancy',
         castingTime: '1 action',
-        range: '10 feet',
+        range: '30 feet',
         components: 'V, S',
         duration: 'Instantaneous',
         classes: ['druid', 'sorcerer', 'warlock', 'wizard', 'artificer'],
-        description: 'You extend your hand toward a creature you can see within range and project a puff of noxious gas from your palm. The creature must succeed on a Constitution saving throw or take 1d12 poison damage.'
+        description: 'You spray toxic mist at a creature within range. Make a ranged spell attack against the target. On a hit, the target takes 1d12 poison damage. The damage increases by 1d12 when you reach 5th level (2d12), 11th level (3d12), and 17th level (4d12).'
     },
     {
         id: 'primal-savagery',
