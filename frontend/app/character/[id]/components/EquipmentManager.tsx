@@ -255,7 +255,7 @@ export default function EquipmentManager({
         }
     };
 
-    const categories: ItemCategory[] = ['armor', 'weapon', 'shield', 'magic-item', 'potion', 'scroll', 'miscellaneous'];
+    const categories: ItemCategory[] = ['armor', 'weapon', 'shield', 'tool', 'magic-item', 'potion', 'scroll', 'miscellaneous'];
     const filteredBaseItems = selectedCategory === 'custom' 
         ? [] 
         : baseItems.filter(item => {

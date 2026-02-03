@@ -20,7 +20,7 @@ export interface CharacterSpell {
     prepared: boolean;
 }
 
-export type ItemCategory = 'armor' | 'weapon' | 'shield' | 'magic-item' | 'potion' | 'scroll' | 'miscellaneous';
+export type ItemCategory = 'armor' | 'weapon' | 'shield' | 'tool' | 'magic-item' | 'potion' | 'scroll' | 'miscellaneous';
 
 export interface CharacterItem {
     name: string;
