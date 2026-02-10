@@ -16,19 +16,25 @@ interface StepReviewProps {
     proficientSkills?: string[];
     raceId?: string;
     backgroundId?: string;
+    /** Number of skills the class lets you choose (e.g. Rogue 4). */
+    classSkillChoicesCount?: number;
+    /** Skill options for that class (e.g. Rogue list). */
+    classSkillOptions?: string[];
 }
 
 function fightingStyleDisplayName(id: string): string {
     return id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
-export default function StepReview({ data, onUpdate, raceName, className, backgroundName, fightingStyleId, raceTraits = [], proficientSkills = [], raceId, backgroundId }: StepReviewProps) {
+export default function StepReview({ data, onUpdate, raceName, className, backgroundName, fightingStyleId, raceTraits = [], proficientSkills = [], raceId, backgroundId, classSkillChoicesCount = 0, classSkillOptions = [] }: StepReviewProps) {
     const [feats, setFeats] = useState<{ id: string; name: string }[]>([]);
     const [featsLoading, setFeatsLoading] = useState(false);
     const needsSkillful = hasSkillful(raceTraits);
     const needsVersatile = hasVersatile(raceTraits);
     const needsElvenLineage = raceId === 'elf';
-    
+    const needsClassSkills = classSkillChoicesCount > 0 && classSkillOptions.length > 0;
+    const classSkillChoices = (data.classSkillChoices || []) as string[];
+
     // Level 1 expertise: Rogue gets 2 skills
     const needsExpertise = data.classId === 'rogue';
     const expertiseCount: number = needsExpertise ? 2 : 0;
@@ -62,9 +68,42 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
         <div>
             <h2 className="heading" style={{ marginBottom: '1rem' }}>Review Character</h2>
 
-            {(needsSkillful || needsVersatile || needsExpertise || needsElvenLineage || needsLanguageSelection) && onUpdate && (
+            {(needsSkillful || needsVersatile || needsClassSkills || needsExpertise || needsElvenLineage || needsLanguageSelection) && onUpdate && (
                 <div className="card" style={{ marginBottom: '1rem' }}>
                     <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem' }}>Trait, class, and language choices</h3>
+                    {needsClassSkills && (
+                        <div style={{ marginBottom: (needsSkillful || needsVersatile || needsExpertise || needsElvenLineage || needsLanguageSelection) ? '1rem' : 0 }}>
+                            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                                {className} — choose {classSkillChoicesCount} skill{classSkillChoicesCount === 1 ? '' : 's'} (class proficiencies)
+                            </label>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                                Pick {classSkillChoicesCount} from: {classSkillOptions.join(', ')}
+                            </p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                {Array.from({ length: classSkillChoicesCount }).map((_, idx) => (
+                                    <select
+                                        key={idx}
+                                        className="input"
+                                        value={classSkillChoices[idx] || ''}
+                                        onChange={(e) => {
+                                            const updated = [...classSkillChoices];
+                                            updated[idx] = e.target.value;
+                                            const unique = Array.from(new Set(updated.filter(Boolean)));
+                                            while (unique.length < classSkillChoicesCount) unique.push('');
+                                            onUpdate({ classSkillChoices: unique.slice(0, classSkillChoicesCount) });
+                                        }}
+                                    >
+                                        <option value="">Select a skill...</option>
+                                        {classSkillOptions
+                                            .filter(skill => !classSkillChoices.includes(skill) || classSkillChoices[idx] === skill)
+                                            .map((skill) => (
+                                                <option key={skill} value={skill}>{skill}</option>
+                                            ))}
+                                    </select>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     {needsElvenLineage && (
                         <div style={{ marginBottom: (needsSkillful || needsVersatile || needsExpertise || needsLanguageSelection) ? '1rem' : 0 }}>
                             <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.35rem', fontSize: '0.875rem' }}>

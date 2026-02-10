@@ -29,6 +29,7 @@ export default function WizardContainer() {
         elvenLineageChoice: '' as string,
         startingEquipmentChoices: [] as string[],
         expertiseChoices: [] as string[],
+        classSkillChoices: [] as string[],
         languageChoices: [] as string[]
     });
 
@@ -88,6 +89,9 @@ export default function WizardContainer() {
             const maxHp = hitDie + (dwarvenToughness ? 1 : 0);
 
             const skills = [...bgSkills];
+            for (const s of (formData.classSkillChoices || []).filter(Boolean)) {
+                if (!skills.includes(s)) skills.push(s);
+            }
             if (hasSkillful(raceTraits) && formData.skillfulChoice) {
                 if (!skills.includes(formData.skillfulChoice)) skills.push(formData.skillfulChoice);
             }
@@ -221,6 +225,11 @@ export default function WizardContainer() {
                 if (formData.raceId === 'elf' && !formData.elvenLineageChoice) return false;
                 if (hasSkillful(rt) && !formData.skillfulChoice) return false;
                 if (hasVersatile(rt) && !formData.versatileFeatId) return false;
+                const classSkillCount = selectedClass?.skillChoices ?? 0;
+                if (classSkillCount > 0) {
+                    const classSkills = (formData.classSkillChoices || []).filter((s: string) => s?.trim());
+                    if (classSkills.length !== classSkillCount) return false;
+                }
                 if (formData.classId === 'rogue') {
                     const expertiseChoices = (formData.expertiseChoices || []) as string[];
                     if (expertiseChoices.filter((s: string) => s?.trim()).length !== 2) return false;
@@ -298,7 +307,8 @@ export default function WizardContainer() {
                                 ...formData,
                                 classId: cls.id,
                                 startingEquipmentChoices: [],
-                                expertiseChoices: []
+                                expertiseChoices: [],
+                                classSkillChoices: []
                             });
                             setSelectedClass(cls);
                             if (selectedClass?.id !== cls.id) {
@@ -346,6 +356,9 @@ export default function WizardContainer() {
                     for (const s of traitSkills) {
                         if (!proficientSkills.includes(s)) proficientSkills.push(s);
                     }
+                    for (const s of (formData.classSkillChoices || []).filter(Boolean)) {
+                        if (!proficientSkills.includes(s)) proficientSkills.push(s);
+                    }
                     if (hasSkillful(rt) && formData.skillfulChoice && !proficientSkills.includes(formData.skillfulChoice)) {
                         proficientSkills.push(formData.skillfulChoice);
                     }
@@ -361,6 +374,8 @@ export default function WizardContainer() {
                             proficientSkills={proficientSkills}
                             raceId={formData.raceId}
                             backgroundId={formData.backgroundId}
+                            classSkillChoicesCount={selectedClass?.skillChoices ?? 0}
+                            classSkillOptions={selectedClass?.skillOptions ?? []}
                         />
                     );
                 })()}
