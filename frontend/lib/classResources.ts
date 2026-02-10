@@ -209,15 +209,20 @@ const HEROIC_INSPIRATION: ClassResource = {
 
 /**
  * Merge Heroic Inspiration into class resources when the character has Resourceful (e.g. Human).
+ * Preserves existing current/max so using the resource (e.g. -1) persists.
  */
 export function mergeHeroicInspiration(
     resources: ClassResources,
     hasResourceful: boolean
 ): ClassResources {
     if (!hasResourceful) return resources;
+    const existing = resources['Heroic Inspiration'];
     return {
         ...resources,
-        'Heroic Inspiration': { ...HEROIC_INSPIRATION }
+        'Heroic Inspiration': {
+            ...HEROIC_INSPIRATION,
+            ...(existing && { current: existing.current, max: existing.max })
+        }
     };
 }
 

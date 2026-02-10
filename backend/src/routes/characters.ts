@@ -403,6 +403,15 @@ router.patch('/:id/class-resources', authenticateToken, async (req: AuthRequest,
         else if (resourceName && current !== undefined) {
             if (classResources[resourceName]) {
                 classResources[resourceName].current = Math.max(0, Math.min(current, classResources[resourceName].max));
+            } else if (resourceName === 'Heroic Inspiration') {
+                // Heroic Inspiration is merged on frontend for humans; ensure we persist when they use it
+                classResources[resourceName] = {
+                    name: 'Heroic Inspiration',
+                    current: Math.max(0, Math.min(current, 1)),
+                    max: 1,
+                    resetType: 'long',
+                    description: 'You gain Heroic Inspiration whenever you finish a Long Rest. You can use it to grant yourself advantage on an attack roll, ability check, or saving throw, or to grant an ally advantage on one such roll.'
+                };
             }
         }
 
