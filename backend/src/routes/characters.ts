@@ -412,6 +412,16 @@ router.patch('/:id/class-resources', authenticateToken, async (req: AuthRequest,
                     resetType: 'long',
                     description: 'You gain Heroic Inspiration whenever you finish a Long Rest. You can use it to grant yourself advantage on an attack roll, ability check, or saving throw, or to grant an ally advantage on one such roll.'
                 };
+            } else if (resourceName === 'Blessing of the Raven Queen') {
+                // Shadar-Kai racial trait; merged on frontend. Max = proficiency bonus (capped at 6).
+                const max = Math.min(6, Math.max(1, current));
+                classResources[resourceName] = {
+                    name: 'Blessing of the Raven Queen',
+                    current: Math.max(0, Math.min(current, max)),
+                    max,
+                    resetType: 'long',
+                    description: 'As a bonus action, you can magically teleport up to 30 feet to an unoccupied space you can see. You regain all expended uses when you finish a long rest.'
+                };
             }
         }
 

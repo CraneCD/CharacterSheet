@@ -48,6 +48,11 @@ export function hasResourceful(traitNames: string[]): boolean {
     return traitNames.some(t => t.split('(')[0].trim() === 'Resourceful');
 }
 
+/** Shadar-Kai: Blessing of the Raven Queen (teleport uses = PB, long rest). */
+export function hasBlessingOfTheRavenQueen(traitNames: string[]): boolean {
+    return traitNames.some(t => t.split('(')[0].trim() === 'Blessing of the Raven Queen');
+}
+
 export function hasSkillful(traitNames: string[]): boolean {
     return traitNames.some(t => t.split('(')[0].trim() === 'Skillful');
 }

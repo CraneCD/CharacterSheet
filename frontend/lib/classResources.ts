@@ -181,7 +181,15 @@ export function calculateClassResources(
             break;
 
         case 'ranger':
-            // No major resources that need tracking beyond spell slots
+            // Favored Enemy: cast Hunter's Mark PB times without a slot, long rest
+            const rangerPb = Math.ceil(level / 4) + 1;
+            resources['Favored Enemy'] = {
+                name: 'Favored Enemy',
+                current: rangerPb,
+                max: rangerPb,
+                resetType: 'long',
+                description: 'You always have the Hunter\'s Mark spell prepared. You can cast it a number of times equal to your Proficiency Bonus without expending a spell slot, and you regain all expended uses when you finish a Long Rest.'
+            };
             break;
 
         case 'wizard':
@@ -222,6 +230,42 @@ export function mergeHeroicInspiration(
         'Heroic Inspiration': {
             ...HEROIC_INSPIRATION,
             ...(existing && { current: existing.current, max: existing.max })
+        }
+    };
+}
+
+/** Blessing of the Raven Queen (Shadar-Kai): uses = proficiency bonus, long rest. */
+function getBlessingOfTheRavenQueen(level: number): ClassResource {
+    const pb = Math.ceil(level / 4) + 1;
+    return {
+        name: 'Blessing of the Raven Queen',
+        current: pb,
+        max: pb,
+        resetType: 'long',
+        description: 'As a bonus action, you can magically teleport up to 30 feet to an unoccupied space you can see. You regain all expended uses when you finish a long rest.'
+    };
+}
+
+/**
+ * Merge Blessing of the Raven Queen into class resources when the character has the trait (Shadar-Kai).
+ */
+export function mergeBlessingOfTheRavenQueen(
+    resources: ClassResources,
+    hasTrait: boolean,
+    level: number
+): ClassResources {
+    if (!hasTrait) return resources;
+    const existing = resources['Blessing of the Raven Queen'];
+    const base = getBlessingOfTheRavenQueen(level);
+    const current = existing
+        ? Math.min(Math.max(0, existing.current), base.max)
+        : base.current;
+    return {
+        ...resources,
+        'Blessing of the Raven Queen': {
+            ...base,
+            current,
+            max: base.max
         }
     };
 }

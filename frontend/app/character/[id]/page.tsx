@@ -14,7 +14,7 @@ import ActionManager from './components/ActionManager';
 import FeatureManager from './components/FeatureManager';
 import CurrencyManager from './components/CurrencyManager';
 import { CharacterData, CharacterItem, CharacterFeature } from '@/lib/types';
-import { calculateClassResources, mergeHeroicInspiration } from '@/lib/classResources';
+import { calculateClassResources, mergeHeroicInspiration, mergeBlessingOfTheRavenQueen } from '@/lib/classResources';
 import { 
     calculateSpeedBonusFromFeatures, 
     getACCalculationFromFeatures,
@@ -22,7 +22,7 @@ import {
     getSavingThrowProficienciesFromFeatures
 } from '@/lib/featureStatModifiers';
 import { isMasteryActionForWeapon } from '@/lib/weaponMastery';
-import { getSkillProficienciesFromTraits, hasResourceful } from '@/lib/racialTraitBonuses';
+import { getSkillProficienciesFromTraits, hasResourceful, hasBlessingOfTheRavenQueen } from '@/lib/racialTraitBonuses';
 import { getRaceTraits, getBackgroundSkills, STANDARD_LANGUAGES } from '@/lib/wizardReference';
 
 interface GameData {
@@ -1023,6 +1023,10 @@ export default function CharacterSheet() {
                         const hadHeroic = !!(resources && (resources as Record<string, unknown>)['Heroic Inspiration']);
                         resources = mergeHeroicInspiration(resources || {}, needHeroic);
                         if (needHeroic && !hadHeroic) didChange = true;
+                        const needBlessing = hasBlessingOfTheRavenQueen(racialTraits);
+                        const hadBlessing = !!(resources && (resources as Record<string, unknown>)['Blessing of the Raven Queen']);
+                        resources = mergeBlessingOfTheRavenQueen(resources || {}, needBlessing, level);
+                        if (needBlessing && !hadBlessing) didChange = true;
                         if (didChange && Object.keys(resources).length > 0) {
                             const toPersist = resources;
                             setTimeout(() => {
