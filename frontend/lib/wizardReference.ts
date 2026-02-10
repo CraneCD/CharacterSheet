@@ -174,6 +174,20 @@ export function getBackgroundSkills(backgroundId: string): string[] {
     return BACKGROUND_SKILLS[k] ?? [];
 }
 
+/** Magic Initiate feat: allowed class lists (2024 PHB allows cleric, druid, wizard per user request). */
+export const MAGIC_INITIATE_CLASSES = [
+    { id: 'cleric', name: 'Cleric' },
+    { id: 'druid', name: 'Druid' },
+    { id: 'wizard', name: 'Wizard' }
+] as const;
+
+/** Magic Initiate: spellcasting ability choice. */
+export const MAGIC_INITIATE_ABILITIES = [
+    { id: 'int', name: 'Intelligence' },
+    { id: 'wis', name: 'Wisdom' },
+    { id: 'cha', name: 'Charisma' }
+] as const;
+
 /** Origin feats (1st-level) for Versatile (2024 PHB). Only these appear for human feat pick. IDs from /reference/feats. */
 export const ORIGIN_FEAT_IDS = [
     'alert', 'healer', 'lucky', 'magic-initiate', 'savage-attacker', 'skilled',

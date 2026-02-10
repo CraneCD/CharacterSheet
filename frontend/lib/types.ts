@@ -93,6 +93,13 @@ export interface CharacterData {
     racialTraits?: string[];
     /** Elf only: chosen lineage (drow, high_elf, wood_elf). */
     elvenLineage?: string;
+    /** Magic Initiate feat: class list (cleric/druid/wizard), ability, and chosen spell IDs. */
+    magicInitiate?: {
+        class: 'cleric' | 'druid' | 'wizard';
+        ability: 'int' | 'wis' | 'cha';
+        cantrips: string[];
+        spell1: string | null;
+    };
     equipment: (string | CharacterItem)[];
     spells: CharacterSpell[];
     spellSlotsUsed?: { [level: number]: number };

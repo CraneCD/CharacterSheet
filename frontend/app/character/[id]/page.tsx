@@ -1280,11 +1280,12 @@ export default function CharacterSheet() {
                 const subclassGrantsSpellcasting = subclass?.spellcasting && primaryLevel >= 3
                     && ['arcane_trickster', 'eldritch_knight'].includes(subclassId);
                 const hasElvenLineageSpells = (character.race || '').toLowerCase() === 'elf' && !!data.elvenLineage;
-                const hasSpellcasting = hasBaseSpellcasting || subclassGrantsSpellcasting || hasElvenLineageSpells;
+                const hasMagicInitiateFeat = (data.features || []).some((f: any) => (f.name || '').toLowerCase() === 'magic initiate');
+                const hasSpellcasting = hasBaseSpellcasting || subclassGrantsSpellcasting || hasElvenLineageSpells || hasMagicInitiateFeat;
 
                 if (!hasSpellcasting) return null;
 
-                // Get primary spellcasting class, or virtual entry for subclass spellcasting or elven lineage
+                // Get primary spellcasting class, or virtual entry for subclass spellcasting, elven lineage, or Magic Initiate
                 let spellcastingClasses = characterClasses
                     .map((c: any) => ({
                         ...c,
@@ -1320,6 +1321,15 @@ export default function CharacterSheet() {
                         classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: 'cha' }
                     };
                     primarySpellcastingAbility = 'cha';
+                } else if (!primarySpellcastingClass && hasMagicInitiateFeat) {
+                    // Virtual spellcasting for Magic Initiate feat only
+                    primarySpellcastingClass = {
+                        id: 'magic_initiate',
+                        name: 'Magic Initiate',
+                        level,
+                        classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: data.magicInitiate?.ability || 'int' }
+                    };
+                    primarySpellcastingAbility = data.magicInitiate?.ability || 'int';
                 } else if (!primarySpellcastingClass) return null;
                 
                 return (
@@ -1356,8 +1366,16 @@ export default function CharacterSheet() {
                                 level={level}
                                 subclassSpellcasting={subclassSpellcasting}
                                 elvenLineage={(character.race || '').toLowerCase() === 'elf' ? data.elvenLineage : undefined}
-                                subclassId={primarySpellcastingClass.id !== 'innate' ? (data.subclassId || '').toLowerCase().replace(/\s+/g, '_') : undefined}
+                                subclassId={primarySpellcastingClass.id !== 'innate' && primarySpellcastingClass.id !== 'magic_initiate' ? (data.subclassId || '').toLowerCase().replace(/\s+/g, '_') : undefined}
                                 subclassClassLevel={primarySpellcastingClass?.level ?? level}
+                                magicInitiate={hasMagicInitiateFeat ? data.magicInitiate : undefined}
+                                onMagicInitiateUpdate={(magicInitiate) => {
+                                    handleUpdateCharacter({ magicInitiate });
+                                    api.put(`/characters/${character.id}`, {
+                                        ...character,
+                                        data: { ...character.data, magicInitiate }
+                                    }).catch((err) => console.error('Failed to persist Magic Initiate', err));
+                                }}
                                 initialSpells={Array.isArray(data.spells) ? data.spells : []}
                                 initialSlotsUsed={data.spellSlotsUsed || {}}
                                 spellcastingAbility={primarySpellcastingAbility}

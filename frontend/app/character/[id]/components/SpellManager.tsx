@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Spell, CharacterSpell, CharacterData } from '@/lib/types';
 import { calculateMulticlassSpellcasterLevel, getSpellcastingClasses, calculatePreparedSpellsLimitForClass } from '@/lib/multiclassSpellcasting';
-import { ELVEN_LINEAGE_SPELLS, SUBCLASS_BONUS_SPELLS } from '@/lib/wizardReference';
+import { ELVEN_LINEAGE_SPELLS, SUBCLASS_BONUS_SPELLS, MAGIC_INITIATE_CLASSES, MAGIC_INITIATE_ABILITIES } from '@/lib/wizardReference';
 
 // Spell Details Modal Component
 const SpellDetailsModal = ({ spell, isOpen, onClose }: { spell: Spell | null, isOpen: boolean, onClose: () => void }) => {
@@ -81,6 +81,134 @@ const SpellDetailsModal = ({ spell, isOpen, onClose }: { spell: Spell | null, is
     );
 };
 
+/** Magic Initiate config for the modal. */
+interface MagicInitiateConfig {
+    class: 'cleric' | 'druid' | 'wizard';
+    ability: 'int' | 'wis' | 'cha';
+    cantrips: string[];
+    spell1: string | null;
+}
+
+/** Modal to choose Magic Initiate: class (cleric/druid/wizard), ability, 2 cantrips, 1 first-level spell. */
+function MagicInitiateConfigModal({
+    isOpen,
+    onClose,
+    allSpells,
+    initial,
+    onSave
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    allSpells: Spell[];
+    initial: MagicInitiateConfig | undefined;
+    onSave: (config: MagicInitiateConfig) => void;
+}) {
+    const [miClass, setMiClass] = useState<MagicInitiateConfig['class']>(initial?.class ?? 'wizard');
+    const [ability, setAbility] = useState<MagicInitiateConfig['ability']>(initial?.ability ?? 'int');
+    const [cantrip1, setCantrip1] = useState(initial?.cantrips?.[0] ?? '');
+    const [cantrip2, setCantrip2] = useState(initial?.cantrips?.[1] ?? '');
+    const [spell1, setSpell1] = useState(initial?.spell1 ?? '');
+
+    useEffect(() => {
+        if (!isOpen) return;
+        setMiClass(initial?.class ?? 'wizard');
+        setAbility(initial?.ability ?? 'int');
+        setCantrip1(initial?.cantrips?.[0] ?? '');
+        setCantrip2(initial?.cantrips?.[1] ?? '');
+        setSpell1(initial?.spell1 ?? '');
+    }, [isOpen, initial]);
+
+    const classSpells = allSpells.filter(s => (s.classes || []).map((c: string) => c.toLowerCase()).includes(miClass));
+    const cantrips = classSpells.filter(s => s.level === 0);
+    const level1Spells = classSpells.filter(s => s.level === 1);
+
+    const handleSave = () => {
+        const c1 = cantrip1?.trim();
+        const c2 = cantrip2?.trim();
+        if (!c1 || !c2) {
+            alert('Please select two cantrips.');
+            return;
+        }
+        if (c1 === c2) {
+            alert('Please select two different cantrips.');
+            return;
+        }
+        const s1 = spell1?.trim() || null;
+        if (!s1) {
+            alert('Please select one 1st-level spell.');
+            return;
+        }
+        onSave({
+            class: miClass,
+            ability,
+            cantrips: [c1, c2],
+            spell1: s1
+        });
+        onClose();
+    };
+
+    if (!isOpen) return null;
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+                <h3 style={{ margin: 0, marginBottom: '1rem' }}>Magic Initiate</h3>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                    Choose a spell list (Cleric, Druid, or Wizard), your spellcasting ability, two cantrips, and one 1st-level spell. These are always prepared and don&apos;t count toward your prepared spell limit.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1, overflowY: 'auto' }}>
+                    <div>
+                        <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Spell list</label>
+                        <select className="input" value={miClass} onChange={e => setMiClass(e.target.value as MagicInitiateConfig['class'])}>
+                            {MAGIC_INITIATE_CLASSES.map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Spellcasting ability</label>
+                        <select className="input" value={ability} onChange={e => setAbility(e.target.value as MagicInitiateConfig['ability'])}>
+                            {MAGIC_INITIATE_ABILITIES.map(a => (
+                                <option key={a.id} value={a.id}>{a.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Cantrip 1</label>
+                        <select className="input" value={cantrip1} onChange={e => setCantrip1(e.target.value)}>
+                            <option value="">Select...</option>
+                            {cantrips.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Cantrip 2</label>
+                        <select className="input" value={cantrip2} onChange={e => setCantrip2(e.target.value)}>
+                            <option value="">Select...</option>
+                            {cantrips.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem' }}>1st-level spell</label>
+                        <select className="input" value={spell1} onChange={e => setSpell1(e.target.value)}>
+                            <option value="">Select a 1st-level spell...</option>
+                            {level1Spells.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
+                    <button className="button secondary" onClick={onClose}>Cancel</button>
+                    <button className="button primary" onClick={handleSave}>Save</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 /** Subclass spellcasting (Arcane Trickster, Eldritch Knight). */
 interface SubclassSpellcasting {
     subclassId: string;
@@ -113,6 +241,14 @@ interface SpellManagerProps {
     classes?: { [classId: string]: number }; // Multiclass support
     allClasses?: any[]; // All available classes for reference
     subclassSpellcasting?: SubclassSpellcasting;
+    /** Magic Initiate feat: chosen class, ability, and spell IDs. When set, spells are always prepared and don't count toward limit. */
+    magicInitiate?: {
+        class: 'cleric' | 'druid' | 'wizard';
+        ability: 'int' | 'wis' | 'cha';
+        cantrips: string[];
+        spell1: string | null;
+    };
+    onMagicInitiateUpdate?: (magicInitiate: NonNullable<SpellManagerProps['magicInitiate']>) => void;
 }
 
 // 5e Standard Spell Slots Table (Wizard, Cleric, Druid, Sorcerer, Bard)
@@ -160,7 +296,7 @@ const getSlotsForClass = (classId: string, level: number, casterLevelDivisor?: n
 const THIRD_CASTER_SPELLS_KNOWN: number[] = [0, 0, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9];
 const THIRD_CASTER_CANTRIPS: Record<string, number> = { arcane_trickster: 3, eldritch_knight: 2 };
 
-export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel }: SpellManagerProps) {
+export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel, magicInitiate, onMagicInitiateUpdate }: SpellManagerProps) {
     const [mySpells, setMySpells] = useState<CharacterSpell[]>(Array.isArray(initialSpells) ? initialSpells : []);
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
     const [allSpells, setAllSpells] = useState<Spell[]>([]);
@@ -178,10 +314,12 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     });
     const [spellDetailsModal, setSpellDetailsModal] = useState<{ isOpen: boolean, spell: Spell | null }>({ isOpen: false, spell: null });
     const [isAddingToSpellbook, setIsAddingToSpellbook] = useState(false);
+    const [magicInitiateModalOpen, setMagicInitiateModalOpen] = useState(false);
 
     const safeMySpells = Array.isArray(mySpells) ? mySpells : [];
     const isWizardSpellbook = classId === 'wizard' && preparedCaster;
     const isInnateOnly = classId === 'innate'; // Elven lineage spells only, no class spellcasting
+    const isMagicInitiateOnly = classId === 'magic_initiate';
     const effectiveSpellbook: string[] = Array.isArray(spellbookProp) ? spellbookProp : [];
 
     useEffect(() => {
@@ -801,6 +939,79 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         };
     }).filter(group => group.spells.length > 0 || group.slots > 0);
 
+    // Magic Initiate only: show just the feat's spell list and config
+    if (isMagicInitiateOnly && onMagicInitiateUpdate) {
+        const mi = magicInitiate;
+        const safeAllSpellsForMi = Array.isArray(allSpells) ? allSpells : [];
+        const miSpells: { id: string; name: string; level: number; school: string }[] = [];
+        if (mi?.cantrips) {
+            for (const id of mi.cantrips) {
+                const s = safeAllSpellsForMi.find(sp => sp.id === id);
+                if (s) miSpells.push({ id: s.id, name: s.name, level: 0, school: s.school });
+            }
+        }
+        if (mi?.spell1) {
+            const s = safeAllSpellsForMi.find(sp => sp.id === mi.spell1);
+            if (s) miSpells.push({ id: s.id, name: s.name, level: 1, school: s.school });
+        }
+        const classLabel = mi?.class ? (MAGIC_INITIATE_CLASSES.find(c => c.id === mi.class)?.name ?? mi.class) : '';
+        return (
+            <div className="card">
+                <div className="spellbook-header" style={{ marginBottom: '0.75rem' }}>
+                    <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', margin: 0 }}>
+                        Magic Initiate{classLabel ? ` (${classLabel})` : ''}
+                    </h3>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {!mi?.class ? (
+                            <button className="button primary" onClick={() => setMagicInitiateModalOpen(true)} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>
+                                Set up Magic Initiate
+                            </button>
+                        ) : (
+                            <>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    Ability: {(spellcastingAbility || 'int').toUpperCase()} • Always prepared (don&apos;t count toward limit)
+                                </span>
+                                <button className="button secondary" onClick={() => setMagicInitiateModalOpen(true)} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>
+                                    Change spells
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+                {mi?.class && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {miSpells.map(spell => (
+                            <div key={spell.id} className="spell-item spell-item-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', backgroundColor: 'var(--surface)', borderRadius: '4px' }}>
+                                <div>
+                                    <span style={{ fontWeight: 'bold' }}>{spell.name}</span>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
+                                        {spell.level === 0 ? 'Cantrip' : `1st`} • {spell.school}
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="button plain"
+                                    style={{ fontSize: '0.75rem' }}
+                                    onClick={() => setSpellDetailsModal({ isOpen: true, spell: safeAllSpellsForMi.find(s => s.id === spell.id) || null })}
+                                >
+                                    View
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                <MagicInitiateConfigModal
+                    isOpen={magicInitiateModalOpen}
+                    onClose={() => setMagicInitiateModalOpen(false)}
+                    allSpells={safeAllSpellsForMi}
+                    initial={mi}
+                    onSave={(config) => onMagicInitiateUpdate(config)}
+                />
+                <SpellDetailsModal spell={spellDetailsModal.spell} isOpen={spellDetailsModal.isOpen} onClose={() => setSpellDetailsModal({ isOpen: false, spell: null })} />
+            </div>
+        );
+    }
+
     return (
         <div className="card">
             <div className="spellbook-header" style={{ marginBottom: '0.75rem' }}>
@@ -1266,6 +1477,41 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 </div>
             );
             })}
+            {/* Magic Initiate subsection when character has both class spellcasting and the feat */}
+            {magicInitiate && onMagicInitiateUpdate && !isMagicInitiateOnly && (
+                <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <h4 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 'bold', margin: 0 }}>
+                            Magic Initiate ({MAGIC_INITIATE_CLASSES.find(c => c.id === magicInitiate.class)?.name ?? magicInitiate.class})
+                        </h4>
+                        <button className="button secondary" onClick={() => setMagicInitiateModalOpen(true)} style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}>
+                            Change spells
+                        </button>
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                        Always prepared; don&apos;t count toward your prepared spell limit.
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {[...(magicInitiate.cantrips || []), ...(magicInitiate.spell1 ? [magicInitiate.spell1] : [])].map(spellId => {
+                            const s = safeAllSpells.find(sp => sp.id === spellId);
+                            if (!s) return null;
+                            return (
+                                <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0.5rem', backgroundColor: 'var(--surface)', borderRadius: '4px' }}>
+                                    <span style={{ fontWeight: 'bold', fontSize: '0.875rem' }}>{s.name}</span>
+                                    <button type="button" className="button plain" style={{ fontSize: '0.75rem' }} onClick={() => setSpellDetailsModal({ isOpen: true, spell: s })}>View</button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <MagicInitiateConfigModal
+                        isOpen={magicInitiateModalOpen}
+                        onClose={() => setMagicInitiateModalOpen(false)}
+                        allSpells={safeAllSpells}
+                        initial={magicInitiate}
+                        onSave={(config) => onMagicInitiateUpdate(config)}
+                    />
+                </div>
+            )}
         </div>
     );
 }
