@@ -1432,13 +1432,18 @@ export default function CharacterSheet() {
                                     }).catch((err) => console.error('Failed to persist Magic Initiate', err));
                                 }}
                                 magicInitiateSpell1Used={hasMagicInitiateFeat && data.magicInitiate?.spell1 ? (data.magicInitiateSpell1Used ?? 1) : 1}
-                                onMagicInitiateSpell1Use={hasMagicInitiateFeat && data.magicInitiate?.spell1 ? () => {
+                                onMagicInitiateSpell1Use={hasMagicInitiateFeat && data.magicInitiate?.spell1 ? async () => {
                                     const updates = { magicInitiateSpell1Used: 0 };
                                     handleUpdateCharacter(updates);
-                                    api.put(`/characters/${character.id}`, {
-                                        ...character,
-                                        data: { ...character.data, ...updates }
-                                    }).catch((err) => console.error('Failed to persist Magic Initiate spell use', err));
+                                    try {
+                                        const updated = await api.put(`/characters/${character.id}`, {
+                                            ...character,
+                                            data: { ...character.data, ...updates }
+                                        });
+                                        setCharacter(updated);
+                                    } catch (err) {
+                                        console.error('Failed to persist Magic Initiate spell use', err);
+                                    }
                                 } : undefined}
                                 initialSpells={Array.isArray(data.spells) ? data.spells : []}
                                 initialSlotsUsed={data.spellSlotsUsed || {}}

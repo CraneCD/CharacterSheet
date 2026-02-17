@@ -999,7 +999,11 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                             type="button"
                                             className="button primary"
                                             style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                                            onClick={onMagicInitiateSpell1Use}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                e.preventDefault();
+                                                if ((magicInitiateSpell1Used ?? 1) > 0) onMagicInitiateSpell1Use();
+                                            }}
                                             disabled={(magicInitiateSpell1Used ?? 1) <= 0}
                                         >
                                             Use
@@ -1523,7 +1527,11 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                                 type="button"
                                                 className="button primary"
                                                 style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                                                onClick={onMagicInitiateSpell1Use}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                    if ((magicInitiateSpell1Used ?? 1) > 0) onMagicInitiateSpell1Use();
+                                                }}
                                                 disabled={(magicInitiateSpell1Used ?? 1) <= 0}
                                             >
                                                 Use
