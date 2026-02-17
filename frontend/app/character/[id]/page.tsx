@@ -1059,10 +1059,13 @@ export default function CharacterSheet() {
                                         }
                                         handleUpdateCharacter(updates);
                                         try {
-                                            await api.put(`/characters/${character.id}`, {
-                                                ...character,
-                                                data: { ...character.data, ...updates }
+                                            const latest = await api.get(`/characters/${character.id}`);
+                                            const merged = { ...latest.data, ...updates };
+                                            const updated = await api.put(`/characters/${character.id}`, {
+                                                ...latest,
+                                                data: merged
                                             });
+                                            setCharacter(updated);
                                         } catch (err) {
                                             console.error('Failed to persist long rest (HP, spell slots, hit dice)', err);
                                         }
