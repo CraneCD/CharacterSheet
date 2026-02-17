@@ -997,6 +997,9 @@ export default function CharacterSheet() {
                                     if (data.hitDice) {
                                         updates.hitDice = { ...data.hitDice, spent: 0 };
                                     }
+                                    if (data.magicInitiate?.spell1) {
+                                        updates.magicInitiateSpell1Used = 1;
+                                    }
                                     handleUpdateCharacter(updates);
                                     const latest = await api.get(`/characters/${character.id}`);
                                     const merged = { ...latest.data, ...updates };
@@ -1081,6 +1084,9 @@ export default function CharacterSheet() {
                                         };
                                         if (data.hitDice) {
                                             updates.hitDice = { ...data.hitDice, spent: 0 };
+                                        }
+                                        if (data.magicInitiate?.spell1) {
+                                            updates.magicInitiateSpell1Used = 1;
                                         }
                                         handleUpdateCharacter(updates);
                                         try {
@@ -1425,6 +1431,15 @@ export default function CharacterSheet() {
                                         data: { ...character.data, magicInitiate }
                                     }).catch((err) => console.error('Failed to persist Magic Initiate', err));
                                 }}
+                                magicInitiateSpell1Used={hasMagicInitiateFeat && data.magicInitiate?.spell1 ? (data.magicInitiateSpell1Used ?? 1) : 1}
+                                onMagicInitiateSpell1Use={hasMagicInitiateFeat && data.magicInitiate?.spell1 ? () => {
+                                    const updates = { magicInitiateSpell1Used: 0 };
+                                    handleUpdateCharacter(updates);
+                                    api.put(`/characters/${character.id}`, {
+                                        ...character,
+                                        data: { ...character.data, ...updates }
+                                    }).catch((err) => console.error('Failed to persist Magic Initiate spell use', err));
+                                } : undefined}
                                 initialSpells={Array.isArray(data.spells) ? data.spells : []}
                                 initialSlotsUsed={data.spellSlotsUsed || {}}
                                 spellcastingAbility={primarySpellcastingAbility}

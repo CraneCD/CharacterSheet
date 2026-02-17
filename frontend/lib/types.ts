@@ -103,6 +103,8 @@ export interface CharacterData {
     equipment: (string | CharacterItem)[];
     spells: CharacterSpell[];
     spellSlotsUsed?: { [level: number]: number };
+    /** Magic Initiate: 1st-level spell uses remaining (1 = available, 0 = used). Resets on long rest. */
+    magicInitiateSpell1Used?: number;
     /** Wizard only: spell IDs in the spellbook. Spells can only be prepared if in the spellbook. */
     spellbook?: string[];
     features: CharacterFeature[];
