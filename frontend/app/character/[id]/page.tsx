@@ -1432,19 +1432,7 @@ export default function CharacterSheet() {
                                     }).catch((err) => console.error('Failed to persist Magic Initiate', err));
                                 }}
                                 magicInitiateSpell1Used={hasMagicInitiateFeat && data.magicInitiate?.spell1 ? (data.magicInitiateSpell1Used ?? 1) : 1}
-                                onMagicInitiateSpell1Use={hasMagicInitiateFeat && data.magicInitiate?.spell1 ? async () => {
-                                    const updates = { magicInitiateSpell1Used: 0 };
-                                    handleUpdateCharacter(updates);
-                                    try {
-                                        const updated = await api.put(`/characters/${character.id}`, {
-                                            ...character,
-                                            data: { ...character.data, ...updates }
-                                        });
-                                        setCharacter(updated);
-                                    } catch (err) {
-                                        console.error('Failed to persist Magic Initiate spell use', err);
-                                    }
-                                } : undefined}
+                                onMagicInitiateSpell1Use={undefined}
                                 initialSpells={Array.isArray(data.spells) ? data.spells : []}
                                 initialSlotsUsed={data.spellSlotsUsed || {}}
                                 spellcastingAbility={primarySpellcastingAbility}
@@ -1457,7 +1445,15 @@ export default function CharacterSheet() {
                                 abilityScores={effectiveAbilityScores}
                                 classes={data.classes}
                                 allClasses={gameData.classes || []}
-                                onUpdate={(updates) => handleUpdateCharacter(updates)}
+                                onUpdate={(updates) => {
+                                    handleUpdateCharacter(updates);
+                                    if ('magicInitiateSpell1Used' in updates) {
+                                        api.put(`/characters/${character.id}`, {
+                                            ...character,
+                                            data: { ...character.data, ...updates }
+                                        }).then((updated) => setCharacter(updated)).catch((err) => console.error('Failed to persist Magic Initiate spell use', err));
+                                    }
+                                }}
                                 existingActions={Array.isArray(data.actions) ? data.actions : []}
                                 onCreateAction={async (action) => {
                                     try {

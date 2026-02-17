@@ -994,7 +994,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                    {spell.level === 1 && onMagicInitiateSpell1Use && (
+                                    {spell.level === 1 && (onMagicInitiateSpell1Use || onUpdate) && (
                                         <button
                                             type="button"
                                             className="button primary"
@@ -1002,7 +1002,12 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 e.preventDefault();
-                                                if ((magicInitiateSpell1Used ?? 1) > 0) onMagicInitiateSpell1Use();
+                                                if ((magicInitiateSpell1Used ?? 1) <= 0) return;
+                                                if (onMagicInitiateSpell1Use) {
+                                                    onMagicInitiateSpell1Use();
+                                                } else {
+                                                    onUpdate({ magicInitiateSpell1Used: 0 });
+                                                }
                                             }}
                                             disabled={(magicInitiateSpell1Used ?? 1) <= 0}
                                         >
@@ -1522,7 +1527,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                 <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0.5rem', backgroundColor: 'var(--surface)', borderRadius: '4px' }}>
                                     <span style={{ fontWeight: 'bold', fontSize: '0.875rem' }}>{s.name}</span>
                                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                        {isLevel1 && onMagicInitiateSpell1Use && (
+                                        {isLevel1 && (onMagicInitiateSpell1Use || onUpdate) && (
                                             <button
                                                 type="button"
                                                 className="button primary"
@@ -1530,7 +1535,12 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     e.preventDefault();
-                                                    if ((magicInitiateSpell1Used ?? 1) > 0) onMagicInitiateSpell1Use();
+                                                    if ((magicInitiateSpell1Used ?? 1) <= 0) return;
+                                                    if (onMagicInitiateSpell1Use) {
+                                                        onMagicInitiateSpell1Use();
+                                                    } else {
+                                                        onUpdate({ magicInitiateSpell1Used: 0 });
+                                                    }
                                                 }}
                                                 disabled={(magicInitiateSpell1Used ?? 1) <= 0}
                                             >
