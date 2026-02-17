@@ -322,10 +322,11 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     const isMagicInitiateOnly = classId === 'magic_initiate';
     const effectiveSpellbook: string[] = Array.isArray(spellbookProp) ? spellbookProp : [];
 
+    const slotsUsedKey = JSON.stringify(initialSlotsUsed && typeof initialSlotsUsed === 'object' && !Array.isArray(initialSlotsUsed) ? initialSlotsUsed : {});
     useEffect(() => {
         setMySpells(Array.isArray(initialSpells) ? initialSpells : []);
         setSlotsUsed(initialSlotsUsed && typeof initialSlotsUsed === 'object' && !Array.isArray(initialSlotsUsed) ? initialSlotsUsed : {});
-    }, [initialSpells, initialSlotsUsed]);
+    }, [initialSpells, slotsUsedKey]);
 
 
     useEffect(() => {

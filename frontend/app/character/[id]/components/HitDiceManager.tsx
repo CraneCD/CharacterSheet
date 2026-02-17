@@ -8,10 +8,12 @@ interface HitDiceManagerProps {
     characterId: string;
     initialHitDice: HitDice | undefined;
     onUpdate: (newHitDice: HitDice) => void;
+    onHPUpdate?: (newHP: { current: number; max: number; temp: number }) => void;
+    onLongRest?: () => void | Promise<void>;
     conModifier: number; // Constitution modifier for healing calculation
 }
 
-export default function HitDiceManager({ characterId, initialHitDice, onUpdate, conModifier }: HitDiceManagerProps) {
+export default function HitDiceManager({ characterId, initialHitDice, onUpdate, onHPUpdate, onLongRest, conModifier }: HitDiceManagerProps) {
     const [hitDice, setHitDice] = useState<HitDice>(initialHitDice || { total: 1, spent: 0, dieType: 8 });
     const [isRolling, setIsRolling] = useState(false);
     const [lastRoll, setLastRoll] = useState<number | null>(null);
@@ -21,7 +23,7 @@ export default function HitDiceManager({ characterId, initialHitDice, onUpdate, 
         if (initialHitDice) {
             setHitDice(initialHitDice);
         }
-    }, [initialHitDice]);
+    }, [initialHitDice?.total, initialHitDice?.spent, initialHitDice?.dieType]);
 
     const available = hitDice.total - hitDice.spent;
 
@@ -50,16 +52,18 @@ export default function HitDiceManager({ characterId, initialHitDice, onUpdate, 
             setHitDice(newHitDice);
             onUpdate(newHitDice);
 
-            // If healing, also update HP
+            // If healing, also update HP and notify parent
             if (heal) {
                 try {
                     const currentChar = await api.get(`/characters/${characterId}`);
                     const currentHP = currentChar.data.hp || { current: 0, max: 0, temp: 0 };
                     const newCurrent = Math.min(currentHP.current + healing, currentHP.max);
+                    const newHP = { ...currentHP, current: newCurrent };
                     
                     await api.patch(`/characters/${characterId}/hp`, {
                         current: newCurrent
                     });
+                    onHPUpdate?.(newHP);
                 } catch (err) {
                     console.error('Failed to update HP after healing', err);
                 }
@@ -85,7 +89,13 @@ export default function HitDiceManager({ characterId, initialHitDice, onUpdate, 
     };
 
     const handleLongRest = async () => {
-        // Recover all spent hit dice
+        if (onLongRest) {
+            await onLongRest();
+            setLastRoll(null);
+            setLastHealing(null);
+            return;
+        }
+        // Fallback: recover only hit dice (when onLongRest not provided)
         try {
             const newHitDice = { ...hitDice, spent: 0 };
             await api.patch(`/characters/${characterId}/hit-dice`, {

@@ -984,6 +984,31 @@ export default function CharacterSheet() {
                             characterId={character.id}
                             initialHitDice={data.hitDice}
                             onUpdate={(newHitDice) => handleUpdateCharacter({ hitDice: newHitDice })}
+                            onHPUpdate={(newHP) => handleUpdateCharacter({ hp: newHP })}
+                            onLongRest={async () => {
+                                try {
+                                    await api.patch(`/characters/${character.id}/class-resources`, { resetType: 'long' });
+                                    const hp = data.hp || { current: 0, max: 0, temp: 0 };
+                                    const maxHp = hp.max ?? 0;
+                                    const updates: Partial<CharacterData> = {
+                                        hp: { ...hp, current: maxHp, max: maxHp, temp: 0 },
+                                        spellSlotsUsed: {}
+                                    };
+                                    if (data.hitDice) {
+                                        updates.hitDice = { ...data.hitDice, spent: 0 };
+                                    }
+                                    handleUpdateCharacter(updates);
+                                    const latest = await api.get(`/characters/${character.id}`);
+                                    const merged = { ...latest.data, ...updates };
+                                    const updated = await api.put(`/characters/${character.id}`, {
+                                        ...latest,
+                                        data: merged
+                                    });
+                                    setCharacter(updated);
+                                } catch (err) {
+                                    console.error('Failed to persist long rest', err);
+                                }
+                            }}
                             conModifier={effectiveModifiers.con}
                         />
                     </div>

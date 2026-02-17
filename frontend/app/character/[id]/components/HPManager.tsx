@@ -28,7 +28,7 @@ export default function HPManager({ characterId, initialHP, onUpdate }: HPManage
                 temp: initialHP.temp
             });
         }
-    }, [initialHP]);
+    }, [initialHP?.current, initialHP?.max, initialHP?.temp]);
 
     const handleSave = async () => {
         try {
