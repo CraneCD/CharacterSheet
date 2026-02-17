@@ -370,6 +370,32 @@ router.patch('/:id/hit-dice', authenticateToken, async (req: AuthRequest, res) =
     }
 });
 
+// Update Magic Initiate 1st-level spell use (1 = available, 0 = used)
+router.patch('/:id/magic-initiate-spell-used', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const characterId = req.params.id;
+        const userId = req.user!.id;
+        const { used } = req.body; // 0 = used, 1 = available
+
+        const character = await prisma.character.findUnique({ where: { id: characterId } });
+        if (!character || character.userId !== userId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const data = character.data as any;
+        data.magicInitiateSpell1Used = used !== undefined ? used : 0;
+
+        const updated = await prisma.character.update({
+            where: { id: characterId },
+            data: { data }
+        });
+
+        res.json(updated);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update Magic Initiate spell use' });
+    }
+});
+
 // Update Character Class Resources
 router.patch('/:id/class-resources', authenticateToken, async (req: AuthRequest, res) => {
     try {

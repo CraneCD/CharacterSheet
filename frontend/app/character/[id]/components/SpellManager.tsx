@@ -999,17 +999,22 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                             type="button"
                                             className="button primary"
                                             style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                                            onClick={(e) => {
+                                            disabled={(magicInitiateSpell1Used ?? 1) <= 0}
+                                            onClick={async (e) => {
                                                 e.stopPropagation();
                                                 e.preventDefault();
                                                 if ((magicInitiateSpell1Used ?? 1) <= 0) return;
                                                 if (onMagicInitiateSpell1Use) {
                                                     onMagicInitiateSpell1Use();
-                                                } else {
+                                                    return;
+                                                }
+                                                try {
+                                                    const updated = await api.patch(`/characters/${characterId}/magic-initiate-spell-used`, { used: 0 });
                                                     onUpdate({ magicInitiateSpell1Used: 0 });
+                                                } catch (err) {
+                                                    console.error('Failed to use Magic Initiate spell', err);
                                                 }
                                             }}
-                                            disabled={(magicInitiateSpell1Used ?? 1) <= 0}
                                         >
                                             Use
                                         </button>
@@ -1532,17 +1537,22 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                                 type="button"
                                                 className="button primary"
                                                 style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                                                onClick={(e) => {
+                                                disabled={(magicInitiateSpell1Used ?? 1) <= 0}
+                                                onClick={async (e) => {
                                                     e.stopPropagation();
                                                     e.preventDefault();
                                                     if ((magicInitiateSpell1Used ?? 1) <= 0) return;
                                                     if (onMagicInitiateSpell1Use) {
                                                         onMagicInitiateSpell1Use();
-                                                    } else {
+                                                        return;
+                                                    }
+                                                    try {
+                                                        const updated = await api.patch(`/characters/${characterId}/magic-initiate-spell-used`, { used: 0 });
                                                         onUpdate({ magicInitiateSpell1Used: 0 });
+                                                    } catch (err) {
+                                                        console.error('Failed to use Magic Initiate spell', err);
                                                     }
                                                 }}
-                                                disabled={(magicInitiateSpell1Used ?? 1) <= 0}
                                             >
                                                 Use
                                             </button>
