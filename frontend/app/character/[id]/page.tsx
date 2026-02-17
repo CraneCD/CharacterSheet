@@ -1045,10 +1045,27 @@ export default function CharacterSheet() {
                                     initialResources={resources}
                                     onUpdate={(newResources) => handleUpdateCharacter({ classResources: newResources })}
                                     onShortRest={() => {
-                                        // Also reset hit dice on short rest if needed
+                                        // Short rest: hit dice can be spent; class resources already reset by ClassResourcesManager
                                     }}
-                                    onLongRest={() => {
-                                        // Also reset hit dice on long rest
+                                    onLongRest={async () => {
+                                        const hp = data.hp || { current: 0, max: 0, temp: 0 };
+                                        const maxHp = hp.max ?? 0;
+                                        const updates: Partial<CharacterData> = {
+                                            hp: { ...hp, current: maxHp, max: maxHp, temp: 0 },
+                                            spellSlotsUsed: {}
+                                        };
+                                        if (data.hitDice) {
+                                            updates.hitDice = { ...data.hitDice, spent: 0 };
+                                        }
+                                        handleUpdateCharacter(updates);
+                                        try {
+                                            await api.put(`/characters/${character.id}`, {
+                                                ...character,
+                                                data: { ...character.data, ...updates }
+                                            });
+                                        } catch (err) {
+                                            console.error('Failed to persist long rest (HP, spell slots, hit dice)', err);
+                                        }
                                     }}
                                 />
                             </div>
