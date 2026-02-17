@@ -251,8 +251,8 @@ interface SpellManagerProps {
     onMagicInitiateUpdate?: (magicInitiate: NonNullable<SpellManagerProps['magicInitiate']>) => void;
     /** Magic Initiate: 1st-level spell uses remaining (1 = available, 0 = used). Resets on long rest. */
     magicInitiateSpell1Used?: number;
-    /** Called when Magic Initiate level 1 spell is used (marks as used). */
-    onMagicInitiateSpell1Use?: () => void;
+    /** Called when Magic Initiate 1st-level slot is toggled. used: 0 = used, 1 = available. */
+    onMagicInitiateSlotChange?: (used: number) => void;
 }
 
 // 5e Standard Spell Slots Table (Wizard, Cleric, Druid, Sorcerer, Bard)
@@ -300,7 +300,7 @@ const getSlotsForClass = (classId: string, level: number, casterLevelDivisor?: n
 const THIRD_CASTER_SPELLS_KNOWN: number[] = [0, 0, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9];
 const THIRD_CASTER_CANTRIPS: Record<string, number> = { arcane_trickster: 3, eldritch_knight: 2 };
 
-export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel, magicInitiate, onMagicInitiateUpdate, magicInitiateSpell1Used = 1, onMagicInitiateSpell1Use }: SpellManagerProps) {
+export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel, magicInitiate, onMagicInitiateUpdate, magicInitiateSpell1Used = 1, onMagicInitiateSlotChange }: SpellManagerProps) {
     const [mySpells, setMySpells] = useState<CharacterSpell[]>(Array.isArray(initialSpells) ? initialSpells : []);
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
     const [allSpells, setAllSpells] = useState<Spell[]>([]);
@@ -973,9 +973,30 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             </button>
                         ) : (
                             <>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                    Ability: {(spellcastingAbility || 'int').toUpperCase()} • 1st-level spell: {(magicInitiateSpell1Used ?? 1)}/1 use per long rest
-                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                        Ability: {(spellcastingAbility || 'int').toUpperCase()}
+                                    </span>
+                                    {mi?.spell1 && onMagicInitiateSlotChange && (
+                                        <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '0.75rem' }}>1st-level slot:</span>
+                                            <div
+                                                onClick={() => {
+                                                    const current = magicInitiateSpell1Used ?? 1;
+                                                    const next = current === 1 ? 0 : 1;
+                                                    onMagicInitiateSlotChange(next);
+                                                }}
+                                                style={{
+                                                    width: '12px', height: '12px', borderRadius: '50%',
+                                                    border: '1px solid var(--primary)',
+                                                    backgroundColor: (magicInitiateSpell1Used ?? 1) === 0 ? 'var(--primary)' : 'transparent',
+                                                    cursor: 'pointer'
+                                                }}
+                                                title="Toggle Magic Initiate 1st-level spell slot"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
                                 <button className="button secondary" onClick={() => setMagicInitiateModalOpen(true)} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>
                                     Change spells
                                 </button>
@@ -994,31 +1015,6 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                    {spell.level === 1 && (
-                                        <button
-                                            type="button"
-                                            className="button primary"
-                                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                                            disabled={(magicInitiateSpell1Used ?? 1) <= 0}
-                                            onClick={async (e) => {
-                                                e.stopPropagation();
-                                                e.preventDefault();
-                                                if ((magicInitiateSpell1Used ?? 1) <= 0) return;
-                                                if (onMagicInitiateSpell1Use) {
-                                                    onMagicInitiateSpell1Use();
-                                                    return;
-                                                }
-                                                try {
-                                                    const updated = await api.patch(`/characters/${characterId}/magic-initiate-spell-used`, { used: 0 });
-                                                    onUpdate({ magicInitiateSpell1Used: 0 });
-                                                } catch (err) {
-                                                    console.error('Failed to use Magic Initiate spell', err);
-                                                }
-                                            }}
-                                        >
-                                            Use
-                                        </button>
-                                    )}
                                     <button
                                         type="button"
                                         className="button plain"
@@ -1520,45 +1516,38 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             Change spells
                         </button>
                     </div>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                        Always prepared; don&apos;t count toward your prepared spell limit. 1st-level spell: {(magicInitiateSpell1Used ?? 1)}/1 use per long rest.
-                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
+                            Always prepared; don&apos;t count toward your prepared spell limit.
+                        </p>
+                        {magicInitiate.spell1 && onMagicInitiateSlotChange && (
+                            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.75rem' }}>1st-level slot:</span>
+                                <div
+                                    onClick={() => {
+                                        const current = magicInitiateSpell1Used ?? 1;
+                                        const next = current === 1 ? 0 : 1;
+                                        onMagicInitiateSlotChange(next);
+                                    }}
+                                    style={{
+                                        width: '12px', height: '12px', borderRadius: '50%',
+                                        border: '1px solid var(--primary)',
+                                        backgroundColor: (magicInitiateSpell1Used ?? 1) === 0 ? 'var(--primary)' : 'transparent',
+                                        cursor: 'pointer'
+                                    }}
+                                    title="Toggle Magic Initiate 1st-level spell slot"
+                                />
+                            </div>
+                        )}
+                    </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                         {[...(magicInitiate.cantrips || []), ...(magicInitiate.spell1 ? [magicInitiate.spell1] : [])].map(spellId => {
                             const s = safeAllSpells.find(sp => sp.id === spellId);
                             if (!s) return null;
-                            const isLevel1 = s.level === 1;
                             return (
                                 <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0.5rem', backgroundColor: 'var(--surface)', borderRadius: '4px' }}>
                                     <span style={{ fontWeight: 'bold', fontSize: '0.875rem' }}>{s.name}</span>
-                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                        {isLevel1 && (
-                                            <button
-                                                type="button"
-                                                className="button primary"
-                                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                                                disabled={(magicInitiateSpell1Used ?? 1) <= 0}
-                                                onClick={async (e) => {
-                                                    e.stopPropagation();
-                                                    e.preventDefault();
-                                                    if ((magicInitiateSpell1Used ?? 1) <= 0) return;
-                                                    if (onMagicInitiateSpell1Use) {
-                                                        onMagicInitiateSpell1Use();
-                                                        return;
-                                                    }
-                                                    try {
-                                                        const updated = await api.patch(`/characters/${characterId}/magic-initiate-spell-used`, { used: 0 });
-                                                        onUpdate({ magicInitiateSpell1Used: 0 });
-                                                    } catch (err) {
-                                                        console.error('Failed to use Magic Initiate spell', err);
-                                                    }
-                                                }}
-                                            >
-                                                Use
-                                            </button>
-                                        )}
-                                        <button type="button" className="button plain" style={{ fontSize: '0.75rem' }} onClick={() => setSpellDetailsModal({ isOpen: true, spell: s })}>View</button>
-                                    </div>
+                                    <button type="button" className="button plain" style={{ fontSize: '0.75rem' }} onClick={() => setSpellDetailsModal({ isOpen: true, spell: s })}>View</button>
                                 </div>
                             );
                         })}
