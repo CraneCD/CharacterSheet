@@ -695,6 +695,9 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         maxSlots = getSlotsForClass(classId, level);
     }
 
+    // Highest spell level we can prepare/cast (based on actual slots, not caster level formula)
+    const maxSpellLevel = maxSlots.length;
+
     // Calculate prepared spells limit
     // For multiclassed prepared casters, we need to calculate limit per class
     const getPreparedSpellsLimit = (): number => {
@@ -762,8 +765,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         );
         if (!spellAvailableToClass) return false;
         
-        // Check spell level availability based on effective caster level
-        const maxSpellLevel = Math.ceil(effectiveCasterLevel / 2);
+        // Check spell level availability based on actual spell slots
         if (s.level === 0 || s.level <= maxSpellLevel) {
             if (preparedCaster || spellcastingClasses.some(sc => sc.classInfo.preparedCaster)) {
                 if (isCantripMode) {
@@ -791,7 +793,6 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             availableClassIds.includes(spellClass.toLowerCase())
         );
         if (!spellAvailableToClass) return false;
-        const maxSpellLevel = Math.ceil(effectiveCasterLevel / 2);
         if (s.level > maxSpellLevel) return false;
         return !effectiveSpellbook.includes(s.id);
     });
@@ -839,7 +840,6 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         
         if ((preparedCaster || spellcastingClasses.some(sc => sc.classInfo.preparedCaster) || isInnateOnly) && lvl > 0) {
             // For prepared casters: show spells at this level. Wizard = spellbook only; others = all.
-            const maxSpellLevel = Math.ceil(effectiveCasterLevel / 2);
             let availableAtLevel = safeAllSpells.filter(s => 
                 (s.classes || []).some((spellClass: string) => availableClassIds.includes(spellClass.toLowerCase())) &&
                 s.level === lvl &&
