@@ -1156,6 +1156,17 @@ export const baseItems: BaseItem[] = [
         isBaseItem: true
     },
     {
+        name: 'Talon',
+        category: 'magic-item',
+        type: 'weapon',
+        damage: '1d8',
+        damageType: 'slashing',
+        properties: ['versatile'],
+        description: '+1 longsword. You gain a +1 bonus to attack and damage rolls made with this magic weapon.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
         name: 'Tankard of Plenty',
         category: 'magic-item',
         type: 'other',
@@ -3324,6 +3335,16 @@ export const baseItems: BaseItem[] = [
         isBaseItem: true
     },
     {
+        name: 'Dragonguard',
+        category: 'magic-item',
+        type: 'armor',
+        armorMethod: 'medium',
+        baseAC: 16,
+        description: '+1 breastplate. You gain a +1 bonus to AC while wearing this armor.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
         name: 'Dragon Vessel',
         category: 'magic-item',
         type: 'other',
@@ -3639,6 +3660,17 @@ export const baseItems: BaseItem[] = [
         isBaseItem: true
     },
     {
+        name: 'Hew',
+        category: 'magic-item',
+        type: 'weapon',
+        damage: '1d8',
+        damageType: 'slashing',
+        properties: ['versatile'],
+        description: '+1 battleaxe. You gain a +1 bonus to attack and damage rolls made with this magic weapon.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
         name: 'Heward\'s Handy Haversack',
         category: 'magic-item',
         type: 'other',
@@ -3747,6 +3779,17 @@ export const baseItems: BaseItem[] = [
         category: 'magic-item',
         type: 'armor',
         description: 'This armor is made from the hide of a golem. While wearing it, you have resistance to nonmagical bludgeoning, piercing, and slashing damage.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Lightbringer',
+        category: 'magic-item',
+        type: 'weapon',
+        damage: '1d6',
+        damageType: 'bludgeoning',
+        properties: [],
+        description: '+1 mace. You gain a +1 bonus to attack and damage rolls. While holding it, you can use an action to cast the light spell from it. If you hit an undead with it, that target takes an extra 1d6 radiant damage.',
         equipped: false,
         isBaseItem: true
     },
@@ -4333,7 +4376,10 @@ export const baseItems: BaseItem[] = [
         name: 'Spider Staff',
         category: 'magic-item',
         type: 'weapon',
-        description: 'You can use an action to speak this staff\'s command word and throw the staff on the ground within 10 feet of you. The staff becomes a giant spider under your control and acts on its own initiative count.',
+        damage: '1d6',
+        damageType: 'bludgeoning',
+        properties: ['versatile'],
+        description: '+1 quarterstaff. You can use an action to speak this staff\'s command word and throw the staff on the ground within 10 feet of you. The staff becomes a giant spider under your control and acts on its own initiative count.',
         equipped: false,
         isBaseItem: true
     },
@@ -7147,6 +7193,22 @@ export const baseItems: BaseItem[] = [
         equipped: false,
         isBaseItem: true
     },
+    {
+        name: 'Potion of Flying',
+        category: 'potion',
+        type: 'other',
+        description: 'When you drink this potion, you gain a flying speed equal to your walking speed for 1 hour.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Potion of Vitality',
+        category: 'potion',
+        type: 'other',
+        description: 'When you drink this potion, it removes any exhaustion you are suffering and cures any disease or poison affecting you.',
+        equipped: false,
+        isBaseItem: true
+    },
 
     // SCROLLS
     {
@@ -7170,6 +7232,30 @@ export const baseItems: BaseItem[] = [
         category: 'scroll',
         type: 'other',
         description: 'A spell scroll containing the Magic Missile spell (1st level).',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Scroll of Misty Step',
+        category: 'scroll',
+        type: 'other',
+        description: 'A spell scroll containing the Misty Step spell (2nd level).',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Scroll of Lightning Bolt',
+        category: 'scroll',
+        type: 'other',
+        description: 'A spell scroll containing the Lightning Bolt spell (3rd level).',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Scroll of Charm Person',
+        category: 'scroll',
+        type: 'other',
+        description: 'A spell scroll containing the Charm Person spell (1st level).',
         equipped: false,
         isBaseItem: true
     },
