@@ -91,7 +91,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
                     }
                 };
             } else if (classId === 'fighter') {
-                const fighterResources: Record<string, { name: string; current: number; max: number; resetType: string; description: string }> = {
+                const fighterResources: Record<string, { name: string; current: number; max: number; resetType: string; description: string; shortRestRegain?: number }> = {
                     'Action Surge': {
                         name: 'Action Surge',
                         current: character.level >= 17 ? 2 : 1,

@@ -1038,12 +1038,15 @@ export default function CharacterSheet() {
                         } else if (
                             primaryClass === 'fighter' &&
                             (data.subclassId === 'psi_warrior' || data.subclassId === 'psi warrior') &&
-                            level >= 3 &&
-                            !resources['Psionic Energy Dice']
+                            level >= 3
                         ) {
                             const withPsi = calculateClassResources(primaryClass, level, abilityScores, data.subclassId);
-                            if (withPsi['Psionic Energy Dice']) {
+                            if (withPsi['Psionic Energy Dice'] && !resources['Psionic Energy Dice']) {
                                 resources = { ...resources, 'Psionic Energy Dice': withPsi['Psionic Energy Dice'] };
+                                didChange = true;
+                            }
+                            if (withPsi['Telekinetic Movement'] && !resources['Telekinetic Movement']) {
+                                resources = { ...resources, 'Telekinetic Movement': withPsi['Telekinetic Movement'] };
                                 didChange = true;
                             }
                         }
