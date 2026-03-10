@@ -256,8 +256,6 @@ interface SpellManagerProps {
 }
 
 // 5e Standard Spell Slots Table (Wizard, Cleric, Druid, Sorcerer, Bard)
-// Ranger/Paladin use half level (rounded up? No, 2nd level acts as 1st caster level usually).
-// For MVP we use the Standard Full Caster table.
 const SPELL_SLOTS_TABLE: { [level: number]: number[] } = {
     1: [2],
     2: [3],
@@ -281,19 +279,53 @@ const SPELL_SLOTS_TABLE: { [level: number]: number[] } = {
     20: [4, 3, 3, 3, 3, 2, 2, 1, 1],
 };
 
-const getSlotsForClass = (classId: string, level: number, casterLevelDivisor?: number) => {
-    let effectiveLevel = level;
-    if (casterLevelDivisor) {
-        effectiveLevel = Math.floor(level / casterLevelDivisor);
-    } else if (['ranger', 'paladin'].includes(classId.toLowerCase())) {
-        effectiveLevel = Math.floor(level / 2);
-    }
-    // Warlock logic is unique, ignore for now (treat as full caster or 0 for MVP)
+// 5.5e (2024 PHB) Ranger spell slots - custom table, not half-caster formula
+const RANGER_SPELL_SLOTS_2024: { [level: number]: number[] } = {
+    1: [2],
+    2: [2],
+    3: [3],
+    4: [3],
+    5: [4, 2],
+    6: [4, 2],
+    7: [4, 3],
+    8: [4, 3],
+    9: [4, 3, 2],
+    10: [4, 3, 2],
+    11: [4, 3, 3],
+    12: [4, 3, 3],
+    13: [4, 3, 3, 1],
+    14: [4, 3, 3, 1],
+    15: [4, 3, 3, 2],
+    16: [4, 3, 3, 2],
+    17: [4, 3, 3, 3, 1],
+    18: [4, 3, 3, 3, 1],
+    19: [4, 3, 3, 3, 2],
+    20: [4, 3, 3, 3, 2],
+};
 
+// 5e Paladin/Ranger half-caster formula (for 2014 rules or multiclass)
+const getHalfCasterSlots = (level: number) => {
+    const effectiveLevel = Math.floor(level / 2);
     if (effectiveLevel < 1) return [];
+    return SPELL_SLOTS_TABLE[Math.min(effectiveLevel, 20)] || [];
+};
 
-    const slots = SPELL_SLOTS_TABLE[Math.min(effectiveLevel, 20)] || [];
-    return slots;
+const getSlotsForClass = (classId: string, level: number, casterLevelDivisor?: number) => {
+    const cid = classId.toLowerCase();
+    if (casterLevelDivisor) {
+        const effectiveLevel = Math.floor(level / casterLevelDivisor);
+        if (effectiveLevel < 1) return [];
+        return SPELL_SLOTS_TABLE[Math.min(effectiveLevel, 20)] || [];
+    }
+    if (cid === 'ranger') {
+        return RANGER_SPELL_SLOTS_2024[Math.min(level, 20)] || [];
+    }
+    if (cid === 'paladin') {
+        return getHalfCasterSlots(level);
+    }
+    // Full caster
+    if (level < 1) return [];
+    return SPELL_SLOTS_TABLE[Math.min(level, 20)] || [];
 };
 
 /** Third caster (AT/EK) spells known by class level: 3,4,5,6,7,8,9 at levels 3,4,7,10,13,16,19. */
