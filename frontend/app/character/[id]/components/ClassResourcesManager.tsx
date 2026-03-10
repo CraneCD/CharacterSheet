@@ -55,9 +55,13 @@ export default function ClassResourcesManager({
 
         for (const [name, resource] of Object.entries(updated)) {
             if (resource.resetType === 'short') {
+                const regain = (resource as any).shortRestRegain;
+                const newCurrent = regain != null
+                    ? Math.min(resource.current + regain, resource.max)
+                    : resource.max;
                 updated[name] = {
                     ...resource,
-                    current: resource.max
+                    current: newCurrent
                 };
                 changed = true;
             }

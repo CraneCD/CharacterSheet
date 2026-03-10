@@ -43,13 +43,15 @@ export function calculateClassResources(
                 resetType: 'short',
                 description: 'On your turn, you can take one additional action.'
             };
-            // Second Wind: 1 use per short rest
+            // Second Wind: 2 uses (1-3), 3 uses (4-9), 4 uses (10+). Regain 1 on short rest, all on long rest (5.5e)
+            const secondWindMax = level >= 10 ? 4 : level >= 4 ? 3 : 2;
             resources['Second Wind'] = {
                 name: 'Second Wind',
-                current: 1,
-                max: 1,
+                current: secondWindMax,
+                max: secondWindMax,
                 resetType: 'short',
-                description: 'Use a bonus action to regain 1d10 + fighter level hit points.'
+                shortRestRegain: 1,
+                description: 'Bonus action: regain 1d10 + fighter level HP. Also fuels Tactical Mind and Tactical Shift. Regain 1 use on short rest, all on long rest.'
             };
             // Gunslinger (Fighter subclass): Grit Points from Adept Marksman (level 3+)
             if (subclassId === 'gunslinger' && level >= 3) {

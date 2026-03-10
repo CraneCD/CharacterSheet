@@ -101,10 +101,11 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
                     },
                     'Second Wind': {
                         name: 'Second Wind',
-                        current: 1,
-                        max: 1,
+                        current: character.level >= 10 ? 4 : character.level >= 4 ? 3 : 2,
+                        max: character.level >= 10 ? 4 : character.level >= 4 ? 3 : 2,
                         resetType: 'short',
-                        description: 'Use a bonus action to regain 1d10 + fighter level hit points.'
+                        shortRestRegain: 1,
+                        description: 'Bonus action: regain 1d10 + fighter level HP. Regain 1 use on short rest, all on long rest.'
                     }
                 };
                 // Gunslinger: Grit Points (Wis mod, min 1) at level 3+
@@ -415,8 +416,10 @@ router.patch('/:id/class-resources', authenticateToken, async (req: AuthRequest,
         if (resetType) {
             for (const [name, resource] of Object.entries(classResources)) {
                 const res = resource as any;
-                if ((resetType === 'short' && res.resetType === 'short') ||
-                    (resetType === 'long' && (res.resetType === 'long' || res.resetType === 'short'))) {
+                if (resetType === 'short' && res.resetType === 'short') {
+                    const regain = res.shortRestRegain;
+                    res.current = regain != null ? Math.min((res.current || 0) + regain, res.max) : res.max;
+                } else if (resetType === 'long' && (res.resetType === 'long' || res.resetType === 'short')) {
                     res.current = res.max;
                 }
             }
@@ -840,6 +843,16 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
                 if (existingResources['Action Surge'].max < newMax) {
                     existingResources['Action Surge'].max = newMax;
                     existingResources['Action Surge'].current = newMax;
+                }
+            }
+            if (classId === 'fighter' && existingResources['Second Wind']) {
+                const newMax = newLevel >= 10 ? 4 : newLevel >= 4 ? 3 : 2;
+                if (existingResources['Second Wind'].max < newMax) {
+                    existingResources['Second Wind'].max = newMax;
+                    existingResources['Second Wind'].current = newMax;
+                }
+                if (existingResources['Second Wind'].shortRestRegain == null) {
+                    existingResources['Second Wind'].shortRestRegain = 1;
                 }
             }
             if (classId === 'paladin' && existingResources['Lay on Hands']) {

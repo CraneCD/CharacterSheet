@@ -55,6 +55,8 @@ export interface ClassResource {
     current: number; // Current available uses/points
     max: number; // Maximum uses/points
     resetType: 'short' | 'long' | 'none'; // When resource resets
+    /** If set, short rest restores this many uses (e.g. 1 for Second Wind) instead of full reset. */
+    shortRestRegain?: number;
     description?: string; // Optional description
 }
 
