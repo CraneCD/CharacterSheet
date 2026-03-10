@@ -813,6 +813,62 @@ export const baseItems: BaseItem[] = [
         isBaseItem: true
     },
     {
+        name: 'Mind Crystal (Careful)',
+        category: 'magic-item',
+        type: 'other',
+        description: 'When you cast a spell (1 action) while holding this crystal, choose up to three creatures; they automatically succeed on saves. Single use; becomes nonmagical gem worth 50 gp. Uncommon.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Mind Crystal (Distant)',
+        category: 'magic-item',
+        type: 'other',
+        description: 'When you cast a spell (1 action) while holding this crystal: range 5+ ft becomes +100 ft; touch becomes 30 ft. Single use; becomes nonmagical gem worth 50 gp. Uncommon.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Mind Crystal (Empowered)',
+        category: 'magic-item',
+        type: 'other',
+        description: 'When you cast a spell (1 action) while holding this crystal, reroll up to three damage dice and use the new rolls. Single use; becomes nonmagical gem worth 50 gp. Uncommon.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Mind Crystal (Extended)',
+        category: 'magic-item',
+        type: 'other',
+        description: 'When you cast a spell (1 action, duration 1 min+) while holding this crystal, double the duration (max 24 hours). Single use; becomes nonmagical gem worth 50 gp. Uncommon.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Mind Crystal (Heightened)',
+        category: 'magic-item',
+        type: 'other',
+        description: 'When you cast a spell (1 action) while holding this crystal, choose one creature; it has disadvantage on the first save against the spell. Single use; becomes nonmagical gem worth 50 gp. Rare.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Mind Crystal (Quickened)',
+        category: 'magic-item',
+        type: 'other',
+        description: 'When you cast a spell (1 action) while holding this crystal, the casting time becomes 1 bonus action for this casting. Single use; becomes nonmagical gem worth 50 gp. Rare.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Mind Crystal (Subtle)',
+        category: 'magic-item',
+        type: 'other',
+        description: 'When you cast a spell (1 action) while holding this crystal, you cast it without somatic or verbal components. Single use; becomes nonmagical gem worth 50 gp. Common.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
         name: 'Moodmark Paint',
         category: 'magic-item',
         type: 'other',
@@ -940,6 +996,14 @@ export const baseItems: BaseItem[] = [
         category: 'magic-item',
         type: 'other',
         description: 'When you drink this potion, you don\'t need to sleep and can rest while remaining alert. You gain the benefits of a long rest in 4 hours.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
+        name: 'Potion of Psionic Fortitude',
+        category: 'magic-item',
+        type: 'other',
+        description: 'When you drink this potion, you have advantage for 1 hour on saving throws you make to avoid or end the charmed or stunned condition on yourself.',
         equipped: false,
         isBaseItem: true
     },
@@ -2285,7 +2349,7 @@ export const baseItems: BaseItem[] = [
         name: 'Ring of the Orator',
         category: 'magic-item',
         type: 'other',
-        description: 'While wearing this ring, you have advantage on Charisma (Persuasion) checks.',
+        description: '6 charges. Expend 1 to project your voice clearly to all creatures within 1 mile for 1 minute. Creatures can understand you regardless of language. Regains 1d6 charges at dawn. Requires attunement.',
         equipped: false,
         isBaseItem: true
     },
@@ -3007,7 +3071,7 @@ export const baseItems: BaseItem[] = [
         name: 'Bracers of Celerity',
         category: 'magic-item',
         type: 'other',
-        description: 'While wearing these bracers, you can use a bonus action to take the Dash action.',
+        description: 'While wearing these lightweight bronze bracers, all your speeds increase by 10 feet, and you have advantage on saving throws you make to avoid or end the paralyzed or restrained condition on yourself. Requires attunement.',
         equipped: false,
         isBaseItem: true
     },
@@ -3399,7 +3463,10 @@ export const baseItems: BaseItem[] = [
         name: 'Flayer Slayer',
         category: 'magic-item',
         type: 'weapon',
-        description: 'This weapon deals extra damage to mind flayers. When you hit a mind flayer with it, you can choose to deal extra psychic damage.',
+        damage: '1d12',
+        damageType: 'slashing',
+        properties: ['heavy', 'two-handed'],
+        description: 'Weapon (greataxe). +1 bonus to attack and damage. An Aberration hit takes an extra 1d12 slashing damage. If the Aberration is grappling a creature, it must succeed on a DC 15 Strength save or release each creature it is grappling. Requires attunement.',
         equipped: false,
         isBaseItem: true
     },
@@ -3703,7 +3770,10 @@ export const baseItems: BaseItem[] = [
         name: 'Luminous War Pick',
         category: 'magic-item',
         type: 'weapon',
-        description: 'This war pick glows with light. While holding it, you can use an action to cause it to shed bright light in a 20-foot radius.',
+        damage: '1d8',
+        damageType: 'piercing',
+        properties: [],
+        description: 'Weapon (war pick). +1 to attack and damage. As a bonus action while wielding it, you can cast the daylight spell, choosing a point on the war pick. Once used, cannot be used again until the next dawn. Requires attunement.',
         equipped: false,
         isBaseItem: true
     },
@@ -4855,7 +4925,7 @@ export const baseItems: BaseItem[] = [
         name: 'Cape of Enlargement',
         category: 'magic-item',
         type: 'other',
-        description: 'While wearing this cape, you can use an action to cast the enlarge/reduce spell on yourself. Once used, this property can\'t be used again until the next dawn.',
+        description: 'The cape has 3 charges. As a bonus action, expend 1 charge to enlarge yourself: add your proficiency bonus to weapon/unarmed damage, advantage on Strength checks and saves, size increases by one category. Benefits last 10 minutes or until dismissed. Regains 1d3 charges at dawn. Requires attunement.',
         equipped: false,
         isBaseItem: true
     },
@@ -5359,7 +5429,7 @@ export const baseItems: BaseItem[] = [
         name: 'Mindblasting Cap',
         category: 'magic-item',
         type: 'other',
-        description: 'While wearing this cap, you can use an action to cast the mind blast spell. Once used, this property can\'t be used again until the next dawn.',
+        description: 'As a bonus action while wearing this violet cap, project psychic energy in a 60-foot cone. Each creature makes a DC 15 Intelligence save; failed: 5d8 psychic damage and stunned 1 min (repeat save at end of each turn); success: half damage. Once used, cannot be used again until the next dawn. Requires attunement.',
         equipped: false,
         isBaseItem: true
     },
@@ -5367,7 +5437,7 @@ export const baseItems: BaseItem[] = [
         name: 'Mindguard Crown',
         category: 'magic-item',
         type: 'other',
-        description: 'While wearing this crown, you have advantage on saving throws against being charmed or frightened. In addition, you are immune to the stunned condition.',
+        description: 'While wearing this adamantine crown, you have advantage on Intelligence, Wisdom, and Charisma saving throws, and you have resistance to psychic damage. Requires attunement.',
         equipped: false,
         isBaseItem: true
     },
@@ -5407,7 +5477,7 @@ export const baseItems: BaseItem[] = [
         name: 'Mudslick Tower',
         category: 'magic-item',
         type: 'other',
-        description: 'This tower can be deployed. When you use an action to place it on the ground, it grows into a 20-foot-tall tower.',
+        description: '1-inch granite sphere. Action + command word "petrification" (Terran): grows into a 20×20×30 ft adamantine tower. Creatures in the area make DC 15 Dex save or take 10d10 bludgeoning and are pushed out. Tower has arrow slits, two floors, roof; immune to Knock. Merges with natural stone. Regains with Wish. Shrinks when empty with command word.',
         equipped: false,
         isBaseItem: true
     },
