@@ -1117,6 +1117,7 @@ export default function CharacterSheet() {
                             dexMod={effectiveModifiers.dex}
                             profBonus={pb}
                             fightingStyles={fightingStyles}
+                            rogueLevel={characterClasses.find((c: any) => c.id === 'rogue')?.level}
                         />
                     </div>
 

@@ -8,9 +8,13 @@ interface CombatManagerProps {
     dexMod: number;
     profBonus: number;
     fightingStyles?: string[];
+    rogueLevel?: number;
 }
 
-export default function CombatManager({ equipment, strMod, dexMod, profBonus, fightingStyles = [] }: CombatManagerProps) {
+/** Sneak Attack: 1d6 at 1-2, 2d6 at 3-4, 3d6 at 5-6, etc. */
+const getSneakAttackDice = (rogueLevel: number) => Math.ceil(rogueLevel / 2);
+
+export default function CombatManager({ equipment, strMod, dexMod, profBonus, fightingStyles = [], rogueLevel }: CombatManagerProps) {
     const safeEquipment = Array.isArray(equipment) ? equipment : [];
     const equippedWeapons = safeEquipment
         .map(item => (typeof item === 'string' ? { name: item } : item))
@@ -60,11 +64,25 @@ export default function CombatManager({ equipment, strMod, dexMod, profBonus, fi
         return { toHit, damageMod, gwfNote };
     };
 
+    const sneakAttackDice = rogueLevel != null ? getSneakAttackDice(rogueLevel) : 0;
+
     return (
         <div className="card">
             <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>
                 Attacks
             </h3>
+
+            {sneakAttackDice > 0 && (
+                <div style={{ marginBottom: '0.75rem', padding: '0.5rem', backgroundColor: 'var(--surface)', borderRadius: '4px', fontSize: '0.875rem' }}>
+                    <div style={{ fontWeight: 'bold', color: 'var(--primary)' }}>Sneak Attack</div>
+                    <div style={{ color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                        {sneakAttackDice}d6 (Rogue {rogueLevel})
+                        <span style={{ fontSize: '0.75rem', marginLeft: '0.5rem' }}>
+                            • +1d6 every 2 Rogue levels
+                        </span>
+                    </div>
+                </div>
+            )}
 
             <div style={{ display: 'grid', gap: '0.5rem' }}>
                 {equippedWeapons.map((weapon, i) => {
