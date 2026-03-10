@@ -1045,10 +1045,6 @@ export default function CharacterSheet() {
                                 resources = { ...resources, 'Psionic Energy Dice': withPsi['Psionic Energy Dice'] };
                                 didChange = true;
                             }
-                            if (withPsi['Telekinetic Movement'] && !resources['Telekinetic Movement']) {
-                                resources = { ...resources, 'Telekinetic Movement': withPsi['Telekinetic Movement'] };
-                                didChange = true;
-                            }
                         }
                         const needHeroic = hasResourceful(racialTraits);
                         const hadHeroic = !!(resources && (resources as Record<string, unknown>)['Heroic Inspiration']);
@@ -1058,8 +1054,18 @@ export default function CharacterSheet() {
                         const hadBlessing = !!(resources && (resources as Record<string, unknown>)['Blessing of the Raven Queen']);
                         resources = mergeBlessingOfTheRavenQueen(resources || {}, needBlessing, level);
                         if (needBlessing && !hadBlessing) didChange = true;
+                        // Psi Warrior: remove Telekinetic Movement (now nested in Psionic Energy Dice UI)
+                        const isPsiWarrior = primaryClass === 'fighter' && (data.subclassId === 'psi_warrior' || data.subclassId === 'psi warrior') && level >= 3;
+                        let resourcesToShow = resources;
+                        if (isPsiWarrior && resources?.['Telekinetic Movement']) {
+                            const { 'Telekinetic Movement': _, ...rest } = resources;
+                            resourcesToShow = rest;
+                            if (Object.keys(resources).length !== Object.keys(rest).length) {
+                                didChange = true;
+                            }
+                        }
                         if (didChange && Object.keys(resources).length > 0) {
-                            const toPersist = resources;
+                            const toPersist = resourcesToShow;
                             setTimeout(() => {
                                 handleUpdateCharacter({ classResources: toPersist });
                                 api.put(`/characters/${character.id}`, {
@@ -1073,7 +1079,8 @@ export default function CharacterSheet() {
                             <div>
                                 <ClassResourcesManager
                                     characterId={character.id}
-                                    initialResources={resources}
+                                    initialResources={resourcesToShow}
+                                    psiWarrior={isPsiWarrior}
                                     onUpdate={(newResources) => handleUpdateCharacter({ classResources: newResources })}
                                     onShortRest={() => {
                                         // Short rest: hit dice can be spent; class resources already reset by ClassResourcesManager
@@ -1127,43 +1134,7 @@ export default function CharacterSheet() {
                             characterId={character.id}
                             initialActions={Array.isArray(data.actions) ? data.actions : []}
                             onUpdate={(updates) => handleUpdateCharacter(updates)}
-                            featureActions={
-                                primaryClassId === 'fighter' &&
-                                (data.subclassId === 'psi_warrior' || data.subclassId === 'psi warrior') &&
-                                level >= 3
-                                    ? [
-                                          {
-                                              name: 'Protective Field',
-                                              type: 'reaction' as const,
-                                              description: 'When you or a creature you can see within 30 feet of you takes damage, you can use your reaction to expend one Psionic Energy die, roll it, and reduce the damage by the number rolled plus your Intelligence modifier (minimum reduction of 1).'
-                                          },
-                                          {
-                                              name: 'Psionic Strike',
-                                              type: 'other' as const,
-                                              description: 'Once per turn, immediately after you hit a target within 30 feet of you with an attack and deal damage to it with a weapon, you can expend one Psionic Energy die, rolling it and dealing force damage to the target equal to the number rolled plus your Intelligence modifier.'
-                                          },
-                                          {
-                                              name: 'Telekinetic Movement',
-                                              type: 'other' as const,
-                                              description: 'As an action, you can move a Large or smaller object or a willing creature up to 30 feet in any direction. You can do so a number of times equal to your Intelligence modifier (minimum of once), and you regain all expended uses when you finish a long rest. Alternatively, you can expend one Psionic Energy die to use this ability again.'
-                                          },
-                                          ...(level >= 7
-                                              ? [
-                                                    {
-                                                        name: 'Psi-Powered Leap',
-                                                        type: 'bonus' as const,
-                                                        description: 'As a bonus action, you gain a flying speed equal to twice your walking speed until the end of your current turn. You can use this once per short or long rest for free; additional uses require expending a Psionic Energy die.'
-                                                    },
-                                                    {
-                                                        name: 'Telekinetic Thrust',
-                                                        type: 'other' as const,
-                                                        description: 'When you deal damage to a target with your Psionic Strike, you can force that target to make a Strength saving throw (DC 8 + your proficiency bonus + your Intelligence modifier). On a failed save, you can either knock the target prone or move it up to 10 feet in any direction horizontally. No additional Psionic Energy die required beyond the Psionic Strike.'
-                                                    }
-                                                ]
-                                              : [])
-                                      ]
-                                    : undefined
-                            }
+                            featureActions={undefined}
                         />
                     </div>
                 </div>

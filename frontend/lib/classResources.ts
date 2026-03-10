@@ -66,7 +66,8 @@ export function calculateClassResources(
                     description: 'You spend grit to perform trick shots with firearms. Regain grit on a short rest, when you score a critical hit with a firearm, or when you reduce a creature to 0 HP with a firearm attack.'
                 };
             }
-            // Psi Warrior (Fighter subclass): Psionic Energy dice + Telekinetic Movement (level 3+)
+            // Psi Warrior (Fighter subclass): Psionic Energy dice only (level 3+)
+            // Telekinetic Movement, Psionic Strike, Protective Field use the dice via nested buttons in the UI
             if ((subclassId === 'psi_warrior' || subclassId === 'psi warrior') && level >= 3) {
                 const pb = Math.ceil(level / 4) + 1;
                 const diceMax = 2 * pb;
@@ -77,15 +78,6 @@ export function calculateClassResources(
                     max: diceMax,
                     resetType: 'long',
                     description: `You have ${diceMax} Psionic Energy dice (${dieSize}). They fuel Protective Field, Psionic Strike, Telekinetic Movement, and other psionic powers. You regain all expended dice when you finish a long rest.`
-                };
-                const intMod = abilityScores?.int != null ? Math.floor((abilityScores.int - 10) / 2) : 0;
-                const telekineticMax = Math.max(1, intMod);
-                resources['Telekinetic Movement'] = {
-                    name: 'Telekinetic Movement',
-                    current: telekineticMax,
-                    max: telekineticMax,
-                    resetType: 'long',
-                    description: 'As an action, move a Large or smaller object or willing creature up to 30 feet. Regain all uses on long rest. You can also expend a Psionic Energy die to use this again.'
                 };
             }
             break;

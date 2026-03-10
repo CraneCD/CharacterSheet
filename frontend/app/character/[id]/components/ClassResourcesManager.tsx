@@ -4,12 +4,21 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { ClassResources, ClassResource } from '@/lib/types';
 
+/** Psi Warrior ability that expends 1 Psionic Energy die */
+const PSI_WARRIOR_ABILITIES = [
+    { id: 'protective_field', name: 'Protective Field', desc: 'Reaction: when you or ally within 30 ft takes damage, expend 1 die to reduce damage by roll + INT mod (min 1).' },
+    { id: 'psionic_strike', name: 'Psionic Strike', desc: 'Once per turn, after hitting with a weapon within 30 ft, expend 1 die to deal force damage = roll + INT mod.' },
+    { id: 'telekinetic_movement', name: 'Telekinetic Movement', desc: 'Action: move Large or smaller object or willing creature up to 30 ft. Expend 1 die per use.' },
+];
+
 interface ClassResourcesManagerProps {
     characterId: string;
     initialResources: ClassResources | undefined;
     onUpdate: (newResources: ClassResources) => void;
     onShortRest?: () => void;
     onLongRest?: () => void;
+    /** When true, Psionic Energy Dice shows nested use buttons; Telekinetic Movement is hidden. */
+    psiWarrior?: boolean;
 }
 
 export default function ClassResourcesManager({ 
@@ -17,7 +26,8 @@ export default function ClassResourcesManager({
     initialResources, 
     onUpdate,
     onShortRest,
-    onLongRest 
+    onLongRest,
+    psiWarrior = false
 }: ClassResourcesManagerProps) {
     const [resources, setResources] = useState<ClassResources>(initialResources || {});
 
@@ -115,7 +125,9 @@ export default function ClassResourcesManager({
         }
     };
 
-    const resourceEntries = Object.entries(resources);
+    const resourceEntries = Object.entries(resources).filter(
+        ([name]) => !(psiWarrior && name === 'Telekinetic Movement')
+    );
 
     if (resourceEntries.length === 0) {
         return null; // Don't show anything if no resources
@@ -232,6 +244,32 @@ export default function ClassResourcesManager({
                                 Resets: {resource.resetType === 'short' ? 'Short Rest' : resource.resetType === 'long' ? 'Long Rest' : 'Never'}
                             </span>
                         </div>
+
+                        {/* Psi Warrior: nested use buttons that each expend 1 Psionic Energy die */}
+                        {psiWarrior && name === 'Psionic Energy Dice' && (
+                            <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Use (expends 1 die):</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                    {PSI_WARRIOR_ABILITIES.map(({ id, name: abilityName, desc }) => (
+                                        <button
+                                            key={id}
+                                            className="button secondary"
+                                            onClick={() => handleResourceChange(name, resource.current - 1)}
+                                            disabled={resource.current <= 0}
+                                            title={desc}
+                                            style={{
+                                                padding: '0.35rem 0.6rem',
+                                                fontSize: '0.8rem',
+                                                opacity: resource.current <= 0 ? 0.5 : 1,
+                                                whiteSpace: 'nowrap'
+                                            }}
+                                        >
+                                            {abilityName}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>
