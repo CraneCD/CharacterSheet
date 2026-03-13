@@ -50,7 +50,7 @@ export default function Dashboard() {
                     {characters.map((char) => (
                         <div key={char.id} className="card" style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
                             <Link href={`/character/${char.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                <div style={{ width: '100%', aspectRatio: '4/3', maxHeight: 140, borderRadius: '0.375rem', overflow: 'hidden', border: '1px solid var(--border)', backgroundColor: 'var(--surface)', marginBottom: '1rem' }}>
+                                <div style={{ width: '100%', maxWidth: 120, aspectRatio: '3/4', borderRadius: '0.375rem', overflow: 'hidden', border: '1px solid var(--border)', backgroundColor: 'var(--surface)', marginBottom: '1rem' }}>
                                     {char.data?.portrait ? (
                                         <img src={char.data.portrait} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
