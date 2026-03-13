@@ -1,5 +1,6 @@
 import './globals.css'
 import type { Metadata, Viewport } from 'next'
+import AuthGuard from './components/AuthGuard'
 
 export const metadata: Metadata = {
     title: 'D&D 5.5e Character Sheet',
@@ -19,9 +20,11 @@ export default function RootLayout({
     return (
         <html lang="en">
             <body>
-                <main className="container">
-                    {children}
-                </main>
+                <AuthGuard>
+                    <main className="container">
+                        {children}
+                    </main>
+                </AuthGuard>
             </body>
         </html>
     )
