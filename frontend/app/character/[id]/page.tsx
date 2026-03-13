@@ -12,6 +12,7 @@ import LevelUpWizard from './components/LevelUpWizard';
 import CombatManager from './components/CombatManager';
 import ActionManager from './components/ActionManager';
 import NotepadManager from './components/NotepadManager';
+import PortraitUpload from './components/PortraitUpload';
 import FeatureManager from './components/FeatureManager';
 import CurrencyManager from './components/CurrencyManager';
 import { CharacterData, CharacterItem, CharacterFeature } from '@/lib/types';
@@ -605,10 +606,26 @@ export default function CharacterSheet() {
         <div className="container" style={{ marginTop: '2rem', marginBottom: '2rem' }}>
             {/* Header */}
             <div className="sheet-header">
-                <div style={{ flex: '1 1 auto', minWidth: 0, maxWidth: '100%' }}>
-                    <Link href="/dashboard" style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'inline-block' }}>&larr; Back to Dashboard</Link>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                        <h1 className="heading" style={{ marginBottom: '0.25rem', flex: '1 1 auto', minWidth: 0, wordBreak: 'break-word' }}>{characterName}</h1>
+                <div style={{ flex: '1 1 auto', minWidth: 0, maxWidth: '100%', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                    <PortraitUpload
+                        portrait={data.portrait}
+                        onUpdate={async (dataUrl) => {
+                            const updates = { portrait: dataUrl ?? undefined };
+                            handleUpdateCharacter(updates);
+                            try {
+                                await api.put(`/characters/${character.id}`, {
+                                    ...character,
+                                    data: { ...character.data, ...updates }
+                                });
+                            } catch (err) {
+                                console.error('Failed to save portrait', err);
+                            }
+                        }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <Link href="/dashboard" style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'inline-block' }}>&larr; Back to Dashboard</Link>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                            <h1 className="heading" style={{ marginBottom: '0.25rem', flex: '1 1 auto', minWidth: 0, wordBreak: 'break-word' }}>{characterName}</h1>
                         <div className="no-print" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <button
                                 className="button primary"
@@ -658,8 +675,9 @@ export default function CharacterSheet() {
                             </button>
                         </div>
                     </div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', wordBreak: 'break-word', whiteSpace: 'normal', overflowWrap: 'break-word', lineHeight: '1.5' }}>
-                        Level {level} {race.name} {classNameDisplay} • {background.name}
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', wordBreak: 'break-word', whiteSpace: 'normal', overflowWrap: 'break-word', lineHeight: '1.5' }}>
+                            Level {level} {race.name} {classNameDisplay} • {background.name}
+                        </div>
                     </div>
                 </div>
                 <div className="sheet-stats-row" style={{ flex: '0 0 auto', width: '100%', marginTop: '1rem' }}>
