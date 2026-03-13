@@ -21,6 +21,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
                 class: true,
                 level: true,
                 updatedAt: true,
+                data: true,
             }
         });
         res.json(characters);
