@@ -115,6 +115,8 @@ export interface CharacterData {
     currency?: Currency;
     classes?: { [classId: string]: number }; // Multiclass support: { 'fighter': 5, 'wizard': 3 } means Fighter 5 / Wizard 3
     fightingStyles?: string[]; // e.g. ['archery', 'defense'] – IDs from fighting-styles reference
+    /** Notepad with pages; saves on close. */
+    notepad?: { pages: string[] };
 }
 
 export interface CharacterAction {

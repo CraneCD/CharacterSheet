@@ -11,6 +11,7 @@ import SpellManager from './components/SpellManager';
 import LevelUpWizard from './components/LevelUpWizard';
 import CombatManager from './components/CombatManager';
 import ActionManager from './components/ActionManager';
+import NotepadManager from './components/NotepadManager';
 import FeatureManager from './components/FeatureManager';
 import CurrencyManager from './components/CurrencyManager';
 import { CharacterData, CharacterItem, CharacterFeature } from '@/lib/types';
@@ -55,6 +56,7 @@ export default function CharacterSheet() {
     const [speedEditValue, setSpeedEditValue] = useState<string>('');
     const [editingAC, setEditingAC] = useState(false);
     const [acEditValue, setAcEditValue] = useState<string>('');
+    const [showNotepad, setShowNotepad] = useState(false);
 
     useEffect(() => {
         const charId = Array.isArray(id) ? id?.[0] : id;
@@ -646,6 +648,14 @@ export default function CharacterSheet() {
                             >
                                 Print / PDF
                             </button>
+                            <button
+                                className="button secondary"
+                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                onClick={() => setShowNotepad(true)}
+                                title="Notes and reminders"
+                            >
+                                Notepad
+                            </button>
                         </div>
                     </div>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', wordBreak: 'break-word', whiteSpace: 'normal', overflowWrap: 'break-word', lineHeight: '1.5' }}>
@@ -780,6 +790,25 @@ export default function CharacterSheet() {
                     </div>
                 </div>
             </div>
+
+            {showNotepad && (
+                <NotepadManager
+                    initialPages={Array.isArray(data.notepad?.pages) ? data.notepad!.pages : ['']}
+                    onClose={async (pages) => {
+                        setShowNotepad(false);
+                        const updates = { notepad: { pages } };
+                        handleUpdateCharacter(updates);
+                        try {
+                            await api.put(`/characters/${character.id}`, {
+                                ...character,
+                                data: { ...character.data, ...updates }
+                            });
+                        } catch (err) {
+                            console.error('Failed to save notepad', err);
+                        }
+                    }}
+                />
+            )}
 
             {showLevelUp && (
                 <LevelUpWizard
