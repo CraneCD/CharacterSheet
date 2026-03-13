@@ -295,6 +295,17 @@ export const baseItems: BaseItem[] = [
         isBaseItem: true
     },
     {
+        name: 'Revolver',
+        category: 'weapon',
+        type: 'weapon',
+        damage: '2d8',
+        damageType: 'piercing',
+        properties: ['ammunition (range 40/120)', 'light', 'reload 6', 'misfire d4'],
+        description: 'Cost 150 gp, ammo 4 gp (20), weight 3 lbs. A one-handed firearm with a revolving cylinder holding six rounds. Deals more damage per shot than a standard pistol.',
+        equipped: false,
+        isBaseItem: true
+    },
+    {
         name: 'Pepperbox',
         category: 'weapon',
         type: 'weapon',
