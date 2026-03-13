@@ -306,7 +306,7 @@ router.patch('/:id/hp', authenticateToken, async (req: AuthRequest, res) => {
     try {
         const characterId = req.params.id;
         const userId = req.user!.id;
-        const { current, temp, max } = req.body;
+        const { current, temp, max, deathSaves } = req.body;
 
         const character = await prisma.character.findUnique({ where: { id: characterId } });
         if (!character || character.userId !== userId) {
@@ -319,6 +319,16 @@ router.patch('/:id/hp', authenticateToken, async (req: AuthRequest, res) => {
         if (current !== undefined) hp.current = current;
         if (temp !== undefined) hp.temp = temp;
         if (max !== undefined) hp.max = max;
+        if (deathSaves !== undefined) {
+            hp.deathSaves = {
+                successes: Math.max(0, Math.min(3, deathSaves.successes ?? 0)),
+                failures: Math.max(0, Math.min(3, deathSaves.failures ?? 0))
+            };
+        }
+        // Reset death saves when healed (current HP > 0)
+        if (hp.current > 0 && hp.deathSaves) {
+            hp.deathSaves = { successes: 0, failures: 0 };
+        }
 
         // Ensure current doesn't exceed max (unless temp HP is involved, handled separately)
         // D&D 5e: Current HP cannot exceed Max HP. Temp HP is separate.

@@ -38,13 +38,14 @@ export default function HPManager({ characterId, initialHP, onUpdate }: HPManage
                 max: typeof editValues.max === 'number' ? editValues.max : (editValues.max === '' ? 0 : Number(editValues.max) || 0),
                 temp: typeof editValues.temp === 'number' ? editValues.temp : (editValues.temp === '' ? 0 : Number(editValues.temp) || 0)
             };
-            const updated = await api.patch(`/characters/${characterId}/hp`, {
+            await api.patch(`/characters/${characterId}/hp`, {
                 current: validatedValues.current,
                 max: validatedValues.max,
                 temp: validatedValues.temp
             });
-            setHp(validatedValues);
-            onUpdate(validatedValues);
+            const updated = { ...hp, ...validatedValues };
+            setHp(updated);
+            onUpdate(updated);
             setIsEditing(false);
         } catch (err) {
             console.error('Failed to update HP', err);
@@ -56,15 +57,46 @@ export default function HPManager({ characterId, initialHP, onUpdate }: HPManage
         const newCurrent = Math.min(Math.max(0, hp.current + amount), hp.max);
         if (newCurrent === hp.current) return;
 
+        const updates: Partial<HP> = { current: newCurrent };
+        if (newCurrent > 0) {
+            updates.deathSaves = { successes: 0, failures: 0 };
+        }
         try {
-            await api.patch(`/characters/${characterId}/hp`, {
-                current: newCurrent
-            });
-            const newHP = { ...hp, current: newCurrent };
+            await api.patch(`/characters/${characterId}/hp`, updates);
+            const newHP = { ...hp, ...updates };
             setHp(newHP);
             onUpdate(newHP);
         } catch (err) {
             console.error('Failed to update HP', err);
+        }
+    };
+
+    const deathSaves = hp.deathSaves ?? { successes: 0, failures: 0 };
+
+    const handleDeathSaveClick = async (type: 'successes' | 'failures', value: number) => {
+        const current = type === 'successes' ? deathSaves.successes : deathSaves.failures;
+        const next = current === value ? value - 1 : value;
+        const clamped = Math.max(0, Math.min(3, next));
+        const updated = { ...deathSaves, [type]: clamped };
+        const newHP = { ...hp, deathSaves: updated };
+        try {
+            await api.patch(`/characters/${characterId}/hp`, { deathSaves: updated });
+            setHp(newHP);
+            onUpdate(newHP);
+        } catch (err) {
+            console.error('Failed to update death saves', err);
+        }
+    };
+
+    const handleResetDeathSaves = async () => {
+        const updated = { successes: 0, failures: 0 };
+        const newHP = { ...hp, deathSaves: updated };
+        try {
+            await api.patch(`/characters/${characterId}/hp`, { deathSaves: updated });
+            setHp(newHP);
+            onUpdate(newHP);
+        } catch (err) {
+            console.error('Failed to reset death saves', err);
         }
     };
 
@@ -174,6 +206,63 @@ export default function HPManager({ characterId, initialHP, onUpdate }: HPManage
                 >
                     -1
                 </button>
+            </div>
+
+            <div style={{ flex: '0 0 auto', paddingLeft: '1rem', borderLeft: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.35rem' }}>Death Saves</div>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.2rem', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--success)', marginRight: '0.25rem' }}>✓</span>
+                        {[1, 2, 3].map((k) => (
+                            <button
+                                key={k}
+                                type="button"
+                                onClick={() => handleDeathSaveClick('successes', k)}
+                                title={`${deathSaves.successes === k ? 'Remove' : 'Add'} success`}
+                                style={{
+                                    width: 22,
+                                    height: 22,
+                                    borderRadius: 4,
+                                    border: `2px solid ${deathSaves.successes >= k ? 'var(--success)' : 'var(--border)'}`,
+                                    backgroundColor: deathSaves.successes >= k ? 'var(--success)' : 'transparent',
+                                    cursor: 'pointer',
+                                    padding: 0
+                                }}
+                            />
+                        ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.2rem', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--error)', marginRight: '0.25rem' }}>✗</span>
+                        {[1, 2, 3].map((k) => (
+                            <button
+                                key={k}
+                                type="button"
+                                onClick={() => handleDeathSaveClick('failures', k)}
+                                title={`${deathSaves.failures === k ? 'Remove' : 'Add'} failure`}
+                                style={{
+                                    width: 22,
+                                    height: 22,
+                                    borderRadius: 4,
+                                    border: `2px solid ${deathSaves.failures >= k ? 'var(--error)' : 'var(--border)'}`,
+                                    backgroundColor: deathSaves.failures >= k ? 'var(--error)' : 'transparent',
+                                    cursor: 'pointer',
+                                    padding: 0
+                                }}
+                            />
+                        ))}
+                    </div>
+                    {(deathSaves.successes > 0 || deathSaves.failures > 0) && (
+                        <button
+                            type="button"
+                            className="button secondary"
+                            onClick={handleResetDeathSaves}
+                            style={{ fontSize: '0.65rem', padding: '0.15rem 0.35rem' }}
+                            title="Reset death saves"
+                        >
+                            Reset
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );

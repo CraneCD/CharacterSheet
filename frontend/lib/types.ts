@@ -42,6 +42,8 @@ export interface HP {
     current: number;
     max: number;
     temp: number;
+    /** Death saving throws: successes and failures (0-3 each). Reset when stable or healed. */
+    deathSaves?: { successes: number; failures: number };
 }
 
 export interface HitDice {
