@@ -48,17 +48,17 @@ export default function Dashboard() {
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: '1.5rem' }}>
                     {characters.map((char) => (
-                        <div key={char.id} className="card" style={{ position: 'relative', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                            <div style={{ flexShrink: 0, width: 56, height: 56, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--border)', backgroundColor: 'var(--surface)' }}>
-                                {char.data?.portrait ? (
-                                    <img src={char.data.portrait} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', color: 'var(--text-muted)' }}>👤</div>
-                                )}
-                            </div>
-                            <Link href={`/character/${char.id}`} style={{ flex: 1, display: 'block', textDecoration: 'none', color: 'inherit', paddingRight: '2rem', minWidth: 0 }}>
-                                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem' }}>{char.name}</h3>
-                                <p style={{ color: 'var(--text-muted)' }}>Level {char.level} {char.race} {char.class}</p>
+                        <div key={char.id} className="card" style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+                            <Link href={`/character/${char.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                <div style={{ width: '100%', aspectRatio: '4/3', maxHeight: 140, borderRadius: '0.375rem', overflow: 'hidden', border: '1px solid var(--border)', backgroundColor: 'var(--surface)', marginBottom: '1rem' }}>
+                                    {char.data?.portrait ? (
+                                        <img src={char.data.portrait} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem', color: 'var(--text-muted)' }}>👤</div>
+                                    )}
+                                </div>
+                                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem', textAlign: 'center' }}>{char.name}</h3>
+                                <p style={{ color: 'var(--text-muted)', textAlign: 'center', margin: 0 }}>Level {char.level} {char.race} {char.class}</p>
                             </Link>
                             <button
                                 type="button"
