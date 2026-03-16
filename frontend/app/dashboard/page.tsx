@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 
@@ -16,6 +16,60 @@ export default function Dashboard() {
     const [characters, setCharacters] = useState<Character[]>([]);
     const [loading, setLoading] = useState(true);
     const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
+    const [importing, setImporting] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+    const handleImportFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setImporting(true);
+        try {
+            const text = await file.text();
+            let parsed: any;
+            try {
+                parsed = JSON.parse(text);
+            } catch {
+                throw new Error('File is not valid JSON.');
+            }
+
+            const source = Array.isArray(parsed) ? parsed[0] : parsed;
+            if (!source || typeof source !== 'object') {
+                throw new Error('JSON must contain a character object.');
+            }
+
+            const name = source.name;
+            const race = source.race || source.raceId;
+            const charClass = source.class || source.classId;
+            const level = typeof source.level === 'number' && source.level >= 1 && source.level <= 20 ? source.level : 1;
+            const data = source.data || {};
+
+            if (!name || !race || !charClass || !data) {
+                throw new Error('Exported character JSON is missing required fields (name, race, class, data).');
+            }
+
+            const payload = {
+                name,
+                race,
+                class: charClass,
+                level,
+                data
+            };
+
+            const created = await api.post('/characters', payload);
+            setCharacters((prev) => [...prev, created]);
+            alert(`Imported character "${created.name}" successfully.`);
+        } catch (err: any) {
+            console.error('Failed to import character JSON', err);
+            const message = err?.message || 'Failed to import character JSON.';
+            alert(message);
+        } finally {
+            setImporting(false);
+            if (event.target) {
+                event.target.value = '';
+            }
+        }
+    };
 
     useEffect(() => {
         api.get('/characters')
@@ -40,7 +94,29 @@ export default function Dashboard() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <h1 className="heading" style={{ marginBottom: 0 }}>My Characters</h1>
-                <Link href="/create" className="btn" style={{ whiteSpace: 'nowrap' }}>Create New Character</Link>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                        type="button"
+                        className="btn"
+                        onClick={() => {
+                            if (fileInputRef.current && !importing) {
+                                fileInputRef.current.click();
+                            }
+                        }}
+                        disabled={importing}
+                        style={{ whiteSpace: 'nowrap' }}
+                    >
+                        {importing ? 'Importing...' : 'Import from JSON'}
+                    </button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="application/json"
+                        style={{ display: 'none' }}
+                        onChange={handleImportFileChange}
+                    />
+                    <Link href="/create" className="btn" style={{ whiteSpace: 'nowrap' }}>Create New Character</Link>
+                </div>
             </div>
 
             {loading ? (
