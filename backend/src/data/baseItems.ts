@@ -1499,7 +1499,7 @@ export const baseItems: BaseItem[] = [
         name: 'Boots of Striding and Springing',
         category: 'magic-item',
         type: 'other',
-        description: 'While you wear these boots, your walking speed becomes 30 feet, unless your walking speed is higher, and your speed isn\'t reduced if you are encumbered or wearing heavy armor. In addition, you can jump three times the normal distance.',
+        description: 'While you wear these boots, your walking speed becomes 30 feet, unless your walking speed is higher, and your speed isn\'t reduced if you are encumbered or wearing heavy armor. In addition, you can jump three times the normal distance and your dash speed increases by 20 feet.',
         equipped: false,
         isBaseItem: true
     },
