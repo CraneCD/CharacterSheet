@@ -30,6 +30,8 @@ export default function ClassResourcesManager({
     psiWarrior = false
 }: ClassResourcesManagerProps) {
     const [resources, setResources] = useState<ClassResources>(initialResources || {});
+    const [editingMaxFor, setEditingMaxFor] = useState<string | null>(null);
+    const [editMaxValue, setEditMaxValue] = useState('');
 
     useEffect(() => {
         if (initialResources) {
@@ -56,6 +58,44 @@ export default function ClassResourcesManager({
                 console.error('Failed to update class resource', err);
                 alert('Failed to update class resource');
             }
+        }
+    };
+
+    const startEditingMax = (resourceName: string) => {
+        const res = resources[resourceName];
+        if (res) {
+            setEditingMaxFor(resourceName);
+            setEditMaxValue(String(res.max));
+        }
+    };
+
+    const cancelEditingMax = () => {
+        setEditingMaxFor(null);
+        setEditMaxValue('');
+    };
+
+    const saveMax = async (resourceName: string) => {
+        const raw = parseInt(editMaxValue, 10);
+        const newMax = isNaN(raw) || raw < 1 ? 1 : Math.min(999, raw);
+        const res = resources[resourceName];
+        if (!res) return;
+
+        const updated = { ...resources };
+        updated[resourceName] = {
+            ...res,
+            max: newMax,
+            current: Math.min(res.current, newMax)
+        };
+
+        try {
+            await api.patch(`/characters/${characterId}/class-resources`, { resources: updated });
+            setResources(updated);
+            onUpdate(updated);
+            setEditingMaxFor(null);
+            setEditMaxValue('');
+        } catch (err) {
+            console.error('Failed to update resource max', err);
+            alert('Failed to update maximum uses');
         }
     };
 
@@ -176,14 +216,74 @@ export default function ClassResourcesManager({
                                     </div>
                                 )}
                             </div>
-                            <div style={{ 
-                                fontSize: '1.25rem', 
-                                fontWeight: 'bold',
-                                color: resource.current === 0 ? 'var(--text-muted)' : 'var(--primary)',
-                                whiteSpace: 'nowrap',
-                                flexShrink: 0
-                            }}>
-                                {resource.current} / {resource.max}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                                {editingMaxFor === name ? (
+                                    <>
+                                        <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                                            {resource.current} /{' '}
+                                        </span>
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={editMaxValue}
+                                            onChange={(e) => {
+                                                const v = e.target.value;
+                                                if (v === '' || /^\d+$/.test(v)) setEditMaxValue(v);
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') saveMax(name);
+                                                if (e.key === 'Escape') cancelEditingMax();
+                                            }}
+                                            style={{
+                                                width: '3rem',
+                                                padding: '0.2rem',
+                                                textAlign: 'center',
+                                                border: '1px solid var(--primary)',
+                                                borderRadius: '0.25rem',
+                                                backgroundColor: 'var(--background)',
+                                                color: 'var(--text)',
+                                                fontSize: '1rem'
+                                            }}
+                                            autoFocus
+                                        />
+                                        <button
+                                            type="button"
+                                            className="button primary"
+                                            onClick={() => saveMax(name)}
+                                            style={{ fontSize: '0.75rem', padding: '0.2rem 0.4rem' }}
+                                        >
+                                            Save
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="button secondary"
+                                            onClick={cancelEditingMax}
+                                            style={{ fontSize: '0.75rem', padding: '0.2rem 0.4rem' }}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span style={{ 
+                                            fontSize: '1.25rem', 
+                                            fontWeight: 'bold',
+                                            color: resource.current === 0 ? 'var(--text-muted)' : 'var(--primary)',
+                                            whiteSpace: 'nowrap'
+                                        }}>
+                                            {resource.current} / {resource.max}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            className="button secondary"
+                                            onClick={() => startEditingMax(name)}
+                                            title="Edit maximum uses"
+                                            style={{ fontSize: '0.75rem', padding: '0.2rem 0.4rem' }}
+                                        >
+                                            Edit
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </div>
 
