@@ -1,3 +1,14 @@
+import { clearAuthStorage } from './auth';
+
+function redirectIfUnauthorized(res: Response): void {
+    if (res.status !== 401 || typeof window === 'undefined') return;
+    clearAuthStorage();
+    const p = window.location.pathname;
+    if (p !== '/login' && p !== '/register') {
+        window.location.assign('/login');
+    }
+}
+
 // Get API URL - check both build-time and runtime
 const getApiUrl = () => {
     // In browser, check if we have a runtime override
@@ -35,6 +46,7 @@ export const api = {
                 'Content-Type': 'application/json',
             },
         });
+        redirectIfUnauthorized(res);
         if (!res.ok) throw new Error(await res.text());
         return res.json();
     },
@@ -49,6 +61,7 @@ export const api = {
             },
             body: JSON.stringify(data),
         });
+        redirectIfUnauthorized(res);
         if (!res.ok) throw new Error(await res.text());
         return res.json();
     },
@@ -63,6 +76,7 @@ export const api = {
             },
             body: JSON.stringify(data),
         });
+        redirectIfUnauthorized(res);
         if (!res.ok) throw new Error(await res.text());
         return res.json();
     },
@@ -77,6 +91,7 @@ export const api = {
             },
             body: JSON.stringify(data),
         });
+        redirectIfUnauthorized(res);
         if (!res.ok) throw new Error(await res.text());
         return res.json();
     },
@@ -101,6 +116,8 @@ export const api = {
         });
         
         console.log('DELETE response status:', res.status, res.statusText);
+
+        redirectIfUnauthorized(res);
         
         if (!res.ok) {
             const errorText = await res.text();
