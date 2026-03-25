@@ -1,14 +1,20 @@
-
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-    const email = 'evelasq6@gmail.com';
-    const password = 'password123';
+    const email = process.env.VERIFY_LOGIN_EMAIL;
+    const password = process.env.VERIFY_LOGIN_PASSWORD;
 
-    console.log(`Attempting login for: ${email} with password: ${password}`);
+    if (!email || !password) {
+        console.error(
+            'Set VERIFY_LOGIN_EMAIL and VERIFY_LOGIN_PASSWORD in the environment (local debugging only).'
+        );
+        process.exit(1);
+    }
+
+    console.log(`Attempting login for: ${email}`);
 
     try {
         const user = await prisma.user.findUnique({ where: { email } });

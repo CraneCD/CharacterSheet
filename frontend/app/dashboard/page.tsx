@@ -162,7 +162,7 @@ export default function Dashboard() {
                     ))}
                     {characters.length === 0 && (
                         <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4rem', border: '2px dashed var(--border)', borderRadius: '0.5rem' }}>
-                            <p style={{ marginBottom: '1rem', color: 'var(--text-muted)' }}>You haven't created any characters yet.</p>
+                            <p style={{ marginBottom: '1rem', color: 'var(--text-muted)' }}>You haven&apos;t created any characters yet.</p>
                             <Link href="/create" className="btn">Create Your First Character</Link>
                         </div>
                     )}

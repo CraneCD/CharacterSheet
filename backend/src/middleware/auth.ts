@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { getJwtSecret } from '../config/jwt';
 
 export interface AuthRequest extends Request {
     user?: {
@@ -20,7 +21,7 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     }
 
     try {
-        const verified = jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey');
+        const verified = jwt.verify(token, getJwtSecret());
         req.user = verified as { id: string; email: string };
         next();
     } catch (err) {

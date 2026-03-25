@@ -5,8 +5,11 @@ import authRoutes from './routes/auth';
 import characterRoutes from './routes/characters';
 import campaignRoutes from './routes/campaigns';
 import referenceRoutes from './routes/reference';
+import { getJwtSecret } from './config/jwt';
 
 dotenv.config();
+// Validate JWT configuration after env is loaded
+getJwtSecret();
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -48,9 +51,10 @@ app.use(cors({
         console.log('CORS: Checking origin:', normalizedOrigin);
         
         // Check exact match or if origin starts with any allowed origin
+        // Exact match only — prefix matching would allow e.g. https://trusted.example.evil.com
         const isAllowed = allowedOrigins.some(allowed => {
             const normalizedAllowed = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
-            return normalizedOrigin === normalizedAllowed || normalizedOrigin.startsWith(normalizedAllowed);
+            return normalizedOrigin === normalizedAllowed;
         });
         
         if (isAllowed) {

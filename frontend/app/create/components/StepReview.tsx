@@ -168,7 +168,7 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
                                 Expertise — choose {expertiseCount} skill{expertiseCount === 1 ? '' : 's'} (double proficiency bonus)
                             </label>
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                                Select from skills you're proficient in: {proficientSkills.length > 0 ? proficientSkills.join(', ') : 'None available'}
+                                Select from skills you&apos;re proficient in: {proficientSkills.length > 0 ? proficientSkills.join(', ') : 'None available'}
                             </p>
                             {proficientSkills.length === 0 ? (
                                 <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', fontStyle: 'italic' }}>
