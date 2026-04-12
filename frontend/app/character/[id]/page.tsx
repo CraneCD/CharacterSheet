@@ -62,6 +62,13 @@ export default function CharacterSheet() {
     const [acEditValue, setAcEditValue] = useState<string>('');
     const [showNotepad, setShowNotepad] = useState(false);
 
+    const handleUpdateCharacter = useCallback((updates: Partial<CharacterData>) => {
+        setCharacter((prev: any) => ({
+            ...prev,
+            data: { ...prev.data, ...updates }
+        }));
+    }, []);
+
     useEffect(() => {
         const charId = Array.isArray(id) ? id?.[0] : id;
         if (!charId) return;
@@ -408,13 +415,6 @@ export default function CharacterSheet() {
         if (!isAutoSource) return true;
         return !staticFeatureNameSet.has(nameKey);
     });
-
-    const handleUpdateCharacter = useCallback((updates: Partial<CharacterData>) => {
-        setCharacter((prev: any) => ({
-            ...prev,
-            data: { ...prev.data, ...updates }
-        }));
-    }, []);
 
     const handleAddLanguage = async (language: string) => {
         if (!language?.trim()) return;
