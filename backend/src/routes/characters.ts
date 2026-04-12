@@ -1,12 +1,11 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { classFeatures } from '../data/classFeatures';
 import { subclasses } from '../data/subclasses';
 import { classes } from '../data/classes';
+import { prisma } from '../lib/prisma';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Get all characters for the logged-in user
 router.get('/', authenticateToken, async (req: AuthRequest, res) => {

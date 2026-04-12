@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { api } from '@/lib/api';
 import { HitDice } from '@/lib/types';
 
@@ -13,7 +13,7 @@ interface HitDiceManagerProps {
     conModifier: number; // Constitution modifier for healing calculation
 }
 
-export default function HitDiceManager({ characterId, initialHitDice, onUpdate, onHPUpdate, onLongRest, conModifier }: HitDiceManagerProps) {
+function HitDiceManager({ characterId, initialHitDice, onUpdate, onHPUpdate, onLongRest, conModifier }: HitDiceManagerProps) {
     const [hitDice, setHitDice] = useState<HitDice>(initialHitDice || { total: 1, spent: 0, dieType: 8 });
     const [isRolling, setIsRolling] = useState(false);
     const [lastRoll, setLastRoll] = useState<number | null>(null);
@@ -187,4 +187,5 @@ export default function HitDiceManager({ characterId, initialHitDice, onUpdate, 
     );
 }
 
+export default memo(HitDiceManager);
 

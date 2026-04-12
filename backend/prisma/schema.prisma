@@ -59,6 +59,8 @@ model Campaign {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([dmId])
 }
 
 model CampaignMember {
@@ -71,6 +73,8 @@ model CampaignMember {
   joinedAt    DateTime @default(now())
 
   @@unique([campaignId, userId])
+  @@index([campaignId])
+  @@index([userId])
 }
 
 model Item {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { api } from '@/lib/api';
 import { Currency } from '@/lib/types';
 
@@ -10,7 +10,7 @@ interface CurrencyManagerProps {
     onUpdate: (currency: Currency) => void;
 }
 
-export default function CurrencyManager({ characterId, initialCurrency, onUpdate }: CurrencyManagerProps) {
+function CurrencyManager({ characterId, initialCurrency, onUpdate }: CurrencyManagerProps) {
     const [currency, setCurrency] = useState<{ [key: string]: number | string }>(
         initialCurrency ? { ...initialCurrency } : { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }
     );
@@ -190,3 +190,5 @@ export default function CurrencyManager({ characterId, initialCurrency, onUpdate
         </div>
     );
 }
+
+export default memo(CurrencyManager);

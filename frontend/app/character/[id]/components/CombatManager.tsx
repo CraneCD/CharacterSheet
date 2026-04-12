@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { CharacterItem } from '@/lib/types';
 
 interface CombatManagerProps {
@@ -14,7 +15,7 @@ interface CombatManagerProps {
 /** Sneak Attack: 1d6 at 1-2, 2d6 at 3-4, 3d6 at 5-6, etc. */
 const getSneakAttackDice = (rogueLevel: number) => Math.ceil(rogueLevel / 2);
 
-export default function CombatManager({ equipment, strMod, dexMod, profBonus, fightingStyles = [], rogueLevel }: CombatManagerProps) {
+function CombatManager({ equipment, strMod, dexMod, profBonus, fightingStyles = [], rogueLevel }: CombatManagerProps) {
     const safeEquipment = Array.isArray(equipment) ? equipment : [];
     const equippedWeapons = safeEquipment
         .map(item => (typeof item === 'string' ? { name: item } : item))
@@ -118,3 +119,5 @@ export default function CombatManager({ equipment, strMod, dexMod, profBonus, fi
         </div>
     );
 }
+
+export default memo(CombatManager);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { api } from '@/lib/api';
 import { HP } from '@/lib/types';
 
@@ -10,7 +10,7 @@ interface HPManagerProps {
     onUpdate: (newHP: HP) => void;
 }
 
-export default function HPManager({ characterId, initialHP, onUpdate }: HPManagerProps) {
+function HPManager({ characterId, initialHP, onUpdate }: HPManagerProps) {
     const [hp, setHp] = useState<HP>(initialHP || { current: 0, max: 0, temp: 0 });
     const [isEditing, setIsEditing] = useState(false);
     const [editValues, setEditValues] = useState<{ current: number | string; max: number | string; temp: number | string }>({
@@ -267,3 +267,5 @@ export default function HPManager({ characterId, initialHP, onUpdate }: HPManage
         </div>
     );
 }
+
+export default memo(HPManager);

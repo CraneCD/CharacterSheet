@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import Link from 'next/link';
@@ -26,6 +26,9 @@ import {
 import { isMasteryActionForWeapon } from '@/lib/weaponMastery';
 import { getSkillProficienciesFromTraits, hasResourceful, hasBlessingOfTheRavenQueen } from '@/lib/racialTraitBonuses';
 import { getRaceTraits, getBackgroundSkills, STANDARD_LANGUAGES } from '@/lib/wizardReference';
+
+// Module-level cache: reference data is static per session — no need to re-fetch on navigation
+let referenceDataCache: GameData | null = null;
 
 interface GameData {
     races: any[];
@@ -64,22 +67,30 @@ export default function CharacterSheet() {
         if (!charId) return;
         const loadData = async () => {
             try {
-                const [char, races, classes, backgrounds, subclasses, traits] = await Promise.all([
-                    api.get(`/characters/${charId}`),
-                    api.get('/reference/races'),
-                    api.get('/reference/classes'),
-                    api.get('/reference/backgrounds'),
-                    api.get('/reference/subclasses'),
-                    api.get('/reference/traits')
-                ]);
-                setCharacter(char);
-                setGameData({
-                    races: Array.isArray(races) ? races : [],
-                    classes: Array.isArray(classes) ? classes : [],
-                    backgrounds: Array.isArray(backgrounds) ? backgrounds : [],
-                    subclasses: Array.isArray(subclasses) ? subclasses : [],
-                    traits: traits && typeof traits === 'object' ? traits : undefined
-                });
+                if (referenceDataCache) {
+                    const char = await api.get(`/characters/${charId}`);
+                    setCharacter(char);
+                    setGameData(referenceDataCache);
+                } else {
+                    const [char, races, classes, backgrounds, subclasses, traits] = await Promise.all([
+                        api.get(`/characters/${charId}`),
+                        api.get('/reference/races'),
+                        api.get('/reference/classes'),
+                        api.get('/reference/backgrounds'),
+                        api.get('/reference/subclasses'),
+                        api.get('/reference/traits')
+                    ]);
+                    const gameData: GameData = {
+                        races: Array.isArray(races) ? races : [],
+                        classes: Array.isArray(classes) ? classes : [],
+                        backgrounds: Array.isArray(backgrounds) ? backgrounds : [],
+                        subclasses: Array.isArray(subclasses) ? subclasses : [],
+                        traits: traits && typeof traits === 'object' ? traits : undefined
+                    };
+                    referenceDataCache = gameData;
+                    setCharacter(char);
+                    setGameData(gameData);
+                }
             } catch (err) {
                 console.error(err);
             }
@@ -102,18 +113,20 @@ export default function CharacterSheet() {
                     ? Object.entries(classesData).map(([classId, level]: [string, any]) => ({ id: classId, level }))
                     : [{ id: (cls || '').toLowerCase(), level: character.level ?? 1 }];
                 
-                // Load features for all classes
-                const allClassFeatures: ClassFeature[] = [];
-                for (const cls of characterClasses) {
-                    try {
-                        const classFeatures: ClassFeature[] = await api.get(`/reference/class-features/${cls.id}`);
-                        // Filter features up to class level
-                        const featuresForClass = (Array.isArray(classFeatures) ? classFeatures : []).filter(f => f.level <= cls.level);
-                        allClassFeatures.push(...featuresForClass);
-                    } catch (err) {
-                        console.error(`Failed to load features for ${cls.id}`, err);
-                    }
-                }
+                // Load features for all classes in parallel
+                const featureResults = await Promise.all(
+                    characterClasses.map(cls =>
+                        api.get(`/reference/class-features/${cls.id}`)
+                            .then((features: ClassFeature[]) =>
+                                (Array.isArray(features) ? features : []).filter(f => f.level <= cls.level)
+                            )
+                            .catch((err: unknown) => {
+                                console.error(`Failed to load features for ${cls.id}`, err);
+                                return [] as ClassFeature[];
+                            })
+                    )
+                );
+                const allClassFeatures: ClassFeature[] = featureResults.flat();
                 
                 setClassFeaturesList(allClassFeatures);
 
@@ -396,12 +409,12 @@ export default function CharacterSheet() {
         return !staticFeatureNameSet.has(nameKey);
     });
 
-    const handleUpdateCharacter = (updates: Partial<CharacterData>) => {
+    const handleUpdateCharacter = useCallback((updates: Partial<CharacterData>) => {
         setCharacter((prev: any) => ({
             ...prev,
             data: { ...prev.data, ...updates }
         }));
-    };
+    }, []);
 
     const handleAddLanguage = async (language: string) => {
         if (!language?.trim()) return;
@@ -1034,7 +1047,7 @@ export default function CharacterSheet() {
                             onHPUpdate={(newHP) => handleUpdateCharacter({ hp: newHP })}
                             onLongRest={async () => {
                                 try {
-                                    await api.patch(`/characters/${character.id}/class-resources`, { resetType: 'long' });
+                                    const patched = await api.patch(`/characters/${character.id}/class-resources`, { resetType: 'long' });
                                     const hp = data.hp || { current: 0, max: 0, temp: 0 };
                                     const maxHp = hp.max ?? 0;
                                     const updates: Partial<CharacterData> = {
@@ -1048,10 +1061,9 @@ export default function CharacterSheet() {
                                         updates.magicInitiateSpell1Used = 1;
                                     }
                                     handleUpdateCharacter(updates);
-                                    const latest = await api.get(`/characters/${character.id}`);
-                                    const merged = { ...latest.data, ...updates };
+                                    const merged = { ...patched.data, ...updates };
                                     const updated = await api.put(`/characters/${character.id}`, {
-                                        ...latest,
+                                        ...patched,
                                         data: merged
                                     });
                                     setCharacter(updated);
@@ -1147,11 +1159,11 @@ export default function CharacterSheet() {
                                         }
                                         handleUpdateCharacter(updates);
                                         try {
-                                            const latest = await api.get(`/characters/${character.id}`);
-                                            const merged = { ...latest.data, ...updates };
+                                            // ClassResourcesManager already PATCH-reset class resources;
+                                            // just PUT the HP/spell-slot/hit-dice changes on top.
                                             const updated = await api.put(`/characters/${character.id}`, {
-                                                ...latest,
-                                                data: merged
+                                                ...character,
+                                                data: { ...character.data, ...updates }
                                             });
                                             setCharacter(updated);
                                         } catch (err) {
@@ -1203,8 +1215,7 @@ export default function CharacterSheet() {
                             existingActions={Array.isArray(data.actions) ? data.actions : []}
                             onCreateAction={async (action) => {
                                 try {
-                                    await api.post(`/characters/${character.id}/actions`, { action });
-                                    const updatedChar = await api.get(`/characters/${character.id}`);
+                                    const updatedChar = await api.post(`/characters/${character.id}/actions`, { action });
                                     setCharacter(updatedChar);
                                 } catch (err) {
                                     console.error('Failed to create action', err);
@@ -1218,13 +1229,11 @@ export default function CharacterSheet() {
                                     .map((a, i) => (isMasteryActionForWeapon(a.name, weaponName) ? i : -1))
                                     .filter(i => i >= 0)
                                     .sort((a, b) => b - a);
+                                let updatedChar: any = null;
                                 for (const idx of indices) {
-                                    await api.delete(`/characters/${character.id}/actions`, { data: { index: idx } });
+                                    updatedChar = await api.delete(`/characters/${character.id}/actions`, { data: { index: idx } });
                                 }
-                                if (indices.length > 0) {
-                                    const updatedChar = await api.get(`/characters/${character.id}`);
-                                    setCharacter(updatedChar);
-                                }
+                                if (updatedChar) setCharacter(updatedChar);
                             }}
                         />
                     </div>
@@ -1478,8 +1487,7 @@ export default function CharacterSheet() {
                                 existingActions={Array.isArray(data.actions) ? data.actions : []}
                                 onCreateAction={async (action) => {
                                     try {
-                                        await api.post(`/characters/${character.id}/actions`, { action });
-                                        const updatedChar = await api.get(`/characters/${character.id}`);
+                                        const updatedChar = await api.post(`/characters/${character.id}/actions`, { action });
                                         setCharacter((prev: any) => ({
                                             ...updatedChar,
                                             data: {
@@ -1494,10 +1502,9 @@ export default function CharacterSheet() {
                                 }}
                                 onDeleteAction={async (index) => {
                                     try {
-                                        await api.delete(`/characters/${character.id}/actions`, {
+                                        const updatedChar = await api.delete(`/characters/${character.id}/actions`, {
                                             data: { index }
                                         });
-                                        const updatedChar = await api.get(`/characters/${character.id}`);
                                         setCharacter((prev: any) => ({
                                             ...updatedChar,
                                             data: {

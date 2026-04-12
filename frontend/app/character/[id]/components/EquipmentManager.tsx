@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { CharacterItem, ItemCategory } from '@/lib/types';
 import { getMasteryActionsForWeapon, getMasteryForWeapon } from '@/lib/weaponMastery';
@@ -34,6 +34,8 @@ export default function EquipmentManager({
     const [baseItems, setBaseItems] = useState<CharacterItem[]>([]);
     const [isAdding, setIsAdding] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<ItemCategory | 'custom'>('custom');
+    // Cache fetched categories so navigating between them doesn't re-fetch
+    const categoryCache = useRef<Partial<Record<ItemCategory | 'all', CharacterItem[]>>>({});
     const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
     const [isExpanded, setIsExpanded] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -48,17 +50,29 @@ export default function EquipmentManager({
         setEquipment(initialEquipment || []);
     }, [initialEquipment]);
 
+    // Fetch base items lazily — only when the add panel is open and a non-custom category is selected
     useEffect(() => {
+        if (!isAdding || selectedCategory === 'custom') {
+            setBaseItems([]);
+            return;
+        }
         const fetchBaseItems = async () => {
+            const cacheKey = selectedCategory as ItemCategory;
+            if (categoryCache.current[cacheKey]) {
+                setBaseItems(categoryCache.current[cacheKey]!);
+                return;
+            }
             try {
-                const data = await api.get('/reference/base-items');
-                setBaseItems(Array.isArray(data) ? data : []);
+                const data = await api.get(`/reference/base-items/${selectedCategory}`);
+                const items = Array.isArray(data) ? data : [];
+                categoryCache.current[cacheKey] = items;
+                setBaseItems(items);
             } catch (err) {
                 console.error('Failed to fetch base items', err);
             }
         };
         fetchBaseItems();
-    }, []);
+    }, [isAdding, selectedCategory]);
 
     const handleAddBaseItem = async (baseItem: CharacterItem) => {
         try {
@@ -257,10 +271,9 @@ export default function EquipmentManager({
 
     const categories: ItemCategory[] = ['armor', 'weapon', 'shield', 'tool', 'magic-item', 'potion', 'scroll', 'miscellaneous'];
     const safeBaseItems = Array.isArray(baseItems) ? baseItems : [];
-    const filteredBaseItems = selectedCategory === 'custom' 
-        ? [] 
+    const filteredBaseItems = selectedCategory === 'custom'
+        ? []
         : safeBaseItems.filter(item => {
-            if (item.category !== selectedCategory) return false;
             if (!searchTerm.trim()) return true;
             const searchLower = searchTerm.toLowerCase();
             return (

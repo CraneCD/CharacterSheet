@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { api } from '@/lib/api';
 import { CharacterAction, CharacterData } from '@/lib/types';
 
@@ -12,7 +12,7 @@ interface ActionManagerProps {
     featureActions?: CharacterAction[];
 }
 
-export default function ActionManager({ characterId, initialActions, onUpdate, featureActions = [] }: ActionManagerProps) {
+function ActionManager({ characterId, initialActions, onUpdate, featureActions = [] }: ActionManagerProps) {
     const safeActions = Array.isArray(initialActions) ? initialActions : [];
     const safeFeatureActions = Array.isArray(featureActions) ? featureActions : [];
     const [actions, setActions] = useState<CharacterAction[]>(safeActions);
@@ -211,3 +211,5 @@ export default function ActionManager({ characterId, initialActions, onUpdate, f
         </div>
     );
 }
+
+export default memo(ActionManager);

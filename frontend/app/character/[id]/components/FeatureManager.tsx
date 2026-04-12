@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { api } from '@/lib/api';
 import { CharacterFeature } from '@/lib/types';
 
@@ -17,7 +17,7 @@ interface FeatureManagerProps {
     onUpdate: (newFeatures: CharacterFeature[]) => void;
 }
 
-export default function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onUpdate }: FeatureManagerProps) {
+function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onUpdate }: FeatureManagerProps) {
     const [features, setFeatures] = useState<CharacterFeature[]>(initialFeatures || []);
     const [isAdding, setIsAdding] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
@@ -198,3 +198,5 @@ export default function FeatureManager({ characterId, initialFeatures, staticFea
         </div>
     );
 }
+
+export default memo(FeatureManager);
