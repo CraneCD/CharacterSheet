@@ -34,6 +34,26 @@ export const fightingStyles: FightingStyle[] = [
         id: 'two-weapon-fighting',
         name: 'Two-Weapon Fighting',
         description: 'When you engage in two-weapon fighting, you can add your ability modifier to the damage of the second attack.'
+    },
+    {
+        id: 'blind-fighting',
+        name: 'Blind Fighting',
+        description: 'You have Blindsight with a range of 10 feet. Within that range, you can effectively see anything that isn\'t behind total cover, even if you\'re blinded or in darkness. Moreover, you can see an invisible creature within that range, unless the creature successfully hides from you.'
+    },
+    {
+        id: 'interception',
+        name: 'Interception',
+        description: 'When a creature you can see hits a target, other than you, within 5 feet of you with an attack, you can use your reaction to reduce the damage the target takes by 1d10 + your proficiency bonus (to a minimum of 0 damage). You must be wielding a shield or a simple or martial weapon to use this reaction.'
+    },
+    {
+        id: 'thrown-weapon-fighting',
+        name: 'Thrown Weapon Fighting',
+        description: 'You can draw a weapon that has the thrown property as part of the attack you make with the weapon. In addition, when you hit with a ranged attack using a thrown weapon, you gain a +2 bonus to the damage roll.'
+    },
+    {
+        id: 'unarmed-fighting',
+        name: 'Unarmed Fighting',
+        description: 'Your unarmed strikes can deal bludgeoning damage equal to 1d6 + your Strength modifier on a hit. If you aren\'t wielding any weapons or a shield when you make the attack roll, the d6 becomes a d8. At the start of each of your turns, you can deal 1d4 bludgeoning damage to one creature grappled by you.'
     }
 ];
 

@@ -47,8 +47,8 @@ export const subclasses: Subclass[] = [
         name: 'School of Evocation',
         description: 'You focus your study on magic that creates powerful elemental effects.',
         features: [
-            { level: 2, name: 'Evocation Savant', description: 'The gold and time you must spend to copy an evocation spell into your spellbook is halved.' },
-            { level: 2, name: 'Sculpt Spells', description: 'You can create pockets of relative safety within the effects of your evocation spells. Choose 1 + spell level creatures to automatically save and take no damage if they would otherwise take half.' },
+            { level: 3, name: 'Evocation Savant', description: 'The gold and time you must spend to copy an evocation spell into your spellbook is halved.' },
+            { level: 3, name: 'Sculpt Spells', description: 'You can create pockets of relative safety within the effects of your evocation spells. Choose 1 + spell level creatures to automatically save and take no damage if they would otherwise take half.' },
             { level: 6, name: 'Potent Cantrip', description: 'Your damaging cantrips affect creatures that succeed on a saving throw against them, dealing half damage.' },
             { level: 10, name: 'Empowered Evocation', description: 'You can add your Intelligence modifier to one damage roll of any wizard evocation spell you cast.' },
             { level: 14, name: 'Overchannel', description: 'When you cast a wizard spell of 1st through 5th level that deals damage, you can deal maximum damage with that spell. Taking this action again before a long rest causes necrotic damage.' }
@@ -73,10 +73,9 @@ export const subclasses: Subclass[] = [
         name: 'Life Domain',
         description: 'The Life domain focuses on the vibrant positive energy – one of the fundamental forces of the universe – that sustains all life.',
         features: [
-            { level: 1, name: 'Disciple of Life', description: 'Whenever you use a spell of 1st level or higher to restore hit points to a creature, the creature regains additional hit points equal to 2 + the spell\'s level.' },
-            { level: 2, name: 'Channel Divinity: Preserve Life', description: 'As an action, you can restore 5 times your cleric level in hit points to creatures within 30 feet, dividing the points as you choose (up to half the creature\'s hit point maximum).' },
+            { level: 3, name: 'Disciple of Life', description: 'Whenever you use a spell of 1st level or higher to restore hit points to a creature, the creature regains additional hit points equal to 2 + the spell\'s level.' },
+            { level: 3, name: 'Channel Divinity: Preserve Life', description: 'As an action, you can restore 5 times your cleric level in hit points to creatures within 30 feet, dividing the points as you choose (up to half the creature\'s hit point maximum).' },
             { level: 6, name: 'Blessed Healer', description: 'When you cast a spell of 1st level or higher that restores hit points to a creature other than you, you regain hit points equal to 2 + the spell\'s level.' },
-            { level: 8, name: 'Divine Strike', description: 'Once on each of your turns when you hit a creature with a weapon attack, you can cause the attack to deal an extra 1d8 radiant damage. At 14th level, the extra damage increases to 2d8.' },
             { level: 17, name: 'Supreme Healing', description: 'When you would normally roll one or more dice to restore hit points with a spell, you instead use the highest number possible for each die.' }
         ]
     },
@@ -122,8 +121,8 @@ export const subclasses: Subclass[] = [
         name: 'Circle of the Land',
         description: 'The Circle of the Land is made up of mystics and sages who safeguard ancient knowledge and rites through a vast oral tradition.',
         features: [
-            { level: 2, name: 'Bonus Cantrip', description: 'You learn one additional druid cantrip of your choice.' },
-            { level: 2, name: 'Natural Recovery', description: 'During a short rest, you can choose expended spell slots to recover. The spell slots can have a combined level that is equal to or less than half your druid level (rounded up), and none of the slots can be 6th level or higher.' },
+            { level: 3, name: 'Bonus Cantrip', description: 'You learn one additional druid cantrip of your choice.' },
+            { level: 3, name: 'Natural Recovery', description: 'During a short rest, you can choose expended spell slots to recover. The spell slots can have a combined level that is equal to or less than half your druid level (rounded up), and none of the slots can be 6th level or higher.' },
             { level: 3, name: 'Circle Spells', description: 'You gain circle spells based on the land where you became a druid (Arctic, Coast, Desert, Forest, Grassland, Mountain, Swamp, or Underdark).' },
             { level: 6, name: 'Land\'s Stride', description: 'Moving through nonmagical difficult terrain costs you no extra movement. You can pass through nonmagical plants without being slowed or taking damage.' },
             { level: 10, name: 'Nature\'s Ward', description: 'You can\'t be charmed or frightened by elementals or fey, and you are immune to poison and disease.' },
@@ -139,7 +138,7 @@ export const subclasses: Subclass[] = [
             { level: 3, name: 'Open Hand Technique', description: 'Whenever you hit a creature with one of the attacks granted by your Flurry of Blows, you can impose one of the following effects on that target: knock prone, push 15 feet, or prevent reactions.' },
             { level: 6, name: 'Wholeness of Body', description: 'You gain the ability to heal yourself. As an action, you can regain hit points equal to three times your monk level.' },
             { level: 11, name: 'Tranquility', description: 'You can enter a special meditation that surrounds you with an aura of peace. At the end of a long rest, you gain the effect of a sanctuary spell that lasts until the start of your next long rest.' },
-            { level: 17, name: 'Quivering Palm', description: 'You gain the ability to set up lethal vibrations in someone\'s body. When you hit a creature with an unarmed strike, you can spend 3 ki points to start these imperceptible vibrations, which last for a number of days equal to your monk level.' }
+            { level: 17, name: 'Quivering Palm', description: 'You gain the ability to set up lethal vibrations in someone\'s body. When you hit a creature with an unarmed strike, you can spend 3 Focus Points to start these imperceptible vibrations, which last for a number of days equal to your monk level.' }
         ]
     },
     {
@@ -161,7 +160,7 @@ export const subclasses: Subclass[] = [
         name: 'Draconic Bloodline',
         description: 'Your innate magic comes from draconic magic that was mingled with your blood or that of your ancestors.',
         features: [
-            { level: 1, name: 'Draconic Resilience', description: 'Your hit point maximum increases by 1 and increases by 1 again whenever you gain a level in this class. Additionally, unarmored AC equals 13 + Dex mod.' },
+            { level: 3, name: 'Draconic Resilience', description: 'Your hit point maximum increases by 1 and increases by 1 again whenever you gain a level in this class. Additionally, unarmored AC equals 13 + Dex mod.' },
             { level: 6, name: 'Elemental Affinity', description: 'When you cast a spell that deals damage of the type associated with your draconic ancestry, you can add your Charisma modifier to one damage roll of that spell.' },
             { level: 14, name: 'Dragon Wings', description: 'You gain the ability to sprout a pair of dragon wings from your back, gaining a flying speed equal to your current speed.' },
             { level: 18, name: 'Draconic Presence', description: 'You can channel the dread presence of your dragon ancestor, causing those around you to become awestruck or frightened.' }
@@ -173,7 +172,7 @@ export const subclasses: Subclass[] = [
         name: 'The Fiend',
         description: 'You have made a pact with a fiend from the lower planes of existence.',
         features: [
-            { level: 1, name: 'Dark One\'s Blessing', description: 'When you reduce a hostile creature to 0 hit points, you gain temporary hit points equal to your Charisma modifier + your warlock level.' },
+            { level: 3, name: 'Dark One\'s Blessing', description: 'When you reduce a hostile creature to 0 hit points, you gain temporary hit points equal to your Charisma modifier + your warlock level.' },
             { level: 6, name: 'Dark One\'s Own Luck', description: 'When you make an ability check or a saving throw, you can use this feature to add a d10 to your roll.' },
             { level: 10, name: 'Fiendish Resilience', description: 'You can choose one damage type when you finish a short or long rest. You gain resistance to that damage type until you choose a different one.' },
             { level: 14, name: 'Hurl Through Hell', description: 'When you hit a creature with an attack, you can use this feature to instantly transport the target through the lower planes, causing 10d10 psychic damage.' }
@@ -211,11 +210,10 @@ export const subclasses: Subclass[] = [
         name: 'Light Domain',
         description: 'The Light domain focuses on the ideals of rebirth and renewal, truth, vigilance, and beauty.',
         features: [
-            { level: 1, name: 'Bonus Cantrip', description: 'You gain the light cantrip if you don\'t already know it.' },
-            { level: 1, name: 'Warding Flare', description: 'When you are attacked by a creature within 30 feet of you that you can see, you can use your reaction to impose disadvantage on the attack roll.' },
-            { level: 2, name: 'Channel Divinity: Radiance of the Dawn', description: 'As an action, you can use your Channel Divinity to banish darkness and deal radiant damage to hostile creatures within 30 feet of you.' },
+            { level: 3, name: 'Bonus Cantrip', description: 'You gain the light cantrip if you don\'t already know it.' },
+            { level: 3, name: 'Warding Flare', description: 'When you are attacked by a creature within 30 feet of you that you can see, you can use your reaction to impose disadvantage on the attack roll.' },
+            { level: 3, name: 'Channel Divinity: Radiance of the Dawn', description: 'As an action, you can use your Channel Divinity to banish darkness and deal radiant damage to hostile creatures within 30 feet of you.' },
             { level: 6, name: 'Improved Flare', description: 'You can use your Warding Flare feature when a creature that you can see within 30 feet of you attacks a creature other than you.' },
-            { level: 8, name: 'Potent Spellcasting', description: 'You add your Wisdom modifier to the damage you deal with any cleric cantrip.' },
             { level: 17, name: 'Corona of Light', description: 'You can use your action to activate an aura of sunlight that lasts for 1 minute or until you dismiss it using another action. Enemies in the bright light have disadvantage on saving throws against any spell that deals fire or radiant damage.' }
         ]
     },
@@ -225,8 +223,8 @@ export const subclasses: Subclass[] = [
         name: 'Circle of the Moon',
         description: 'Druids of the Circle of the Moon are fierce guardians of the wilds. Their order gathers under the full moon to share news and trade warnings.',
         features: [
-            { level: 2, name: 'Combat Wild Shape', description: 'You gain the ability to use Wild Shape on your turn as a bonus action, rather than as an action. Additionally, while you are transformed by Wild Shape, you can use a bonus action to expend one spell slot to regain 1d8 hit points per level of the spell slot expended.' },
-            { level: 2, name: 'Circle Forms', description: 'The rites of your circle grant you the ability to transform into more dangerous animal forms. Starting at 2nd level, you can transform into a beast with a challenge rating as high as 1.' },
+            { level: 3, name: 'Combat Wild Shape', description: 'You gain the ability to use Wild Shape on your turn as a Bonus Action, rather than as an action. Additionally, while you are transformed by Wild Shape, you can use a Bonus Action to expend one spell slot to regain 1d8 hit points per level of the spell slot expended.' },
+            { level: 3, name: 'Circle Forms', description: 'The rites of your circle grant you the ability to transform into more dangerous animal forms. Starting at 3rd level, you can transform into a beast with a challenge rating as high as 1.' },
             { level: 6, name: 'Primal Strike', description: 'Your attacks in beast form count as magical for the purpose of overcoming resistance and immunity to nonmagical attacks and damage.' },
             { level: 10, name: 'Elemental Wild Shape', description: 'You can expend two uses of Wild Shape at the same time to transform into an air elemental, an earth elemental, a fire elemental, or a water elemental.' },
             { level: 14, name: 'Thousand Forms', description: 'You can cast the alter self spell at will.' }
@@ -290,7 +288,7 @@ export const subclasses: Subclass[] = [
         name: 'Way of Shadow',
         description: 'Monks of the Way of Shadow follow a tradition that values stealth and subterfuge.',
         features: [
-            { level: 3, name: 'Shadow Arts', description: 'You can use your ki to duplicate the effects of certain spells (darkness, darkvision, pass without trace, or silence) without providing material components.' },
+            { level: 3, name: 'Shadow Arts', description: 'You can use your Focus Points to duplicate the effects of certain spells (darkness, darkvision, pass without trace, or silence) without providing material components.' },
             { level: 6, name: 'Shadow Step', description: 'You can use your bonus action to teleport up to 60 feet to an unoccupied space you can see that is also in dim light or darkness. You then have advantage on the first melee attack you make before the end of the turn.' },
             { level: 11, name: 'Cloak of Shadows', description: 'When you are in an area of dim light or darkness, you can use your action to become invisible.' },
             { level: 17, name: 'Opportunist', description: 'Whenever a creature within 5 feet of you is hit by an attack made by a creature other than you, you can use your reaction to make a melee attack against that creature.' }
@@ -340,8 +338,8 @@ export const subclasses: Subclass[] = [
         name: 'Wild Magic',
         description: 'Your innate magic comes from the wild forces of chaos that underlie the order of creation.',
         features: [
-            { level: 1, name: 'Wild Magic Surge', description: 'Immediately after you cast a sorcerer spell of 1st level or higher, the DM can have you roll a d20. If you roll a 1, roll on the Wild Magic Surge table to create a random magical effect.' },
-            { level: 1, name: 'Tides of Chaos', description: 'You can manipulate the forces of chance and chaos to gain advantage on one attack roll, ability check, or saving throw.' },
+            { level: 3, name: 'Wild Magic Surge', description: 'Immediately after you cast a sorcerer spell of 1st level or higher, the DM can have you roll a d20. If you roll a 1, roll on the Wild Magic Surge table to create a random magical effect.' },
+            { level: 3, name: 'Tides of Chaos', description: 'You can manipulate the forces of chance and chaos to gain advantage on one attack roll, ability check, or saving throw.' },
             { level: 6, name: 'Bend Luck', description: 'You have the ability to twist fate using your wild magic. When another creature you can see makes an attack roll, an ability check, or a saving throw, you can use your reaction and spend 2 sorcery points to roll 1d4 and apply the number rolled as a bonus or penalty (your choice) to the creature\'s roll.' },
             { level: 14, name: 'Controlled Chaos', description: 'Whenever you roll on the Wild Magic Surge table, you can roll twice and use either number.' },
             { level: 18, name: 'Spell Bombardment', description: 'The harmful energy of your spells intensifies. When you roll damage for a spell and roll the highest number possible on any of the dice, choose one of those dice, roll it again and add that roll to the damage.' }
@@ -353,7 +351,7 @@ export const subclasses: Subclass[] = [
         name: 'The Archfey',
         description: 'Your patron is a lord or lady of the fey, a creature of legend who holds secrets that were forgotten before the mortal races were born.',
         features: [
-            { level: 1, name: 'Fey Presence', description: 'You can use your action to cause each creature in a 10-foot cube originating from you to make a Wisdom saving throw against your warlock spell save DC. The creatures that fail their saving throws are all charmed or frightened by you (your choice) until the end of your next turn.' },
+            { level: 3, name: 'Fey Presence', description: 'You can use your action to cause each creature in a 10-foot cube originating from you to make a Wisdom saving throw against your warlock spell save DC. The creatures that fail their saving throws are all charmed or frightened by you (your choice) until the end of your next turn.' },
             { level: 6, name: 'Misty Escape', description: 'You can vanish in a puff of mist in response to harm. When you take damage, you can use your reaction to turn invisible and teleport up to 60 feet since invisibility lasts until the start of your next turn.' },
             { level: 10, name: 'Beguiling Defenses', description: 'You are immune to being charmed, and when another creature attempts to charm you, you can use your reaction to attempt to turn the charm back on that creature.' },
             { level: 14, name: 'Dark Delirium', description: 'You can plunge a creature into an illusory realm. The target must make a Wisdom saving throw. On a failed save, it sees itself in a misty realm and is charmed or frightened for 1 minute or until you lose concentration.' }
@@ -365,8 +363,8 @@ export const subclasses: Subclass[] = [
         name: 'School of Abjuration',
         description: 'The School of Abjuration emphasizes magic that blocks, banishes, or protects.',
         features: [
-            { level: 2, name: 'Abjuration Savant', description: 'The gold and time you must spend to copy an abjuration spell into your spellbook is halved.' },
-            { level: 2, name: 'Arcane Ward', description: 'You can weave magic around yourself for protection. When you cast an abjuration spell of 1st level or higher, you can simultaneously use a strand of the spell\'s magic to create a magical ward on yourself that lasts until you finish a long rest.' },
+            { level: 3, name: 'Abjuration Savant', description: 'The gold and time you must spend to copy an abjuration spell into your spellbook is halved.' },
+            { level: 3, name: 'Arcane Ward', description: 'You can weave magic around yourself for protection. When you cast an abjuration spell of 1st level or higher, you can simultaneously use a strand of the spell\'s magic to create a magical ward on yourself that lasts until you finish a long rest.' },
             { level: 6, name: 'Projected Ward', description: 'When a creature that you can see within 30 feet of you takes damage, you can use your reaction to cause your Arcane Ward to absorb that damage.' },
             { level: 10, name: 'Improved Abjuration', description: 'When you cast an abjuration spell that requires you to make an ability check as part of casting that spell (as in counterspell and dispel magic), you add your proficiency bonus to that ability check.' },
             { level: 14, name: 'Spell Resistance', description: 'You have advantage on saving throws against spells. Furtthermore, you have resistance against the damage of spells.' }
@@ -1380,7 +1378,7 @@ export const subclasses: Subclass[] = [
         id: 'ascendant_dragon',
         classId: 'monk',
         name: 'Way of the Ascendant Dragon',
-        description: 'Monks who follow the Way of the Ascendant Dragon emulate the power of dragons, channeling their ki to unleash dragon-like abilities.',
+        description: 'Monks who follow the Way of the Ascendant Dragon emulate the power of dragons, channeling their Focus Points to unleash dragon-like abilities.',
         features: [
             { level: 3, name: 'Draconic Disciple', description: 'You can channel draconic power to magnify your presence and imbue your unarmed strikes with the essence of a dragon\'s breath. You gain Draconic Presence and Draconic Strike (change damage type to acid, cold, fire, lightning, or poison).' },
             { level: 3, name: 'Breath of the Dragon', description: 'You can channel your ki into destructive waves of energy like a dragon\'s breath. When you take the Attack action on your turn, you can replace one of the attacks with an exhalation of draconic energy in either a 20-foot cone or a 30-foot line.' },
@@ -1398,7 +1396,7 @@ export const subclasses: Subclass[] = [
             { level: 3, name: 'Bonus Proficiencies', description: 'You gain proficiency in the Performance skill if you don\'t already have it. Your martial arts technique mixes combat training with the precision of a dancer and the antics of a jester. You also gain proficiency with brewer\'s supplies.' },
             { level: 3, name: 'Drunken Technique', description: 'You learn how to twist and turn quickly as part of your Flurry of Blows. Whenever you use Flurry of Blows, you gain the benefit of the Disengage action, and your walking speed increases by 10 feet until the end of the current turn.' },
             { level: 6, name: 'Tipsy Sway', description: 'You can move in sudden, swaying ways. You gain the following benefits: Leap to Your Feet (stand up from prone with 5 feet movement) and Redirect Attack (use reaction to cause a missed attack to hit another creature).' },
-            { level: 11, name: 'Drunkard\'s Luck', description: 'You always seem to get a lucky break at the right moment. When you make an ability check, an attack roll, or a saving throw and have disadvantage on the roll, you can spend 2 ki points to cancel the disadvantage for that roll.' },
+            { level: 11, name: 'Drunkard\'s Luck', description: 'You always seem to get a lucky break at the right moment. When you make an ability check, an attack roll, or a saving throw and have disadvantage on the roll, you can spend 2 Focus Points to cancel the disadvantage for that roll.' },
             { level: 17, name: 'Intoxicated Frenzy', description: 'You gain the ability to make an overwhelming number of attacks against a group of enemies. When you use your Flurry of Blows, you can make up to three additional attacks with it (up to a total of five Flurry of Blows attacks), provided that each Flurry of Blows attack targets a different creature this turn.' }
         ]
     },
@@ -1409,8 +1407,8 @@ export const subclasses: Subclass[] = [
         description: 'Monks of the Way of the Kensei train relentlessly with their weapons, to the point where the weapon becomes an extension of the body.',
         features: [
             { level: 3, name: 'Path of the Kensei', description: 'You gain proficiency with kensei weapons and can use them as monk weapons. You also gain Agile Parry (AC bonus) and Kensei\'s Shot (extra ranged damage).' },
-            { level: 6, name: 'One with the Blade', description: 'You extend your ki into your kensei weapons, granting you the following benefits: Magic Kensei Weapons (count as magical) and Deft Strike (spend ki for extra damage).' },
-            { level: 11, name: 'Sharpen the Blade', description: 'You gain the ability to augment your weapons further with your ki. As a bonus action, you can expend up to 3 ki points to grant one kensei weapon you touch a bonus to attack and damage rolls when you attack with it.' },
+            { level: 6, name: 'One with the Blade', description: 'You extend your Focus Points into your kensei weapons, granting you the following benefits: Magic Kensei Weapons (count as magical) and Deft Strike (spend Focus Points for extra damage).' },
+            { level: 11, name: 'Sharpen the Blade', description: 'You gain the ability to augment your weapons further with your Focus Points. As a Bonus Action, you can expend up to 3 Focus Points to grant one kensei weapon you touch a bonus to attack and damage rolls when you attack with it.' },
             { level: 17, name: 'Unerring Accuracy', description: 'Your mastery of weapons grants you extraordinary accuracy. If you miss with an attack roll using a monk weapon on your turn, you can reroll it. You can use this feature only once on each of your turns.' }
         ]
     },
@@ -1422,8 +1420,8 @@ export const subclasses: Subclass[] = [
         features: [
             { level: 3, name: 'Touch of Death', description: 'Your study of death allows you to extract vitality from another creature as it nears its demise. When you reduce a creature within 5 feet of you to 0 hit points, you gain temporary hit points equal to your Wisdom modifier + your monk level.' },
             { level: 6, name: 'Hour of Reaping', description: 'You gain the ability to unsettle or terrify those around you as an action, for your soul has been touched by the shadow of death. creatures within 30 feet must make a Wisdom save or be frightened.' },
-            { level: 11, name: 'Mastery of Death', description: 'You use your familiarity with death to escape its grasp. When you are reduced to 0 hit points, you can expend 1 ki point (no action required) to have 1 hit point instead.' },
-            { level: 17, name: 'Touch of the Long Death', description: 'You can channel necrotic energy into a creature. As an action, you touch one creature within 5 feet of you, and it must make a Constitution saving throw. It takes 2d10 necrotic damage per ki point spent (up to 10 points).' }
+            { level: 11, name: 'Mastery of Death', description: 'You use your familiarity with death to escape its grasp. When you are reduced to 0 hit points, you can expend 1 Focus Point (no action required) to have 1 hit point instead.' },
+            { level: 17, name: 'Touch of the Long Death', description: 'You can channel necrotic energy into a creature. As an action, you touch one creature within 5 feet of you, and it must make a Constitution saving throw. It takes 2d10 necrotic damage per Focus Point spent (up to 10 points).' }
         ]
     },
     {
@@ -1433,11 +1431,11 @@ export const subclasses: Subclass[] = [
         description: 'Monks of the Way of Mercy learn to manipulate the life force of others to bring aid to those in need. They are wandering physicians to the poor and hurt.',
         features: [
             { level: 3, name: 'Implements of Mercy', description: 'You gain proficiency in the Insight and Medicine skills, and you gain proficiency with the herbalism kit.' },
-            { level: 3, name: 'Hand of Healing', description: 'You can use your ki to heal wounds. As an action, oou can spend 1 ki point to touch a creature and restore hit points equal to a roll of your Martial Arts die + your Wisdom modifier.' },
-            { level: 3, name: 'Hand of Harm', description: 'You use your ki to inflict wounds. When you hit a creature with an unarmed strike, you can spend 1 ki point to deal extra necrotic damage equal to one roll of your Martial Arts die + your Wisdom modifier.' },
+            { level: 3, name: 'Hand of Healing', description: 'You can use your Focus Points to heal wounds. As an action, you can spend 1 Focus Point to touch a creature and restore hit points equal to a roll of your Martial Arts die + your Wisdom modifier.' },
+            { level: 3, name: 'Hand of Harm', description: 'You use your Focus Points to inflict wounds. When you hit a creature with an unarmed strike, you can spend 1 Focus Point to deal extra necrotic damage equal to one roll of your Martial Arts die + your Wisdom modifier.' },
             { level: 6, name: 'Physician\'s Touch', description: 'You can administer even greater cures with your Hand of Healing, ending one disease or condition (blinded, deafened, paralyzed, poisoned, or stunned). Your Hand of Harm can now poison the creature.' },
-            { level: 11, name: 'Flurry of Healing and Harm', description: 'You can now mete out a flurry of comfort and hurt. When you use Flurry of Blows, you can replace each of the unarmed strikes with a use of your Hand of Healing, without spending ki points for the healing.' },
-            { level: 17, name: 'Hand of Ultimate Mercy', description: 'Your mastery of life energy opens the door to the ultimate mercy. As an action, you can touch the corpse of a creature that died within the last 24 hours and expend 5 ki points. The creature then returns to life.' }
+            { level: 11, name: 'Flurry of Healing and Harm', description: 'You can now mete out a flurry of comfort and hurt. When you use Flurry of Blows, you can replace each of the unarmed strikes with a use of your Hand of Healing, without spending Focus Points for the healing.' },
+            { level: 17, name: 'Hand of Ultimate Mercy', description: 'Your mastery of life energy opens the door to the ultimate mercy. As an action, you can touch the corpse of a creature that died within the last 24 hours and expend 5 Focus Points. The creature then returns to life.' }
         ]
     },
     {

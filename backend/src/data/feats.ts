@@ -71,7 +71,7 @@ export const feats: Feat[] = [
         name: 'Elemental Adept',
         description: 'When you gain this feat, choose one of the following damage types: acid, cold, fire, lightning, or thunder. Spells you cast ignore resistance to damage of the chosen type. In addition, when you roll damage for a spell you cast that deals damage of that type, you can treat any 1 on a damage die as a 2.',
         prerequisites: {
-            abilityScore: { int: 13 }
+            class: ['bard', 'cleric', 'druid', 'paladin', 'ranger', 'sorcerer', 'warlock', 'wizard']
         }
     },
     {
@@ -85,10 +85,8 @@ export const feats: Feat[] = [
     {
         id: 'great-weapon-master',
         name: 'Great Weapon Master',
-        description: 'You\'ve learned to put the weight of a weapon to your advantage, letting its momentum empower your strikes. You gain the following benefits:\n- On your turn, when you score a critical hit with a melee weapon or reduce a creature to 0 hit points with one, you can make one melee weapon attack as a bonus action.\n- Before you make a melee attack with a heavy weapon that you are proficient with, you can choose to take a -5 penalty to the attack roll. If the attack hits, you add +10 to the attack\'s damage.',
-        prerequisites: {
-            abilityScore: { str: 13 }
-        }
+        description: 'You have mastered powerful, sweeping strikes with heavy weapons. You gain the following benefits:\n- You gain a +1 bonus to attack rolls you make with Heavy weapons.\n- When you score a critical hit with a Heavy weapon or reduce a creature to 0 hit points with one, you can make one melee weapon attack as a Bonus Action.\n- When you attack with a Heavy weapon on your turn, you can add your Proficiency Bonus to the damage roll if you haven\'t already added it.',
+        abilityScoreIncrease: { str: 1 }
     },
     {
         id: 'healer',
@@ -210,7 +208,7 @@ export const feats: Feat[] = [
         name: 'Ritual Caster',
         description: 'You have learned a number of spells that you can cast as rituals. These spells are written in a ritual book, which you must have in hand while casting one of them. When you choose this feat, you acquire a ritual book holding two 1st-level spells of your choice. Choose one of the following classes: bard, cleric, druid, sorcerer, warlock, or wizard. You must choose your spells from that class\'s spell list, and the spells you choose must have the ritual tag. The class you choose also determines your spellcasting ability for these spells. You can cast a wizard spell as a ritual if that spell has the ritual tag and you have the spell in your ritual book. You can\'t cast the spell except as a ritual, unless you\'ve learned the spell by some other means. You can also add a spell you have learned to your ritual book. The spell must be a 1st-level spell, have the ritual tag, and be on the spell list for the class you chose. The process of copying the spell into your ritual book takes 2 hours per level of the spell and costs 50 gp per level. The cost represents material components you expend as you experiment with the spell to master it, as well as the fine inks you need to record it.',
         prerequisites: {
-            abilityScore: { int: 13 }
+            class: ['bard', 'cleric', 'druid', 'paladin', 'ranger', 'sorcerer', 'warlock', 'wizard']
         }
     },
     {
@@ -226,10 +224,8 @@ export const feats: Feat[] = [
     {
         id: 'sharpshooter',
         name: 'Sharpshooter',
-        description: 'You have mastered ranged weapons and can make shots that others find impossible. You gain the following benefits:\n- Attacking at long range doesn\'t impose disadvantage on your ranged weapon attack rolls.\n- Your ranged weapon attacks ignore half cover and three-quarters cover.\n- Before you make an attack with a ranged weapon that you are proficient with, you can choose to take a -5 penalty to the attack roll. If the attack hits, you add +10 to the attack\'s damage.',
-        prerequisites: {
-            abilityScore: { dex: 13 }
-        }
+        description: 'You can make shots that others find impossible. You gain the following benefits:\n- You gain a +1 bonus to attack rolls you make with ranged weapons.\n- Attacking at long range doesn\'t impose disadvantage on your ranged weapon attack rolls.\n- Your ranged weapon attacks ignore half cover and three-quarters cover.\n- When you make a ranged attack with a weapon and score a hit, you can add your Proficiency Bonus to the damage roll if you haven\'t already added it.',
+        abilityScoreIncrease: { dex: 1 }
     },
     {
         id: 'shield-master',
@@ -254,7 +250,7 @@ export const feats: Feat[] = [
         name: 'Spell Sniper',
         description: 'You have learned techniques to enhance your attacks with certain kinds of spells. You gain the following benefits:\n- When you cast a spell that requires you to make an attack roll, the spell\'s range is doubled.\n- Your ranged spell attacks ignore half cover and three-quarters cover.\n- You learn one cantrip that requires an attack roll. Choose the cantrip from the bard, cleric, druid, sorcerer, warlock, or wizard spell list. Your spellcasting ability for this cantrip depends on the spell list you chose from: Charisma for bard, sorcerer, or warlock; Wisdom for cleric or druid; or Intelligence for wizard.',
         prerequisites: {
-            abilityScore: { int: 13 }
+            class: ['bard', 'cleric', 'druid', 'paladin', 'ranger', 'sorcerer', 'warlock', 'wizard']
         }
     },
     {
@@ -273,7 +269,7 @@ export const feats: Feat[] = [
         name: 'War Caster',
         description: 'You have practiced casting spells in the midst of combat, learning techniques that grant you the following benefits:\n- You have advantage on Constitution saving throws that you make to maintain your concentration on a spell when you take damage.\n- You can perform the somatic components of spells even when you have weapons or a shield in one or both hands.\n- When a hostile creature\'s movement provokes an opportunity attack from you, you can use your reaction to cast a spell at the creature, rather than making an opportunity attack. The spell must have a casting time of 1 action and must target only that creature.',
         prerequisites: {
-            abilityScore: { int: 13 }
+            class: ['bard', 'cleric', 'druid', 'paladin', 'ranger', 'sorcerer', 'warlock', 'wizard']
         }
     },
     {

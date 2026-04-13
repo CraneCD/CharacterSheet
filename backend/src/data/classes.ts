@@ -83,7 +83,7 @@ export const classes: ClassInfo[] = [
         spellcaster: true,
         spellcastingAbility: 'wis',
         preparedCaster: true,
-        subclassLevel: 1,
+        subclassLevel: 3,
         multiclassPrerequisites: { wis: 13 }
     },
     {
@@ -152,7 +152,7 @@ export const classes: ClassInfo[] = [
         spellcaster: true,
         spellcastingAbility: 'wis',
         preparedCaster: true,
-        subclassLevel: 2,
+        subclassLevel: 3,
         multiclassPrerequisites: { wis: 13 }
     },
     {
@@ -204,7 +204,7 @@ export const classes: ClassInfo[] = [
         spellcaster: true,
         spellcastingAbility: 'cha',
         preparedCaster: true,
-        subclassLevel: 1,
+        subclassLevel: 3,
         multiclassPrerequisites: { cha: 13 }
     },
     {
@@ -222,7 +222,7 @@ export const classes: ClassInfo[] = [
         spellcaster: true,
         spellcastingAbility: 'cha',
         preparedCaster: true,
-        subclassLevel: 1,
+        subclassLevel: 3,
         multiclassPrerequisites: { cha: 13 }
     }
 ];
