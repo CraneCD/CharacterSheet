@@ -13,6 +13,11 @@ const registerSchema = z.object({
     name: z.string().optional(),
 });
 
+const loginSchema = z.object({
+    email: z.string().email(),
+    password: z.string().min(1),
+});
+
 router.post('/register', async (req, res) => {
     try {
         const { email, password, name } = registerSchema.parse(req.body);
@@ -49,7 +54,7 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password } = loginSchema.parse(req.body);
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
@@ -69,6 +74,10 @@ router.post('/login', async (req, res) => {
 
         res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
     } catch (error) {
+        // Malformed/missing credentials → uniform response (no format leakage)
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({ error: 'Invalid email or password.' });
+        }
         console.error('Login error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('Login error details:', { errorMessage, stack: error instanceof Error ? error.stack : undefined });

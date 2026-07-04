@@ -4,7 +4,11 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-    const email = 'evelasq6@gmail.com';
+    const email = process.env.FIND_EMAIL;
+    if (!email) {
+        console.error('Set FIND_EMAIL in the environment (local admin use only).');
+        process.exit(1);
+    }
     try {
         const user = await prisma.user.findUnique({
             where: { email },

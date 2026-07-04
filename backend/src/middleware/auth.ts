@@ -22,7 +22,17 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
 
     try {
         const verified = jwt.verify(token, getJwtSecret());
-        req.user = verified as { id: string; email: string };
+        // Ensure the payload actually carries the claims routes rely on,
+        // rather than blindly casting an arbitrary decoded object.
+        if (
+            typeof verified !== 'object' ||
+            verified === null ||
+            typeof (verified as any).id !== 'string' ||
+            typeof (verified as any).email !== 'string'
+        ) {
+            return res.status(403).json({ error: 'Invalid token.' });
+        }
+        req.user = { id: (verified as any).id, email: (verified as any).email };
         next();
     } catch (err) {
         res.status(403).json({ error: 'Invalid token.' });

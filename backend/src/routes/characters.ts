@@ -1,4 +1,5 @@
 import express from 'express';
+import { z } from 'zod';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { classFeatures } from '../data/classFeatures';
 import { subclasses } from '../data/subclasses';
@@ -6,6 +7,17 @@ import { classes } from '../data/classes';
 import { prisma } from '../lib/prisma';
 
 const router = express.Router();
+
+// Validation for full character updates. `level` is bounded to the legal
+// 1–20 range so PUT cannot bypass the cap enforced by /level-up.
+const updateCharacterSchema = z.object({
+    name: z.string().min(1).max(200).optional(),
+    race: z.string().max(100).optional(),
+    class: z.string().max(100).optional(),
+    level: z.number().int().min(1).max(20).optional(),
+    data: z.record(z.any()).optional(),
+    isPublic: z.boolean().optional(),
+});
 
 // Get all characters for the logged-in user
 router.get('/', authenticateToken, async (req: AuthRequest, res) => {
@@ -23,7 +35,14 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
                 data: true,
             }
         });
-        res.json(characters);
+        // The dashboard list only renders the portrait from `data`; strip the
+        // rest (spells, features, equipment, levelHistory, …) so we don't ship
+        // every character's full sheet on the hottest read path.
+        const trimmed = characters.map((c) => {
+            const data = c.data as { portrait?: string } | null;
+            return { ...c, data: data?.portrait ? { portrait: data.portrait } : {} };
+        });
+        res.json(trimmed);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch characters' });
     }
@@ -255,7 +274,7 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
     try {
         const characterId = req.params.id;
         const userId = req.user!.id;
-        const { name, race, class: charClass, level, data, isPublic } = req.body;
+        const { name, race, class: charClass, level, data, isPublic } = updateCharacterSchema.parse(req.body);
 
         const existing = await prisma.character.findUnique({ where: { id: characterId } });
         if (!existing || existing.userId !== userId) {
@@ -276,6 +295,9 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
 
         res.json(updated);
     } catch (error) {
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({ error: error.errors });
+        }
         res.status(500).json({ error: 'Failed to update character' });
     }
 });

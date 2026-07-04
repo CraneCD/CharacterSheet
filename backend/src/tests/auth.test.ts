@@ -38,4 +38,22 @@ describe('Auth Routes', () => {
         expect(res.status).toBe(201);
         expect(res.body).toHaveProperty('userId');
     });
+
+    it('rejects login with a missing password without a 500', async () => {
+        const res = await request(app)
+            .post('/auth/login')
+            .send({ email: 'test@example.com' });
+
+        expect(res.status).toBe(400);
+        expect(res.body).toEqual({ error: 'Invalid email or password.' });
+    });
+
+    it('rejects login with a non-string email without a 500', async () => {
+        const res = await request(app)
+            .post('/auth/login')
+            .send({ email: { $ne: null }, password: 'x' });
+
+        expect(res.status).toBe(400);
+        expect(res.body).toEqual({ error: 'Invalid email or password.' });
+    });
 });
