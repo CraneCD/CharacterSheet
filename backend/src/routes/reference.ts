@@ -24,6 +24,16 @@ router.get('/spells', (req, res) => {
     res.json(spells);
 });
 
+// Slim projection for pickers that don't render spell text (description is
+// ~80% of the full payload). Registered before /spells/:id so "summary"
+// isn't matched as a spell id. Computed once at module load — data is static.
+const spellSummaries = spells.map(({ id, name, level, school, classes, castingTime, ritual }) => ({
+    id, name, level, school, classes, castingTime, ritual
+}));
+router.get('/spells/summary', (req, res) => {
+    res.json(spellSummaries);
+});
+
 // Get single spell
 router.get('/spells/:id', (req, res) => {
     const spell = spells.find(s => s.id === req.params.id);

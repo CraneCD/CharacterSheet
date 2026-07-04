@@ -43,12 +43,7 @@ function CurrencyManager({ characterId, initialCurrency, onUpdate }: CurrencyMan
         };
         
         try {
-            // Get current character data first
-            const character = await api.get(`/characters/${characterId}`);
-            await api.put(`/characters/${characterId}`, {
-                ...character,
-                data: { ...character.data, currency: currencyForUpdate }
-            });
+            await api.patch(`/characters/${characterId}/data`, { currency: currencyForUpdate });
             onUpdate(currencyForUpdate);
         } catch (err) {
             console.error('Failed to update currency', err);

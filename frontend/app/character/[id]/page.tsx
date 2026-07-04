@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 import HPManager from './components/HPManager';
@@ -26,31 +26,18 @@ import {
 import { isMasteryActionForWeapon } from '@/lib/weaponMastery';
 import { getSkillProficienciesFromTraits, hasResourceful, hasBlessingOfTheRavenQueen } from '@/lib/racialTraitBonuses';
 import { getRaceTraits, getBackgroundSkills, STANDARD_LANGUAGES } from '@/lib/wizardReference';
-
-// Module-level cache: reference data is static per session — no need to re-fetch on navigation
-let referenceDataCache: GameData | null = null;
-
-interface GameData {
-    races: any[];
-    classes: any[];
-    backgrounds: any[];
-    subclasses: any[];
-    traits?: { [key: string]: { name: string; description: string } };
-}
-
-interface ClassFeature {
-    level: number;
-    name: string;
-    description: string;
-}
+import { useCharacterSheetData } from './useCharacterSheetData';
 
 export default function CharacterSheet() {
     const { id } = useParams();
-    const router = useRouter();
-    const [character, setCharacter] = useState<any>(null);
-    const [gameData, setGameData] = useState<GameData | null>(null);
-    const [classFeaturesList, setClassFeaturesList] = useState<ClassFeature[]>([]);
-    const [subclassFeaturesList, setSubclassFeaturesList] = useState<ClassFeature[]>([]);
+    const {
+        character,
+        setCharacter,
+        handleUpdateCharacter,
+        gameData,
+        classFeaturesList,
+        subclassFeaturesList
+    } = useCharacterSheetData(id);
     const [showLevelUp, setShowLevelUp] = useState(false);
     const [showLevelDownConfirm, setShowLevelDownConfirm] = useState(false);
     const [isLevelingDown, setIsLevelingDown] = useState(false);
@@ -61,105 +48,6 @@ export default function CharacterSheet() {
     const [editingAC, setEditingAC] = useState(false);
     const [acEditValue, setAcEditValue] = useState<string>('');
     const [showNotepad, setShowNotepad] = useState(false);
-
-    const handleUpdateCharacter = useCallback((updates: Partial<CharacterData>) => {
-        setCharacter((prev: any) => ({
-            ...prev,
-            data: { ...prev.data, ...updates }
-        }));
-    }, []);
-
-    useEffect(() => {
-        const charId = Array.isArray(id) ? id?.[0] : id;
-        if (!charId) return;
-        const loadData = async () => {
-            try {
-                if (referenceDataCache) {
-                    const char = await api.get(`/characters/${charId}`);
-                    setCharacter(char);
-                    setGameData(referenceDataCache);
-                } else {
-                    const [char, races, classes, backgrounds, subclasses, traits] = await Promise.all([
-                        api.get(`/characters/${charId}`),
-                        api.get('/reference/races'),
-                        api.get('/reference/classes'),
-                        api.get('/reference/backgrounds'),
-                        api.get('/reference/subclasses'),
-                        api.get('/reference/traits')
-                    ]);
-                    const gameData: GameData = {
-                        races: Array.isArray(races) ? races : [],
-                        classes: Array.isArray(classes) ? classes : [],
-                        backgrounds: Array.isArray(backgrounds) ? backgrounds : [],
-                        subclasses: Array.isArray(subclasses) ? subclasses : [],
-                        traits: traits && typeof traits === 'object' ? traits : undefined
-                    };
-                    referenceDataCache = gameData;
-                    setCharacter(char);
-                    setGameData(gameData);
-                }
-            } catch (err) {
-                console.error(err);
-            }
-        };
-        loadData();
-    }, [id, router]);
-
-    // Load class and subclass features when character data is available
-    useEffect(() => {
-        if (!character || !gameData) return;
-
-        const loadFeatures = async () => {
-            try {
-                const data = character.data || {};
-                const classesData = data.classes || {};
-                
-                // Get all classes
-                const cls = character.class || character.classId || 'fighter';
-                const characterClasses = Object.keys(classesData).length > 0 
-                    ? Object.entries(classesData).map(([classId, level]: [string, any]) => ({ id: classId, level }))
-                    : [{ id: (cls || '').toLowerCase(), level: character.level ?? 1 }];
-                
-                // Load features for all classes in parallel
-                const featureResults = await Promise.all(
-                    characterClasses.map(cls =>
-                        api.get(`/reference/class-features/${cls.id}`)
-                            .then((features: ClassFeature[]) =>
-                                (Array.isArray(features) ? features : []).filter(f => f.level <= cls.level)
-                            )
-                            .catch((err: unknown) => {
-                                console.error(`Failed to load features for ${cls.id}`, err);
-                                return [] as ClassFeature[];
-                            })
-                    )
-                );
-                const allClassFeatures: ClassFeature[] = featureResults.flat();
-                
-                setClassFeaturesList(allClassFeatures);
-
-                // Load subclass features if character has a subclass (for now, only primary class)
-                if (data.subclassId) {
-                    const subclass = (gameData.subclasses || []).find((s: any) => (s?.id || '') === data.subclassId);
-                    if (subclass) {
-                        const primaryClassLevel = characterClasses[0]?.level ?? character.level ?? 1;
-                        const subclassFeatures = subclass.features || [];
-                        const availableSubclassFeatures = subclassFeatures.filter((f: ClassFeature) => f.level <= primaryClassLevel);
-                        setSubclassFeaturesList(availableSubclassFeatures);
-                    } else {
-                        setSubclassFeaturesList([]);
-                    }
-                } else {
-                    setSubclassFeaturesList([]);
-                }
-            } catch (err) {
-                console.error('Failed to load class features', err);
-                setClassFeaturesList([]);
-                setSubclassFeaturesList([]);
-            }
-        };
-
-        loadFeatures();
-    }, [character, gameData]);
 
     if (!character || !gameData) {
         return (
@@ -422,10 +310,7 @@ export default function CharacterSheet() {
         if (currentLangs.includes(language)) return;
         const updated = [...currentLangs, language];
         try {
-            await api.put(`/characters/${character.id}`, {
-                ...character,
-                data: { ...character.data, languages: updated }
-            });
+            await api.patch(`/characters/${character.id}/data`, { languages: updated });
             handleUpdateCharacter({ languages: updated });
         } catch (err) {
             console.error('Failed to add language', err);
@@ -437,10 +322,7 @@ export default function CharacterSheet() {
         const currentLangs = Array.isArray(data.languages) ? data.languages : [];
         const updated = currentLangs.filter((l: string) => l !== language);
         try {
-            await api.put(`/characters/${character.id}`, {
-                ...character,
-                data: { ...character.data, languages: updated }
-            });
+            await api.patch(`/characters/${character.id}/data`, { languages: updated });
             handleUpdateCharacter({ languages: updated });
         } catch (err) {
             console.error('Failed to remove language', err);
@@ -466,10 +348,7 @@ export default function CharacterSheet() {
         }
 
         try {
-            await api.put(`/characters/${character.id}`, {
-                ...character,
-                data: { ...character.data, skills: toPersist }
-            });
+            await api.patch(`/characters/${character.id}/data`, { skills: toPersist });
             handleUpdateCharacter({ skills: toPersist });
         } catch (err) {
             console.error('Failed to update skill proficiency', err);
@@ -485,10 +364,7 @@ export default function CharacterSheet() {
 
         try {
             const updatedScores = { ...abilityScores, [stat]: newValue };
-            await api.put(`/characters/${character.id}`, {
-                ...character,
-                data: { ...character.data, abilityScores: updatedScores }
-            });
+            await api.patch(`/characters/${character.id}/data`, { abilityScores: updatedScores });
             handleUpdateCharacter({ abilityScores: updatedScores });
             setEditingAbility(null);
         } catch (err) {
@@ -527,10 +403,7 @@ export default function CharacterSheet() {
         }
 
         try {
-            await api.put(`/characters/${character.id}`, {
-                ...character,
-                data: { ...character.data, speed: newValue }
-            });
+            await api.patch(`/characters/${character.id}/data`, { speed: newValue });
             handleUpdateCharacter({ speed: newValue });
             setEditingSpeed(false);
         } catch (err) {
@@ -546,10 +419,7 @@ export default function CharacterSheet() {
         }
 
         try {
-            await api.put(`/characters/${character.id}`, {
-                ...character,
-                data: { ...character.data, ac: newValue }
-            });
+            await api.patch(`/characters/${character.id}/data`, { ac: newValue });
             handleUpdateCharacter({ ac: newValue });
             setEditingAC(false);
         } catch (err) {
@@ -626,10 +496,8 @@ export default function CharacterSheet() {
                             const updates = { portrait: dataUrl ?? undefined };
                             handleUpdateCharacter(updates);
                             try {
-                                await api.put(`/characters/${character.id}`, {
-                                    ...character,
-                                    data: { ...character.data, ...updates }
-                                });
+                                // null (not undefined) so removal survives JSON serialization
+                                await api.patch(`/characters/${character.id}/data`, { portrait: dataUrl });
                             } catch (err) {
                                 console.error('Failed to save portrait', err);
                             }
@@ -830,10 +698,7 @@ export default function CharacterSheet() {
                         const updates = { notepad: { pages } };
                         handleUpdateCharacter(updates);
                         try {
-                            await api.put(`/characters/${character.id}`, {
-                                ...character,
-                                data: { ...character.data, ...updates }
-                            });
+                            await api.patch(`/characters/${character.id}/data`, updates);
                         } catch (err) {
                             console.error('Failed to save notepad', err);
                         }
@@ -1047,7 +912,7 @@ export default function CharacterSheet() {
                             onHPUpdate={(newHP) => handleUpdateCharacter({ hp: newHP })}
                             onLongRest={async () => {
                                 try {
-                                    const patched = await api.patch(`/characters/${character.id}/class-resources`, { resetType: 'long' });
+                                    await api.patch(`/characters/${character.id}/class-resources`, { resetType: 'long' });
                                     const hp = data.hp || { current: 0, max: 0, temp: 0 };
                                     const maxHp = hp.max ?? 0;
                                     const updates: Partial<CharacterData> = {
@@ -1061,11 +926,9 @@ export default function CharacterSheet() {
                                         updates.magicInitiateSpell1Used = 1;
                                     }
                                     handleUpdateCharacter(updates);
-                                    const merged = { ...patched.data, ...updates };
-                                    const updated = await api.put(`/characters/${character.id}`, {
-                                        ...patched,
-                                        data: merged
-                                    });
+                                    // Server merges onto current state (which already
+                                    // includes the class-resources reset above)
+                                    const updated = await api.patch(`/characters/${character.id}/data`, updates);
                                     setCharacter(updated);
                                 } catch (err) {
                                     console.error('Failed to persist long rest', err);
@@ -1127,10 +990,8 @@ export default function CharacterSheet() {
                             const toPersist = resourcesToShow;
                             setTimeout(() => {
                                 handleUpdateCharacter({ classResources: toPersist });
-                                api.put(`/characters/${character.id}`, {
-                                    ...character,
-                                    data: { ...character.data, classResources: toPersist }
-                                }).catch((err) => console.error('Failed to persist class resources', err));
+                                api.patch(`/characters/${character.id}/data`, { classResources: toPersist })
+                                    .catch((err) => console.error('Failed to persist class resources', err));
                             }, 0);
                         }
                         
@@ -1159,12 +1020,10 @@ export default function CharacterSheet() {
                                         }
                                         handleUpdateCharacter(updates);
                                         try {
-                                            // ClassResourcesManager already PATCH-reset class resources;
-                                            // just PUT the HP/spell-slot/hit-dice changes on top.
-                                            const updated = await api.put(`/characters/${character.id}`, {
-                                                ...character,
-                                                data: { ...character.data, ...updates }
-                                            });
+                                            // ClassResourcesManager already PATCH-reset class
+                                            // resources; merge only these fields on top server-side
+                                            // so that reset can't be clobbered by stale client state.
+                                            const updated = await api.patch(`/characters/${character.id}/data`, updates);
                                             setCharacter(updated);
                                         } catch (err) {
                                             console.error('Failed to persist long rest (HP, spell slots, hit dice)', err);
@@ -1457,10 +1316,8 @@ export default function CharacterSheet() {
                                 magicInitiate={hasMagicInitiateFeat ? data.magicInitiate : undefined}
                                 onMagicInitiateUpdate={(magicInitiate) => {
                                     handleUpdateCharacter({ magicInitiate });
-                                    api.put(`/characters/${character.id}`, {
-                                        ...character,
-                                        data: { ...character.data, magicInitiate }
-                                    }).catch((err) => console.error('Failed to persist Magic Initiate', err));
+                                    api.patch(`/characters/${character.id}/data`, { magicInitiate })
+                                        .catch((err) => console.error('Failed to persist Magic Initiate', err));
                                 }}
                                 magicInitiateSpell1Used={hasMagicInitiateFeat && data.magicInitiate?.spell1 ? (data.magicInitiateSpell1Used ?? 1) : 1}
                                 onMagicInitiateSlotChange={hasMagicInitiateFeat && data.magicInitiate?.spell1 ? async (used: number) => {
