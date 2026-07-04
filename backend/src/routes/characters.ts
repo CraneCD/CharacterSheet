@@ -69,6 +69,9 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
 
         // Initialize hit dice for existing characters that don't have it
         const data = character.data as any;
+        // Track whether we back-filled anything so we can persist it once,
+        // instead of recomputing this initialization on every future read.
+        let dataChanged = false;
         if (!data.hitDice) {
             const classInfo = classes.find(c => c.id === character.class.toLowerCase());
             if (classInfo) {
@@ -77,14 +80,14 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
                     spent: 0,
                     dieType: classInfo.hitDie
                 };
-                // Save the initialization (optional - could be done lazily)
-                // For now, we'll just return it with the initialized value
+                dataChanged = true;
             }
         }
 
         // Initialize class resources for existing characters that don't have them
         // Note: Full calculation should be done on frontend, but we can initialize basic ones here
-        if (!data.classResources || Object.keys(data.classResources).length === 0) {
+        const resourcesWereEmpty = !data.classResources || Object.keys(data.classResources).length === 0;
+        if (resourcesWereEmpty) {
             const classId = character.class.toLowerCase();
             const abilityScores = data.abilityScores || {};
             
@@ -213,6 +216,9 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
                 };
             }
         }
+        if (resourcesWereEmpty && data.classResources && Object.keys(data.classResources).length > 0) {
+            dataChanged = true;
+        }
 
         // Patch: add Grit Points for existing Fighter Gunslingers who have resources but no Grit
         const classId = (character.class as string).toLowerCase();
@@ -235,6 +241,17 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
                 resetType: 'short',
                 description: 'You spend grit to perform trick shots with firearms. Regain grit on a short rest, when you score a critical hit with a firearm, or when you reduce a creature to 0 HP with a firearm attack.'
             };
+            dataChanged = true;
+        }
+
+        // Persist any back-filled defaults so this initialization runs once
+        // per character rather than on every read. (Values are derived from
+        // the character itself, so a public viewer triggering the write is fine.)
+        if (dataChanged) {
+            await prisma.character.update({
+                where: { id: characterId },
+                data: { data }
+            });
         }
 
         // Return character with potentially initialized hit dice and resources

@@ -1,6 +1,9 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
+import { prisma } from './lib/prisma';
 import authRoutes from './routes/auth';
 import characterRoutes from './routes/characters';
 import campaignRoutes from './routes/campaigns';
@@ -83,6 +86,14 @@ app.use(cors({
     optionsSuccessStatus: 204,
     maxAge: 86400 // Cache preflight for 24 hours
 }));
+// Baseline security headers (X-Content-Type-Options, etc.). Defaults are
+// safe for a JSON API consumed cross-origin via fetch+CORS.
+app.use(helmet());
+
+// Gzip responses. The reference dataset (spells alone is ~600KB of JSON)
+// compresses ~85%, which dominates page-load time on the character sheet.
+app.use(compression());
+
 // Explicit body-size limit: character sheets (with a resized base64 portrait)
 // stay well under 1mb; this bounds memory and rejects oversized payloads.
 app.use(express.json({ limit: '1mb' }));
@@ -97,8 +108,14 @@ app.get('/', (req, res) => {
     res.send('D&D Character Sheet API is running');
 });
 
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok' });
+app.get('/health', async (req, res) => {
+    try {
+        // Verify the database is actually reachable, not just the process.
+        await prisma.$queryRaw`SELECT 1`;
+        res.status(200).json({ status: 'ok' });
+    } catch {
+        res.status(503).json({ status: 'degraded', database: 'unreachable' });
+    }
 });
 
 // Error handling middleware

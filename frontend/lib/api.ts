@@ -37,18 +37,39 @@ if (typeof window !== 'undefined') {
     }
 }
 
+async function getJson(endpoint: string) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API_URL}${endpoint}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    redirectIfUnauthorized(res);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+}
+
+// In-memory cache for static reference data (spells, classes, races, …).
+// These endpoints are immutable per deployment, and the character page
+// requests several of them on every mount (the spell list alone is large).
+// Caching the promise also dedupes concurrent requests for the same endpoint.
+const referenceCache = new Map<string, Promise<any>>();
+
 export const api = {
     async get(endpoint: string) {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}${endpoint}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-        });
-        redirectIfUnauthorized(res);
-        if (!res.ok) throw new Error(await res.text());
-        return res.json();
+        if (endpoint.startsWith('/reference/')) {
+            const cached = referenceCache.get(endpoint);
+            if (cached) return cached;
+            const promise = getJson(endpoint).catch((err) => {
+                // Don't cache failures — allow retry on next call
+                referenceCache.delete(endpoint);
+                throw err;
+            });
+            referenceCache.set(endpoint, promise);
+            return promise;
+        }
+        return getJson(endpoint);
     },
 
     async post(endpoint: string, data: any) {

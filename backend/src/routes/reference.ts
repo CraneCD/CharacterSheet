@@ -12,6 +12,13 @@ import { fightingStyles } from '../data/fightingStyles';
 
 const router = express.Router();
 
+// Reference data is static per deployment — let clients and proxies cache it
+// for an hour instead of re-downloading (~600KB of spells) on every visit.
+router.use((req, res, next) => {
+    res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+    next();
+});
+
 // Get all spells
 router.get('/spells', (req, res) => {
     res.json(spells);
