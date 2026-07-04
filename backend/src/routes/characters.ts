@@ -1,5 +1,6 @@
 import express from 'express';
 import { z } from 'zod';
+import { Character } from '@prisma/client';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { classFeatures } from '../data/classFeatures';
 import { subclasses } from '../data/subclasses';
@@ -7,6 +8,52 @@ import { classes } from '../data/classes';
 import { prisma } from '../lib/prisma';
 
 const router = express.Router();
+
+/**
+ * Load a character and verify the requester owns it. Sends a 403 and returns
+ * null when the character is missing or owned by someone else (missing IDs
+ * intentionally get the same response as foreign ones).
+ */
+async function findOwnedCharacter(req: AuthRequest, res: express.Response): Promise<Character | null> {
+    const character = await prisma.character.findUnique({ where: { id: req.params.id } });
+    if (!character || character.userId !== req.user!.id) {
+        res.status(403).json({ error: 'Access denied' });
+        return null;
+    }
+    return character;
+}
+
+/**
+ * Shared flow for endpoints that mutate the character's JSON data blob:
+ * load + ownership check, synchronous in-place mutation, persist, respond
+ * with the updated character. The mutator may return { status, error } to
+ * abort without saving.
+ */
+async function mutateCharacterData(
+    req: AuthRequest,
+    res: express.Response,
+    failureMessage: string,
+    mutate: (data: any, character: Character) => { status: number; error: string } | void
+) {
+    try {
+        const character = await findOwnedCharacter(req, res);
+        if (!character) return;
+
+        const data = character.data as any;
+        const failure = mutate(data, character);
+        if (failure) {
+            return res.status(failure.status).json({ error: failure.error });
+        }
+
+        const updated = await prisma.character.update({
+            where: { id: character.id },
+            data: { data }
+        });
+        res.json(updated);
+    } catch (error) {
+        res.status(500).json({ error: failureMessage });
+    }
+}
 
 // Validation for full character updates. `level` is bounded to the legal
 // 1–20 range so PUT cannot bypass the cap enforced by /level-up.
@@ -69,6 +116,9 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
 
         // Initialize hit dice for existing characters that don't have it
         const data = character.data as any;
+        // Track whether we back-filled anything so we can persist it once,
+        // instead of recomputing this initialization on every future read.
+        let dataChanged = false;
         if (!data.hitDice) {
             const classInfo = classes.find(c => c.id === character.class.toLowerCase());
             if (classInfo) {
@@ -77,14 +127,14 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
                     spent: 0,
                     dieType: classInfo.hitDie
                 };
-                // Save the initialization (optional - could be done lazily)
-                // For now, we'll just return it with the initialized value
+                dataChanged = true;
             }
         }
 
         // Initialize class resources for existing characters that don't have them
         // Note: Full calculation should be done on frontend, but we can initialize basic ones here
-        if (!data.classResources || Object.keys(data.classResources).length === 0) {
+        const resourcesWereEmpty = !data.classResources || Object.keys(data.classResources).length === 0;
+        if (resourcesWereEmpty) {
             const classId = character.class.toLowerCase();
             const abilityScores = data.abilityScores || {};
             
@@ -213,6 +263,9 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
                 };
             }
         }
+        if (resourcesWereEmpty && data.classResources && Object.keys(data.classResources).length > 0) {
+            dataChanged = true;
+        }
 
         // Patch: add Grit Points for existing Fighter Gunslingers who have resources but no Grit
         const classId = (character.class as string).toLowerCase();
@@ -235,6 +288,17 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
                 resetType: 'short',
                 description: 'You spend grit to perform trick shots with firearms. Regain grit on a short rest, when you score a critical hit with a firearm, or when you reduce a creature to 0 HP with a firearm attack.'
             };
+            dataChanged = true;
+        }
+
+        // Persist any back-filled defaults so this initialization runs once
+        // per character rather than on every read. (Values are derived from
+        // the character itself, so a public viewer triggering the write is fine.)
+        if (dataChanged) {
+            await prisma.character.update({
+                where: { id: characterId },
+                data: { data }
+            });
         }
 
         // Return character with potentially initialized hit dice and resources
@@ -272,17 +336,13 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 // Update a character
 router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
     try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
         const { name, race, class: charClass, level, data, isPublic } = updateCharacterSchema.parse(req.body);
 
-        const existing = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!existing || existing.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
+        const existing = await findOwnedCharacter(req, res);
+        if (!existing) return;
 
         const updated = await prisma.character.update({
-            where: { id: characterId },
+            where: { id: existing.id },
             data: {
                 name,
                 race,
@@ -302,39 +362,51 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
     }
 });
 
+// Merge the provided top-level fields into the character's data blob.
+// Replaces whole-character PUTs for small edits: the client sends only the
+// changed fields, and the merge happens against current server state, so a
+// stale client copy can't clobber fields another request just updated.
+router.patch('/:id/data', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        const patch = req.body;
+        if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+            return res.status(400).json({ error: 'Request body must be an object of data fields' });
+        }
+        if (['__proto__', 'constructor', 'prototype'].some(k => Object.prototype.hasOwnProperty.call(patch, k))) {
+            return res.status(400).json({ error: 'Invalid field name' });
+        }
+
+        const character = await findOwnedCharacter(req, res);
+        if (!character) return;
+
+        const data = { ...(character.data as any), ...patch };
+        const updated = await prisma.character.update({
+            where: { id: character.id },
+            data: { data }
+        });
+        res.json(updated);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update character data' });
+    }
+});
+
 // Delete a character
 router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
     try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+        const existing = await findOwnedCharacter(req, res);
+        if (!existing) return;
 
-        const existing = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!existing || existing.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        await prisma.character.delete({ where: { id: characterId } });
+        await prisma.character.delete({ where: { id: existing.id } });
         res.json({ message: 'Character deleted' });
     } catch (error) {
         res.status(500).json({ error: 'Failed to delete character' });
     }
 });
 
-export default router;
-
 // Update Character HP
-router.patch('/:id/hp', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.patch('/:id/hp', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to update HP', (data) => {
         const { current, temp, max, deathSaves } = req.body;
-
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
         const hp = data.hp || { current: 10, max: 10, temp: 0 };
 
         if (current !== undefined) hp.current = current;
@@ -357,31 +429,13 @@ router.patch('/:id/hp', authenticateToken, async (req: AuthRequest, res) => {
         if (hp.current < 0) hp.current = 0;
 
         data.hp = hp;
-
-        const updated = await prisma.character.update({
-            where: { id: characterId },
-            data: { data }
-        });
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to update HP' });
-    }
-});
+    })
+);
 
 // Update Character Hit Dice
-router.patch('/:id/hit-dice', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.patch('/:id/hit-dice', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to update hit dice', (data, character) => {
         const { spent, total, dieType } = req.body;
-
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
         const hitDice = data.hitDice || { total: character.level, spent: 0, dieType: 8 };
 
         if (spent !== undefined) {
@@ -391,57 +445,21 @@ router.patch('/:id/hit-dice', authenticateToken, async (req: AuthRequest, res) =
         if (dieType !== undefined) hitDice.dieType = dieType;
 
         data.hitDice = hitDice;
-
-        const updated = await prisma.character.update({
-            where: { id: characterId },
-            data: { data }
-        });
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to update hit dice' });
-    }
-});
+    })
+);
 
 // Update Magic Initiate 1st-level spell use (1 = available, 0 = used)
-router.patch('/:id/magic-initiate-spell-used', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.patch('/:id/magic-initiate-spell-used', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to update Magic Initiate spell use', (data) => {
         const { used } = req.body; // 0 = used, 1 = available
-
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
         data.magicInitiateSpell1Used = used !== undefined ? used : 0;
-
-        const updated = await prisma.character.update({
-            where: { id: characterId },
-            data: { data }
-        });
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to update Magic Initiate spell use' });
-    }
-});
+    })
+);
 
 // Update Character Class Resources
-router.patch('/:id/class-resources', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.patch('/:id/class-resources', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to update class resources', (data) => {
         const { resourceName, current, resetType, resources } = req.body;
-
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
         let classResources = data.classResources || {};
 
         // If resetType is provided, reset all resources of that type
@@ -487,61 +505,25 @@ router.patch('/:id/class-resources', authenticateToken, async (req: AuthRequest,
         }
 
         data.classResources = classResources;
-
-        const updated = await prisma.character.update({
-            where: { id: characterId },
-            data: { data }
-        });
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to update class resources' });
-    }
-});
+    })
+);
 
 // Add Equipment
-router.post('/:id/equipment', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.post('/:id/equipment', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to add equipment', (data) => {
         const { item } = req.body; // item: { name, quantity, etc. }
-
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
         const equipment = data.equipment || [];
 
         equipment.push(item);
         data.equipment = equipment;
-
-        const updated = await prisma.character.update({
-            where: { id: characterId },
-            data: { data }
-        });
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to add equipment' });
-    }
-});
+    })
+);
 
 // Remove Equipment
-router.delete('/:id/equipment', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.delete('/:id/equipment', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to remove equipment', (data) => {
         const { index, name } = req.body;
-
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
-        let equipment = data.equipment || [];
+        const equipment = data.equipment || [];
 
         if (index !== undefined && index >= 0 && index < equipment.length) {
             equipment.splice(index, 1);
@@ -552,65 +534,36 @@ router.delete('/:id/equipment', authenticateToken, async (req: AuthRequest, res)
         }
 
         data.equipment = equipment;
-
-        const updated = await prisma.character.update({
-            where: { id: characterId },
-            data: { data }
-        });
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to remove equipment' });
-    }
-});
+    })
+);
 
 // Update Equipment (Toggle equipped, change qty)
-router.patch('/:id/equipment', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.patch('/:id/equipment', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to update equipment', (data) => {
         const { index, item } = req.body;
-
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
         const equipment = data.equipment || [];
 
-        if (index >= 0 && index < equipment.length) {
-            // Merge existing item with updates
-            const currentItem = equipment[index];
-            // Handle if currentItem is string vs object
-            const currentObj = typeof currentItem === 'string' ? { name: currentItem } : currentItem;
-
-            equipment[index] = { ...currentObj, ...item };
-            data.equipment = equipment;
-
-            const updated = await prisma.character.update({
-                where: { id: characterId },
-                data: { data }
-            });
-            res.json(updated);
-        } else {
-            res.status(400).json({ error: 'Invalid equipment index' });
+        if (!(index >= 0 && index < equipment.length)) {
+            return { status: 400, error: 'Invalid equipment index' };
         }
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to update equipment' });
-    }
-});
+
+        // Merge existing item with updates
+        const currentItem = equipment[index];
+        // Handle if currentItem is string vs object
+        const currentObj = typeof currentItem === 'string' ? { name: currentItem } : currentItem;
+
+        equipment[index] = { ...currentObj, ...item };
+        data.equipment = equipment;
+    })
+);
 // Level Up
 router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) => {
     try {
         const characterId = req.params.id;
-        const userId = req.user!.id;
         const { hpIncrease, subclassId, newSpells, newFeatures, abilityScoreImprovement, multiclass, classToLevel, fightingStyle, scholarSkill, wizardSpellbookSpells } = req.body;
 
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
+        const character = await findOwnedCharacter(req, res);
+        if (!character) return;
 
         const currentLevel = character.level;
         const newLevel = currentLevel + 1;
@@ -931,12 +884,9 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
 router.post('/:id/level-down', authenticateToken, async (req: AuthRequest, res) => {
     try {
         const characterId = req.params.id;
-        const userId = req.user!.id;
 
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
+        const character = await findOwnedCharacter(req, res);
+        if (!character) return;
 
         const currentLevel = character.level;
         if (currentLevel <= 1) {
@@ -1071,18 +1021,9 @@ router.post('/:id/level-down', authenticateToken, async (req: AuthRequest, res) 
 });
 
 // Add Spell (Learn/Prepare)
-router.post('/:id/spells', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.post('/:id/spells', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to add spell', (data) => {
         const { spellId, name, level, school, prepared } = req.body;
-
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
         const spells = data.spells || [];
 
         // Check if spell already exists
@@ -1091,61 +1032,24 @@ router.post('/:id/spells', authenticateToken, async (req: AuthRequest, res) => {
         }
 
         data.spells = spells;
-
-        const updated = await prisma.character.update({
-            where: { id: characterId },
-            data: { data }
-        });
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to add spell' });
-    }
-});
+    })
+);
 
 // Remove Spell
-router.delete('/:id/spells/:spellId', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.delete('/:id/spells/:spellId', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to remove spell', (data) => {
         const { spellId } = req.params;
-
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
         const spells = data.spells || [];
 
-        const updatedSpells = spells.filter((s: any) => s.id !== spellId);
-        data.spells = updatedSpells;
-
-        const updated = await prisma.character.update({
-            where: { id: characterId },
-            data: { data }
-        });
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to remove spell' });
-    }
-});
+        data.spells = spells.filter((s: any) => s.id !== spellId);
+    })
+);
 
 // Toggle Prepare Spell
-router.patch('/:id/spells/:spellId/prepare', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.patch('/:id/spells/:spellId/prepare', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to update spell preparation', (data) => {
         const { spellId } = req.params;
         const { prepared } = req.body;
-
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
         const spells = data.spells || [];
 
         const spell = spells.find((s: any) => s.id === spellId);
@@ -1154,35 +1058,17 @@ router.patch('/:id/spells/:spellId/prepare', authenticateToken, async (req: Auth
         }
 
         data.spells = spells;
-
-        const updated = await prisma.character.update({
-            where: { id: characterId },
-            data: { data }
-        });
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to update spell preparation' });
-    }
-});
+    })
+);
 
 // Add Spells to Wizard Spellbook
-router.post('/:id/spellbook', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.post('/:id/spellbook', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to add spells to spellbook', (data) => {
         const { spellIds } = req.body;
-
         if (!spellIds || !Array.isArray(spellIds)) {
-            return res.status(400).json({ error: 'spellIds array is required' });
+            return { status: 400, error: 'spellIds array is required' };
         }
 
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
         const spellbook = data.spellbook || [];
         const seen = new Set(spellbook);
         for (const id of spellIds) {
@@ -1193,35 +1079,17 @@ router.post('/:id/spellbook', authenticateToken, async (req: AuthRequest, res) =
             }
         }
         data.spellbook = spellbook;
-
-        const updated = await prisma.character.update({
-            where: { id: characterId },
-            data: { data }
-        });
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to add spells to spellbook' });
-    }
-});
+    })
+);
 
 // Remove Spells from Wizard Spellbook
-router.delete('/:id/spellbook', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.delete('/:id/spellbook', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to remove spells from spellbook', (data) => {
         const { spellIds } = req.body;
-
         if (!spellIds || !Array.isArray(spellIds)) {
-            return res.status(400).json({ error: 'spellIds array is required' });
+            return { status: 400, error: 'spellIds array is required' };
         }
 
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
         const spellbook = data.spellbook || [];
         const toRemove = new Set(spellIds.map((id: any) => typeof id === 'string' ? id.trim() : String(id)));
         data.spellbook = spellbook.filter((id: string) => !toRemove.has(id));
@@ -1229,60 +1097,24 @@ router.delete('/:id/spellbook', authenticateToken, async (req: AuthRequest, res)
         // Also remove those spells from data.spells (unprepare / remove from known) so they don't appear as prepared
         const spells = data.spells || [];
         data.spells = spells.filter((s: any) => !toRemove.has(s.id || s.spellId));
-
-        const updated = await prisma.character.update({
-            where: { id: characterId },
-            data: { data }
-        });
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to remove spells from spellbook' });
-    }
-});
+    })
+);
 
 // Add Feature
-router.post('/:id/features', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.post('/:id/features', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to add feature', (data) => {
         const { feature } = req.body;
-
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
         const features = data.features || [];
         features.push(feature);
         data.features = features;
-
-        const updated = await prisma.character.update({
-            where: { id: characterId },
-            data: { data }
-        });
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to add feature' });
-    }
-});
+    })
+);
 
 // Remove Feature
-router.delete('/:id/features', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.delete('/:id/features', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to remove feature', (data) => {
         const { index, name } = req.body;
-
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
-        let features = data.features || [];
+        const features = data.features || [];
 
         if (index !== undefined && index >= 0 && index < features.length) {
             features.splice(index, 1);
@@ -1292,59 +1124,23 @@ router.delete('/:id/features', authenticateToken, async (req: AuthRequest, res) 
         }
 
         data.features = features;
-
-        const updated = await prisma.character.update({
-            where: { id: characterId },
-            data: { data }
-        });
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to remove feature' });
-    }
-});
+    })
+);
 
 // Add Action
-router.post('/:id/actions', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.post('/:id/actions', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to add action', (data) => {
         const { action } = req.body;
-
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
         const actions = data.actions || [];
         actions.push(action);
         data.actions = actions;
-
-        const updated = await prisma.character.update({
-            where: { id: characterId },
-            data: { data }
-        });
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to add action' });
-    }
-});
+    })
+);
 
 // Remove Action
-router.delete('/:id/actions', authenticateToken, async (req: AuthRequest, res) => {
-    try {
-        const characterId = req.params.id;
-        const userId = req.user!.id;
+router.delete('/:id/actions', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to remove action', (data) => {
         const { index } = req.body;
-
-        const character = await prisma.character.findUnique({ where: { id: characterId } });
-        if (!character || character.userId !== userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const data = character.data as any;
         const actions = data.actions || [];
 
         if (index !== undefined && index >= 0 && index < actions.length) {
@@ -1352,14 +1148,7 @@ router.delete('/:id/actions', authenticateToken, async (req: AuthRequest, res) =
         }
 
         data.actions = actions;
+    })
+);
 
-        const updated = await prisma.character.update({
-            where: { id: characterId },
-            data: { data }
-        });
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to remove action' });
-    }
-});
+export default router;

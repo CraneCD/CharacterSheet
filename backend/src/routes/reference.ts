@@ -12,9 +12,26 @@ import { fightingStyles } from '../data/fightingStyles';
 
 const router = express.Router();
 
+// Reference data is static per deployment — let clients and proxies cache it
+// for an hour instead of re-downloading (~600KB of spells) on every visit.
+router.use((req, res, next) => {
+    res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+    next();
+});
+
 // Get all spells
 router.get('/spells', (req, res) => {
     res.json(spells);
+});
+
+// Slim projection for pickers that don't render spell text (description is
+// ~80% of the full payload). Registered before /spells/:id so "summary"
+// isn't matched as a spell id. Computed once at module load — data is static.
+const spellSummaries = spells.map(({ id, name, level, school, classes, castingTime, ritual }) => ({
+    id, name, level, school, classes, castingTime, ritual
+}));
+router.get('/spells/summary', (req, res) => {
+    res.json(spellSummaries);
 });
 
 // Get single spell

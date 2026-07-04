@@ -346,7 +346,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
 
     useEffect(() => {
         if (needsWizardSpellbook) {
-            api.get('/reference/spells')
+            api.get('/reference/spells/summary')
                 .then((spells: { id: string; name: string; level: number; classes: string[] }[]) => {
                     const maxSpellLevel = Math.ceil(nextLevel / 2);
                     const wizardSpells = spells.filter(s =>

@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      # Root install covers all workspaces; backend postinstall runs `prisma generate`
+      - run: npm ci
+      - name: Typecheck
+        run: npx tsc --skipLibCheck --noEmit
+        working-directory: backend
+      - name: Test
+        run: npx jest
+        working-directory: backend
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+        working-directory: frontend
+      - name: Test
+        run: npx jest
+        working-directory: frontend
