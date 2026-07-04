@@ -5,8 +5,15 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-    const email = 'evelasq6@gmail.com';
-    const newPassword = 'password123';
+    const email = process.env.RESET_EMAIL;
+    const newPassword = process.env.RESET_PASSWORD;
+
+    if (!email || !newPassword) {
+        console.error(
+            'Set RESET_EMAIL and RESET_PASSWORD in the environment (local admin use only).'
+        );
+        process.exit(1);
+    }
 
     try {
         const salt = await bcrypt.genSalt(10);
