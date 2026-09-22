@@ -449,7 +449,8 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                         name: selectedFeat.name,
                         description: selectedFeat.description,
                         source: 'Feat',
-                        level: nextLevel
+                        level: nextLevel,
+                        featId: selectedFeat.id
                     };
                     if (!payload.newFeatures) payload.newFeatures = [];
                     payload.newFeatures.push(featFeature);

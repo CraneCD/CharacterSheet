@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { isStoredUserAdmin } from '@/lib/auth';
 
 interface Character {
     id: string;
@@ -17,7 +18,12 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
     const [importing, setImporting] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+    useEffect(() => {
+        setIsAdmin(isStoredUserAdmin());
+    }, []);
 
     const handleImportFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -85,6 +91,7 @@ export default function Dashboard() {
                 <div className="nav-links">
                     <Link href="/dashboard">My Characters</Link>
                     <Link href="/campaigns">Campaigns</Link>
+                    {isAdmin && <Link href="/admin">Admin</Link>}
                     <button onClick={() => {
                         localStorage.removeItem('token');
                         window.location.href = '/login';

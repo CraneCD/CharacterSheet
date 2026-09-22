@@ -23,6 +23,10 @@ export interface CharacterSpell {
 export type ItemCategory = 'armor' | 'weapon' | 'shield' | 'tool' | 'magic-item' | 'potion' | 'scroll' | 'miscellaneous';
 
 export interface CharacterItem {
+    /** Present on entries fetched straight from /reference/base-items (not on a character's stored copy). */
+    id?: string;
+    /** Reference id of the base item this was added from, if any. Used to merge in live admin edits at render time. */
+    baseItemId?: string;
     name: string;
     quantity?: number;
     description?: string;
@@ -136,6 +140,8 @@ export interface CharacterFeature {
     description: string;
     source: string; // e.g. "Racial", "Class", "Background", "Feat"
     level?: number;
+    /** Reference id of the feat this was added from, if any. Used to merge in live admin edits at render time. */
+    featId?: string;
 }
 
 export interface Race {

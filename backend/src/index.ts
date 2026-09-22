@@ -8,6 +8,7 @@ import authRoutes from './routes/auth';
 import characterRoutes from './routes/characters';
 import campaignRoutes from './routes/campaigns';
 import referenceRoutes from './routes/reference';
+import adminRoutes from './routes/admin';
 import { getJwtSecret } from './config/jwt';
 import { authLimiter } from './middleware/rateLimit';
 
@@ -103,6 +104,7 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/reference', referenceRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {
     res.send('D&D Character Sheet API is running');

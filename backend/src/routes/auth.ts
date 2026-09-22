@@ -67,12 +67,12 @@ router.post('/login', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: user.id, email: user.email },
+            { id: user.id, email: user.email, isAdmin: user.isAdmin },
             getJwtSecret(),
             { expiresIn: '1d' }
         );
 
-        res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
+        res.json({ token, user: { id: user.id, name: user.name, email: user.email, isAdmin: user.isAdmin } });
     } catch (error) {
         // Malformed/missing credentials → uniform response (no format leakage)
         if (error instanceof z.ZodError) {
