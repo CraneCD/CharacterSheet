@@ -50,23 +50,26 @@ async function getJson(endpoint: string) {
     return res.json();
 }
 
-// In-memory cache for static reference data (spells, classes, races, …).
-// These endpoints are immutable per deployment, and the character page
-// requests several of them on every mount (the spell list alone is large).
-// Caching the promise also dedupes concurrent requests for the same endpoint.
-const referenceCache = new Map<string, Promise<any>>();
+// In-memory cache for reference data (spells, classes, races, …). The
+// character page requests several of these on every mount (the spell list
+// alone is large), and caching the promise also dedupes concurrent requests
+// for the same endpoint. Reference data is admin-editable, though, so this
+// can't cache forever — entries expire after REFERENCE_CACHE_TTL_MS so an
+// edit shows up on the next fetch without requiring a hard page reload.
+const REFERENCE_CACHE_TTL_MS = 60_000;
+const referenceCache = new Map<string, { promise: Promise<any>; expiresAt: number }>();
 
 export const api = {
     async get(endpoint: string) {
         if (endpoint.startsWith('/reference/')) {
             const cached = referenceCache.get(endpoint);
-            if (cached) return cached;
+            if (cached && cached.expiresAt > Date.now()) return cached.promise;
             const promise = getJson(endpoint).catch((err) => {
                 // Don't cache failures — allow retry on next call
                 referenceCache.delete(endpoint);
                 throw err;
             });
-            referenceCache.set(endpoint, promise);
+            referenceCache.set(endpoint, { promise, expiresAt: Date.now() + REFERENCE_CACHE_TTL_MS });
             return promise;
         }
         return getJson(endpoint);
