@@ -1,41 +1,40 @@
 import express from 'express';
-import { races } from '../data/races';
-import { classes } from '../data/classes';
-import { backgrounds } from '../data/backgrounds';
-import { spells } from '../data/spells';
-import { subclasses } from '../data/subclasses';
-import { classFeatures } from '../data/classFeatures';
-import { feats } from '../data/feats';
-import { baseItems } from '../data/baseItems';
-import { traits } from '../data/traits';
-import { fightingStyles } from '../data/fightingStyles';
+import { getReferenceRows } from '../lib/referenceCache';
+import { withCanonicalId } from '../lib/referenceTypes';
 
 const router = express.Router();
 
-// Reference data is static per deployment — let clients and proxies cache it
-// for an hour instead of re-downloading (~600KB of spells) on every visit.
+// Reference data is admin-editable now, so cache it for a short window only
+// (the referenceCache module already dedupes DB hits for longer than this).
 router.use((req, res, next) => {
-    res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+    res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=300');
     next();
 });
 
+async function listOf(type: Parameters<typeof withCanonicalId>[0]): Promise<any[]> {
+    const rows = await getReferenceRows(type);
+    return rows.map((r) => withCanonicalId(type, r.key, r.data));
+}
+
 // Get all spells
-router.get('/spells', (req, res) => {
-    res.json(spells);
+router.get('/spells', async (req, res) => {
+    res.json(await listOf('spell'));
 });
 
 // Slim projection for pickers that don't render spell text (description is
 // ~80% of the full payload). Registered before /spells/:id so "summary"
-// isn't matched as a spell id. Computed once at module load — data is static.
-const spellSummaries = spells.map(({ id, name, level, school, classes, castingTime, ritual }) => ({
-    id, name, level, school, classes, castingTime, ritual
-}));
-router.get('/spells/summary', (req, res) => {
-    res.json(spellSummaries);
+// isn't matched as a spell id.
+router.get('/spells/summary', async (req, res) => {
+    const spells = await listOf('spell');
+    const summaries = spells.map(({ id, name, level, school, classes, castingTime, ritual }) => ({
+        id, name, level, school, classes, castingTime, ritual
+    }));
+    res.json(summaries);
 });
 
 // Get single spell
-router.get('/spells/:id', (req, res) => {
+router.get('/spells/:id', async (req, res) => {
+    const spells = await listOf('spell');
     const spell = spells.find(s => s.id === req.params.id);
     if (!spell) {
         return res.status(404).json({ error: 'Spell not found' });
@@ -44,12 +43,13 @@ router.get('/spells/:id', (req, res) => {
 });
 
 // Get all races
-router.get('/races', (req, res) => {
-    res.json(races);
+router.get('/races', async (req, res) => {
+    res.json(await listOf('race'));
 });
 
 // Get single race
-router.get('/races/:id', (req, res) => {
+router.get('/races/:id', async (req, res) => {
+    const races = await listOf('race');
     const race = races.find(r => r.id === req.params.id);
     if (!race) {
         return res.status(404).json({ error: 'Race not found' });
@@ -58,12 +58,13 @@ router.get('/races/:id', (req, res) => {
 });
 
 // Get all classes
-router.get('/classes', (req, res) => {
-    res.json(classes);
+router.get('/classes', async (req, res) => {
+    res.json(await listOf('class'));
 });
 
 // Get single class
-router.get('/classes/:id', (req, res) => {
+router.get('/classes/:id', async (req, res) => {
+    const classes = await listOf('class');
     const classInfo = classes.find(c => c.id === req.params.id);
     if (!classInfo) {
         return res.status(404).json({ error: 'Class not found' });
@@ -72,12 +73,13 @@ router.get('/classes/:id', (req, res) => {
 });
 
 // Get all backgrounds
-router.get('/backgrounds', (req, res) => {
-    res.json(backgrounds);
+router.get('/backgrounds', async (req, res) => {
+    res.json(await listOf('background'));
 });
 
 // Get single background
-router.get('/backgrounds/:id', (req, res) => {
+router.get('/backgrounds/:id', async (req, res) => {
+    const backgrounds = await listOf('background');
     const background = backgrounds.find(b => b.id === req.params.id);
     if (!background) {
         return res.status(404).json({ error: 'Background not found' });
@@ -86,12 +88,13 @@ router.get('/backgrounds/:id', (req, res) => {
 });
 
 // Get all subclasses
-router.get('/subclasses', (req, res) => {
-    res.json(subclasses);
+router.get('/subclasses', async (req, res) => {
+    res.json(await listOf('subclass'));
 });
 
 // Get single subclass
-router.get('/subclasses/:id', (req, res) => {
+router.get('/subclasses/:id', async (req, res) => {
+    const subclasses = await listOf('subclass');
     const subclass = subclasses.find(s => s.id === req.params.id);
     if (!subclass) {
         return res.status(404).json({ error: 'Subclass not found' });
@@ -100,26 +103,31 @@ router.get('/subclasses/:id', (req, res) => {
 });
 
 // Get class features for a class
-router.get('/class-features/:classId', (req, res) => {
-    const features = classFeatures[req.params.classId];
-    if (!features) {
+router.get('/class-features/:classId', async (req, res) => {
+    const rows = await getReferenceRows('classFeature');
+    const row = rows.find(r => r.key === req.params.classId);
+    if (!row) {
         return res.status(404).json({ error: 'Class features not found' });
     }
-    res.json(features);
+    res.json(row.data);
 });
 
-// Get all class features
-router.get('/class-features', (req, res) => {
-    res.json(classFeatures);
+// Get all class features, as a map keyed by class id
+router.get('/class-features', async (req, res) => {
+    const rows = await getReferenceRows('classFeature');
+    const map: Record<string, any> = {};
+    for (const row of rows) map[row.key] = row.data;
+    res.json(map);
 });
 
 // Get all feats
-router.get('/feats', (req, res) => {
-    res.json(feats);
+router.get('/feats', async (req, res) => {
+    res.json(await listOf('feat'));
 });
 
 // Get single feat
-router.get('/feats/:id', (req, res) => {
+router.get('/feats/:id', async (req, res) => {
+    const feats = await listOf('feat');
     const feat = feats.find(f => f.id === req.params.id);
     if (!feat) {
         return res.status(404).json({ error: 'Feat not found' });
@@ -128,34 +136,38 @@ router.get('/feats/:id', (req, res) => {
 });
 
 // Get all base items
-router.get('/base-items', (req, res) => {
-    res.json(baseItems);
+router.get('/base-items', async (req, res) => {
+    res.json(await listOf('baseItem'));
 });
 
 // Get base items by category
-router.get('/base-items/:category', (req, res) => {
-    const category = req.params.category;
-    const filtered = baseItems.filter(item => item.category === category);
+router.get('/base-items/:category', async (req, res) => {
+    const baseItems = await listOf('baseItem');
+    const filtered = baseItems.filter(item => item.category === req.params.category);
     res.json(filtered);
 });
 
-// Get all traits
-router.get('/traits', (req, res) => {
-    res.json(traits);
+// Get all traits, as a map keyed by trait name
+router.get('/traits', async (req, res) => {
+    const rows = await getReferenceRows('trait');
+    const map: Record<string, any> = {};
+    for (const row of rows) map[row.key] = row.data;
+    res.json(map);
 });
 
 // Get single trait
-router.get('/traits/:name', (req, res) => {
-    const trait = traits[req.params.name];
-    if (!trait) {
+router.get('/traits/:name', async (req, res) => {
+    const rows = await getReferenceRows('trait');
+    const row = rows.find(r => r.key === req.params.name);
+    if (!row) {
         return res.status(404).json({ error: 'Trait not found' });
     }
-    res.json(trait);
+    res.json(row.data);
 });
 
 // Get all fighting styles
-router.get('/fighting-styles', (req, res) => {
-    res.json(fightingStyles);
+router.get('/fighting-styles', async (req, res) => {
+    res.json(await listOf('fightingStyle'));
 });
 
 export default router;

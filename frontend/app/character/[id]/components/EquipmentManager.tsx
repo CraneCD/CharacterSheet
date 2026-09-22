@@ -32,6 +32,11 @@ export default function EquipmentManager({
 }: EquipmentManagerProps) {
     const [equipment, setEquipment] = useState<(string | CharacterItem)[]>(initialEquipment || []);
     const [baseItems, setBaseItems] = useState<CharacterItem[]>([]);
+    // Full base-item reference list, keyed by id, used only to overlay live
+    // name/description onto owned items that were added from this list (see
+    // mergeLiveBaseItem below) — separate from `baseItems`, which is scoped
+    // to whatever category the "Add Item" picker currently has open.
+    const [baseItemsById, setBaseItemsById] = useState<Record<string, CharacterItem>>({});
     const [isAdding, setIsAdding] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<ItemCategory | 'custom'>('custom');
     // Cache fetched categories so navigating between them doesn't re-fetch
@@ -49,6 +54,30 @@ export default function EquipmentManager({
     useEffect(() => {
         setEquipment(initialEquipment || []);
     }, [initialEquipment]);
+
+    useEffect(() => {
+        api.get('/reference/base-items').then((data: CharacterItem[]) => {
+            const byId: Record<string, CharacterItem> = {};
+            for (const item of Array.isArray(data) ? data : []) {
+                if (item.id) byId[item.id] = item;
+            }
+            setBaseItemsById(byId);
+        }).catch(err => console.error('Failed to fetch base items', err));
+    }, []);
+
+    /**
+     * Owned items added from the base-item list carry a `baseItemId`. Overlay
+     * the current admin-edited name/description onto them at render time, so
+     * edits reflect on characters that already own the item. Stats a player
+     * can hand-edit (quantity, equipped, baseAC, armorMethod, damage,
+     * damageType) stay exactly as stored — merging those live would silently
+     * undo the player's own edits.
+     */
+    const mergeLiveBaseItem = (item: CharacterItem): CharacterItem => {
+        const live = item.baseItemId ? baseItemsById[item.baseItemId] : undefined;
+        if (!live) return item;
+        return { ...item, name: live.name, description: live.description };
+    };
 
     // Fetch base items lazily — only when the add panel is open and a non-custom category is selected
     useEffect(() => {
@@ -78,6 +107,7 @@ export default function EquipmentManager({
         try {
             const itemToAdd: CharacterItem = {
                 ...baseItem,
+                baseItemId: baseItem.id,
                 equipped: false,
                 quantity: 1
             };
@@ -465,7 +495,7 @@ export default function EquipmentManager({
                                     {categoryEntries.map(({ item, index: actualIndex }) => {
                                         const itemObj = typeof item === 'string'
                                             ? { name: item, category: getCategoryForItem(item) as ItemCategory }
-                                            : item;
+                                            : mergeLiveBaseItem(item);
                                         const isItemExpanded = expandedIndex === actualIndex;
 
                                         return (

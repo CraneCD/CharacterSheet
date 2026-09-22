@@ -26,3 +26,16 @@ export function clearAuthStorage(): void {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
 }
+
+/** True if the locally stored user (set at login) has admin access. Client-side only, for UI gating — the server enforces this independently on every /api/admin request. */
+export function isStoredUserAdmin(): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+        const raw = localStorage.getItem('user');
+        if (!raw) return false;
+        const user = JSON.parse(raw);
+        return user?.isAdmin === true;
+    } catch {
+        return false;
+    }
+}

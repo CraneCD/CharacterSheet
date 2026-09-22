@@ -617,16 +617,21 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 }
             }
         } else if (lvl === 0) {
-            // Cantrips: learned spells + elven lineage cantrip
-            spellsAtLevel = safeMySpells.filter(ms => ms.level === 0).map(ms => ({
-                id: ms.id,
-                name: ms.name,
-                level: 0,
-                school: ms.school,
-                prepared: true,
-                isKnown: true,
-                isElvenLineage: false
-            }));
+            // Cantrips: learned spells + elven lineage cantrip. Name/school are
+            // pulled live from the reference spell list (falling back to the
+            // stored copy if it was removed) so admin edits show up here too.
+            spellsAtLevel = safeMySpells.filter(ms => ms.level === 0).map(ms => {
+                const live = safeAllSpells.find(s => s.id === ms.id);
+                return {
+                    id: ms.id,
+                    name: live?.name ?? ms.name,
+                    level: 0,
+                    school: live?.school ?? ms.school,
+                    prepared: true,
+                    isKnown: true,
+                    isElvenLineage: false
+                };
+            });
             const lineageCantrip = lineageSpellsForLevel.find(l => l.spell.level === 0);
             if (lineageCantrip && !spellsAtLevel.some(s => s.id === lineageCantrip.spell.id)) {
                 spellsAtLevel.push({
@@ -640,16 +645,20 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 });
             }
         } else {
-            // Known casters (non-cantrip): only show learned spells
-            spellsAtLevel = safeMySpells.filter(ms => ms.level === lvl).map(ms => ({
-                id: ms.id,
-                name: ms.name,
-                level: ms.level,
-                school: ms.school,
-                prepared: ms.prepared,
-                isKnown: true,
-                isElvenLineage: false
-            }));
+            // Known casters (non-cantrip): only show learned spells. Name/school
+            // come live from the reference spell list so admin edits reflect here.
+            spellsAtLevel = safeMySpells.filter(ms => ms.level === lvl).map(ms => {
+                const live = safeAllSpells.find(s => s.id === ms.id);
+                return {
+                    id: ms.id,
+                    name: live?.name ?? ms.name,
+                    level: ms.level,
+                    school: live?.school ?? ms.school,
+                    prepared: ms.prepared,
+                    isKnown: true,
+                    isElvenLineage: false
+                };
+            });
             // Add elven lineage spells for this level
             for (const { spell } of lineageSpellsForLevel) {
                 if (spell.level === lvl && !spellsAtLevel.some(s => s.id === spell.id)) {

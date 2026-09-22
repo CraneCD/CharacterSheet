@@ -10,7 +10,12 @@
         "postinstall": "prisma generate",
         "test": "jest",
         "prisma:generate": "prisma generate",
-        "prisma:migrate": "prisma migrate dev"
+        "prisma:migrate": "prisma migrate dev",
+        "prisma:seed": "ts-node prisma/seed.ts",
+        "make-admin": "ts-node src/scripts/makeAdmin.ts"
+    },
+    "prisma": {
+        "seed": "ts-node prisma/seed.ts"
     },
     "dependencies": {
         "@prisma/client": "^5.7.0",

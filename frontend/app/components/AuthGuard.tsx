@@ -2,13 +2,17 @@
 
 import { useLayoutEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { clearAuthStorage, isStoredTokenValid } from '@/lib/auth';
+import { clearAuthStorage, isStoredTokenValid, isStoredUserAdmin } from '@/lib/auth';
 
-const PROTECTED_PREFIXES = ['/dashboard', '/create', '/character', '/campaigns'];
+const PROTECTED_PREFIXES = ['/dashboard', '/create', '/character', '/campaigns', '/admin'];
 const AUTH_PAGES = ['/login', '/register'];
 
 function isProtectedPath(pathname: string): boolean {
     return PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + '/'));
+}
+
+function isAdminPath(pathname: string): boolean {
+    return pathname === '/admin' || pathname.startsWith('/admin/');
 }
 
 function isAuthPage(pathname: string): boolean {
@@ -42,6 +46,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         if (isProtectedPath(pathname) && !valid) {
             if (raw) clearAuthStorage();
             router.replace('/login');
+            setClearedPath(pathname);
+            return;
+        }
+
+        if (isAdminPath(pathname) && valid && !isStoredUserAdmin()) {
+            router.replace('/dashboard');
             setClearedPath(pathname);
             return;
         }

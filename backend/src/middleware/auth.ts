@@ -6,6 +6,7 @@ export interface AuthRequest extends Request {
     user?: {
         id: string;
         email: string;
+        isAdmin: boolean;
     };
     headers: any;
     params: any;
@@ -32,9 +33,21 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
         ) {
             return res.status(403).json({ error: 'Invalid token.' });
         }
-        req.user = { id: (verified as any).id, email: (verified as any).email };
+        req.user = {
+            id: (verified as any).id,
+            email: (verified as any).email,
+            isAdmin: (verified as any).isAdmin === true,
+        };
         next();
     } catch (err) {
         res.status(403).json({ error: 'Invalid token.' });
     }
+};
+
+/** Must run after authenticateToken. Rejects non-admin users with 403. */
+export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user?.isAdmin) {
+        return res.status(403).json({ error: 'Admin access required.' });
+    }
+    next();
 };

@@ -2,10 +2,27 @@ import express from 'express';
 import { z } from 'zod';
 import { Character } from '@prisma/client';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
-import { classFeatures } from '../data/classFeatures';
-import { subclasses } from '../data/subclasses';
-import { classes } from '../data/classes';
 import { prisma } from '../lib/prisma';
+import { getReferenceRows } from '../lib/referenceCache';
+import { withCanonicalId } from '../lib/referenceTypes';
+
+// DB-backed equivalents of the old static data/*.ts imports, so admin edits
+// to classes/subclasses/class features are picked up on the next request
+// (e.g. the next level-up) rather than requiring a redeploy.
+async function getClasses() {
+    const rows = await getReferenceRows('class');
+    return rows.map(r => withCanonicalId('class', r.key, r.data));
+}
+async function getSubclasses() {
+    const rows = await getReferenceRows('subclass');
+    return rows.map(r => withCanonicalId('subclass', r.key, r.data));
+}
+async function getClassFeaturesMap(): Promise<Record<string, any[]>> {
+    const rows = await getReferenceRows('classFeature');
+    const map: Record<string, any[]> = {};
+    for (const r of rows) map[r.key] = r.data;
+    return map;
+}
 
 const router = express.Router();
 
@@ -120,7 +137,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         // instead of recomputing this initialization on every future read.
         let dataChanged = false;
         if (!data.hitDice) {
-            const classInfo = classes.find(c => c.id === character.class.toLowerCase());
+            const classInfo = (await getClasses()).find(c => c.id === character.class.toLowerCase());
             if (classInfo) {
                 data.hitDice = {
                     total: character.level,
@@ -571,6 +588,10 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
             return res.status(400).json({ error: 'Cannot level up beyond level 20' });
         }
 
+        const [classesList, subclassesList, classFeaturesMap] = await Promise.all([
+            getClasses(), getSubclasses(), getClassFeaturesMap()
+        ]);
+
         const data = character.data as any;
         
         // Handle multiclassing
@@ -590,7 +611,7 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
             }
             
             // Check prerequisites (should be checked on frontend, but verify here too)
-            const multiclassInfo = classes.find(c => c.id === multiclassId);
+            const multiclassInfo = classesList.find(c => c.id === multiclassId);
             if (!multiclassInfo) {
                 return res.status(400).json({ error: 'Invalid class for multiclassing' });
             }
@@ -649,12 +670,12 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
         
         // Update Hit Dice - for multiclass, we need to track hit dice per class
         // For now, we'll use the class being leveled up's hit die
-        const classInfo = classes.find(c => c.id === classId);
+        const classInfo = classesList.find(c => c.id === classId);
         if (classInfo) {
             // For multiclassed characters, hit dice should be tracked per class
             // But for simplicity, we'll use the primary class's hit die type
             // Total hit dice equals character level
-            const primaryClassInfo = classes.find(c => c.id === primaryClassId);
+            const primaryClassInfo = classesList.find(c => c.id === primaryClassId);
             const hitDice = data.hitDice || { total: currentLevel, spent: 0, dieType: primaryClassInfo?.hitDie || classInfo.hitDie };
             hitDice.total = newLevel; // Total hit dice equals character level
             // Keep spent count, but ensure dieType matches primary class
@@ -681,7 +702,7 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
 
         // Automatically add class features for the new level
         const classLevel = classesData[classId] || 1;
-        const classFeaturesList = classFeatures[classId] || [];
+        const classFeaturesList = classFeaturesMap[classId] || [];
         const newClassFeatures = classFeaturesList
             .filter((cf: any) => cf.level === classLevel)
             .filter((cf: any) => {
@@ -702,7 +723,7 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
         let newSubclassFeatures: any[] = [];
         if (currentSubclassId && !isNewSubclass) {
             // Only auto-add if subclass was already set (to avoid duplicates when first selecting)
-            const subclass = subclasses.find(s => s.id === currentSubclassId);
+            const subclass = subclassesList.find(s => s.id === currentSubclassId);
             if (subclass) {
                 newSubclassFeatures = subclass.features
                     .filter((sf: any) => sf.level === newLevel)

@@ -26,11 +26,32 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
         source: '',
         description: ''
     });
+    // Feats fetched from the reference list, keyed by id — used only to
+    // overlay live name/description onto features added from a feat pick
+    // (see mergeLiveFeat below), so admin edits to a feat's text show up on
+    // characters that already have it.
+    const [featsById, setFeatsById] = useState<Record<string, { name: string; description: string }>>({});
 
     // Update features when initialFeatures prop changes (e.g., after level up)
     useEffect(() => {
         setFeatures(initialFeatures || []);
     }, [initialFeatures]);
+
+    useEffect(() => {
+        api.get('/reference/feats').then((data: { id: string; name: string; description: string }[]) => {
+            const byId: Record<string, { name: string; description: string }> = {};
+            for (const feat of Array.isArray(data) ? data : []) {
+                byId[feat.id] = feat;
+            }
+            setFeatsById(byId);
+        }).catch(err => console.error('Failed to fetch feats', err));
+    }, []);
+
+    const mergeLiveFeat = (feature: CharacterFeature): CharacterFeature => {
+        const live = feature.featId ? featsById[feature.featId] : undefined;
+        if (!live) return feature;
+        return { ...feature, name: live.name, description: live.description };
+    };
 
     const handleAdd = async () => {
         if (!newItem.name?.trim() || !newItem.description?.trim()) return;
@@ -148,7 +169,9 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
                     ))}
 
                     {/* Dynamic Features */}
-                    {features.map((feature, i) => (
+                    {features.map((raw, i) => {
+                        const feature = mergeLiveFeat(raw);
+                        return (
                         <div key={i} style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', flexShrink: 0 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.25rem' }}>
                                 <span style={{ fontWeight: 'bold', fontSize: '1rem' }}>{feature.name}</span>
@@ -168,7 +191,8 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
                                 {feature.description}
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
 
                     {features.length === 0 && staticFeatures.length === 0 && (
                         <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.875rem' }}>No features recorded</div>
