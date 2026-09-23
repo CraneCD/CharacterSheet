@@ -1,3 +1,16 @@
+// Includes material from the System Reference Document 5.2 ("SRD 5.2") by
+// Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd and
+// licensed under the Creative Commons Attribution 4.0 International License
+// (https://creativecommons.org/licenses/by/4.0/legalcode). Content outside
+// SRD 5.2 is summarized in our own words. `legacy: true` marks pre-2024
+// content kept for existing characters; pickers hide it by default.
+
+export interface LineageOption {
+    id: string;
+    name: string;
+    description: string;
+}
+
 export interface Race {
     id: string;
     name: string;
@@ -6,421 +19,995 @@ export interface Race {
     speed: number;
     traits: string[];
     languages: string[];
+    /** A choice made at creation (Elven Lineage, Draconic Ancestry, ...). Adds the trait "<trait> (<option name>)". */
+    lineageOptions?: {
+        trait: string;
+        label: string;
+        options: LineageOption[];
+    };
+    source?: string;
+    legacy?: boolean;
 }
 
 export const races: Race[] = [
     {
-        id: 'human',
-        name: 'Human',
-        description: 'Humans are the most adaptable and ambitious people among the common races. Found throughout the multiverse, they are as varied as they are numerous.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Resourceful', 'Skillful', 'Versatile'],
-        languages: ['Common', 'One extra language of your choice']
+        "id": "aasimar",
+        "name": "Aasimar",
+        "source": "PHB 2024",
+        "description": "Aasimar are mortals who carry a spark of the Upper Planes within their souls, which they can fan into a blaze of light.",
+        "size": "Medium or Small",
+        "speed": 30,
+        "traits": [
+            "Celestial Resistance",
+            "Darkvision",
+            "Healing Hands",
+            "Light Bearer",
+            "Celestial Revelation"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ]
     },
     {
-        id: 'elf',
-        name: 'Elf',
-        description: 'Elves are a magical people of otherworldly grace, living in the world but not entirely part of it. Their curiosity led many to explore other planes.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Elven Lineage', 'Fey Ancestry', 'Keen Senses', 'Trance'],
-        languages: ['Common', 'Elvish']
+        "id": "dragonborn",
+        "name": "Dragonborn",
+        "source": "PHB 2024",
+        "description": "The ancestors of dragonborn hatched from the eggs of chromatic and metallic dragons, and their draconic heritage shows in their scales and breath.",
+        "size": "Medium",
+        "speed": 30,
+        "traits": [
+            "Draconic Ancestry",
+            "Breath Weapon",
+            "Damage Resistance",
+            "Darkvision",
+            "Draconic Flight"
+        ],
+        "lineageOptions": {
+            "trait": "Draconic Ancestry",
+            "label": "Draconic Ancestry",
+            "options": [
+                {
+                    "id": "black",
+                    "name": "Black",
+                    "description": "Acid damage."
+                },
+                {
+                    "id": "blue",
+                    "name": "Blue",
+                    "description": "Lightning damage."
+                },
+                {
+                    "id": "brass",
+                    "name": "Brass",
+                    "description": "Fire damage."
+                },
+                {
+                    "id": "bronze",
+                    "name": "Bronze",
+                    "description": "Lightning damage."
+                },
+                {
+                    "id": "copper",
+                    "name": "Copper",
+                    "description": "Acid damage."
+                },
+                {
+                    "id": "gold",
+                    "name": "Gold",
+                    "description": "Fire damage."
+                },
+                {
+                    "id": "green",
+                    "name": "Green",
+                    "description": "Poison damage."
+                },
+                {
+                    "id": "red",
+                    "name": "Red",
+                    "description": "Fire damage."
+                },
+                {
+                    "id": "silver",
+                    "name": "Silver",
+                    "description": "Cold damage."
+                },
+                {
+                    "id": "white",
+                    "name": "White",
+                    "description": "Cold damage."
+                }
+            ]
+        },
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ]
     },
     {
-        id: 'dwarf',
-        name: 'Dwarf',
-        description: 'Bold and hardy, dwarves are known as skilled warriors, miners, and workers of stone and metal. They were raised from the earth by a deity of the forge.',
-        size: 'Medium',
-        speed: 25,
-        traits: ['Darkvision', 'Dwarven Resilience', 'Dwarven Toughness', 'Stonecunning'],
-        languages: ['Common', 'Dwarvish']
+        "id": "dwarf",
+        "name": "Dwarf",
+        "source": "PHB 2024",
+        "description": "Dwarves were raised from the earth by a deity of the forge. They are bold and hardy, known as skilled warriors, miners and workers of stone and metal.",
+        "size": "Medium",
+        "speed": 30,
+        "traits": [
+            "Darkvision (120 ft.)",
+            "Dwarven Resilience",
+            "Dwarven Toughness",
+            "Stonecunning"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ]
     },
     {
-        id: 'halfling',
-        name: 'Halfling',
-        description: 'Halflings possess a brave and adventurous spirit that leads them on journeys of discovery. They survive in a world of larger creatures by avoiding notice or avoiding offense.',
-        size: 'Small',
-        speed: 25,
-        traits: ['Brave', 'Halfling Nimbleness', 'Luck', 'Naturally Stealthy'],
-        languages: ['Common', 'Halfling']
+        "id": "elf",
+        "name": "Elf",
+        "source": "PHB 2024",
+        "description": "Created by the god Corellon, the first elves could change their forms at will. Elves have pointed ears, lack facial and body hair, and live for centuries.",
+        "size": "Medium",
+        "speed": 30,
+        "traits": [
+            "Darkvision",
+            "Elven Lineage",
+            "Fey Ancestry",
+            "Keen Senses",
+            "Trance"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "lineageOptions": {
+            "trait": "Elven Lineage",
+            "label": "Elven Lineage",
+            "options": [
+                {
+                    "id": "drow",
+                    "name": "Drow",
+                    "description": "Darkvision 120 ft; Dancing Lights, then Faerie Fire (level 3) and Darkness (level 5)."
+                },
+                {
+                    "id": "high_elf",
+                    "name": "High Elf",
+                    "description": "Prestidigitation (swappable Wizard cantrip), then Detect Magic (level 3) and Misty Step (level 5)."
+                },
+                {
+                    "id": "wood_elf",
+                    "name": "Wood Elf",
+                    "description": "Speed 35 ft; Druidcraft, then Longstrider (level 3) and Pass without Trace (level 5)."
+                }
+            ]
+        }
     },
     {
-        id: 'dragonborn',
-        name: 'Dragonborn',
-        description: 'Born of dragons, as their name proclaims, dragonborn walk proudly through a world that greets them with fearful incomprehension. Their ancestors hatched from the eggs of chromatic and metallic dragons.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Draconic Ancestry', 'Breath Weapon', 'Damage Resistance', 'Draconic Flight'],
-        languages: ['Common', 'Draconic']
+        "id": "gnome",
+        "name": "Gnome",
+        "source": "PHB 2024",
+        "description": "Gnomes are magical folk created by gods of invention, illusions and life underground; they are curious, playful and endlessly inventive.",
+        "size": "Small",
+        "speed": 30,
+        "traits": [
+            "Darkvision",
+            "Gnomish Cunning",
+            "Gnomish Lineage"
+        ],
+        "lineageOptions": {
+            "trait": "Gnomish Lineage",
+            "label": "Gnomish Lineage",
+            "options": [
+                {
+                    "id": "forest_gnome",
+                    "name": "Forest Gnome",
+                    "description": "You know the Minor Illusion cantrip and always have Speak with Animals prepared."
+                },
+                {
+                    "id": "rock_gnome",
+                    "name": "Rock Gnome",
+                    "description": "You know the Mending and Prestidigitation cantrips and can build tiny clockwork devices."
+                }
+            ]
+        },
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ]
     },
     {
-        id: 'gnome',
-        name: 'Gnome',
-        description: 'Gnomes are magical folk created by gods of invention, illusions, and life underground. Their energy and enthusiasm shine through every inch of their tiny bodies.',
-        size: 'Small',
-        speed: 25,
-        traits: ['Darkvision', 'Gnomish Cunning', 'Gnomish Lineage'],
-        languages: ['Common', 'Gnomish']
+        "id": "goliath",
+        "name": "Goliath",
+        "source": "PHB 2024",
+        "description": "Goliaths are distant descendants of giants. They bear the physical and supernatural echoes of their ancestors and tower over most other folk.",
+        "size": "Medium",
+        "speed": 35,
+        "traits": [
+            "Giant Ancestry",
+            "Large Form",
+            "Powerful Build"
+        ],
+        "lineageOptions": {
+            "trait": "Giant Ancestry",
+            "label": "Giant Ancestry",
+            "options": [
+                {
+                    "id": "cloud",
+                    "name": "Cloud's Jaunt",
+                    "description": "Bonus Action teleport up to 30 feet."
+                },
+                {
+                    "id": "fire",
+                    "name": "Fire's Burn",
+                    "description": "Deal an extra 1d10 Fire damage on a hit."
+                },
+                {
+                    "id": "frost",
+                    "name": "Frost's Chill",
+                    "description": "Deal an extra 1d6 Cold damage and reduce Speed by 10 feet."
+                },
+                {
+                    "id": "hill",
+                    "name": "Hill's Tumble",
+                    "description": "Knock a Large or smaller creature Prone on a hit."
+                },
+                {
+                    "id": "stone",
+                    "name": "Stone's Endurance",
+                    "description": "Reaction to reduce damage by 1d12 + Constitution modifier."
+                },
+                {
+                    "id": "storm",
+                    "name": "Storm's Thunder",
+                    "description": "Reaction to deal 1d8 Thunder damage to a creature that damages you."
+                }
+            ]
+        },
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ]
     },
     {
-        id: 'half-elf',
-        name: 'Half-Elf',
-        description: 'Walking in two worlds but truly belonging to neither, half-elves combine what some say are the best qualities of both races.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Fey Ancestry', 'Skill Versatility'],
-        languages: ['Common', 'Elvish', 'One extra language']
+        "id": "halfling",
+        "name": "Halfling",
+        "source": "PHB 2024",
+        "description": "Cherished and guided by gods who value life, home and hearth, halflings gravitate toward bucolic havens and have a knack for avoiding danger.",
+        "size": "Small",
+        "speed": 30,
+        "traits": [
+            "Brave",
+            "Halfling Nimbleness",
+            "Luck",
+            "Naturally Stealthy"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ]
     },
     {
-        id: 'half-orc',
-        name: 'Half-Orc',
-        description: 'Half-orcs\' grayish pigmentation, sloping foreheads, jutting jaws, prominent teeth, and towering builds make their orcish heritage plain for all to see.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Menacing', 'Relentless Endurance', 'Savage Attacks'],
-        languages: ['Common', 'Orc']
+        "id": "human",
+        "name": "Human",
+        "source": "PHB 2024",
+        "description": "Found throughout the multiverse, humans are as varied as they are numerous and endeavor to achieve as much as they can in their brief lives.",
+        "size": "Medium or Small",
+        "speed": 30,
+        "traits": [
+            "Resourceful",
+            "Skillful",
+            "Versatile"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ]
     },
     {
-        id: 'tiefling',
-        name: 'Tiefling',
-        description: 'Tieflings are either born in the Lower Planes or have fiendish ancestors who originated there. To be greeted with stares and whispers is the lot of many tieflings.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Fiendish Legacy', 'Hellish Resistance', 'Otherworldly Presence'],
-        languages: ['Common', 'Infernal']
+        "id": "orc",
+        "name": "Orc",
+        "source": "PHB 2024",
+        "description": "Orcs trace their creation to Gruumsh, who gave them gifts to help them wander great plains, vast caverns and churning seas and to face the monsters there.",
+        "size": "Medium",
+        "speed": 30,
+        "traits": [
+            "Adrenaline Rush",
+            "Darkvision (120 ft.)",
+            "Relentless Endurance"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ]
     },
     {
-        id: 'orc',
-        name: 'Orc',
-        description: 'Orcs are equipped with gifts to help them wander great plains, vast caverns, and churning seas. Gruumsh\'s blessings make them tireless guardians and mighty allies.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Adrenaline Rush', 'Darkvision', 'Relentless Endurance'],
-        languages: ['Common', 'Orc']
+        "id": "tiefling",
+        "name": "Tiefling",
+        "source": "PHB 2024",
+        "description": "Tieflings are either born in the Lower Planes or have fiendish ancestors who originated there; a fiendish legacy links them to one of those realms.",
+        "size": "Medium or Small",
+        "speed": 30,
+        "traits": [
+            "Darkvision",
+            "Fiendish Legacy",
+            "Otherworldly Presence"
+        ],
+        "lineageOptions": {
+            "trait": "Fiendish Legacy",
+            "label": "Fiendish Legacy",
+            "options": [
+                {
+                    "id": "abyssal",
+                    "name": "Abyssal",
+                    "description": "Poison resistance; Poison Spray, then Ray of Sickness (level 3) and Hold Person (level 5)."
+                },
+                {
+                    "id": "chthonic",
+                    "name": "Chthonic",
+                    "description": "Necrotic resistance; Chill Touch, then False Life (level 3) and Ray of Enfeeblement (level 5)."
+                },
+                {
+                    "id": "infernal",
+                    "name": "Infernal",
+                    "description": "Fire resistance; Fire Bolt, then Hellish Rebuke (level 3) and Darkness (level 5)."
+                }
+            ]
+        },
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ]
     },
     {
-        id: 'aarakocra',
-        name: 'Aarakocra',
-        description: 'Aarakocra are bird-like humanoids with wings and talons.',
-        size: 'Medium',
-        speed: 25,
-        traits: ['Flight (50 ft.)', 'Talons'],
-        languages: ['Common', 'Aarakocra', 'Auran']
+        "id": "aarakocra",
+        "name": "Aarakocra",
+        "size": "Medium",
+        "speed": 30,
+        "description": "Aarakocra are bird-like humanoids from the Elemental Plane of Air who soar on feathered wings.",
+        "traits": [
+            "Flight",
+            "Talons",
+            "Wind Caller"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'aasimar',
-        name: 'Aasimar',
-        description: 'Aasimar are mortals who carry a spark of the Upper Planes within their souls, either by birth or through a divine event.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Celestial Resistance', 'Celestial Revelation', 'Darkvision', 'Healing Hands', 'Light Bearer'],
-        languages: ['Common', 'Celestial']
+        "id": "bugbear",
+        "name": "Bugbear",
+        "size": "Medium",
+        "speed": 30,
+        "description": "Bugbears are long-limbed goblinoids with a fey heritage and a talent for ambush.",
+        "traits": [
+            "Darkvision",
+            "Fey Ancestry",
+            "Long-Limbed",
+            "Powerful Build",
+            "Sneaky",
+            "Surprise Attack"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'changeling',
-        name: 'Changeling',
-        description: 'Changelings are shapeshifters capable of disguising their appearance.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Shapechanger', 'Divergent Persona'],
-        languages: ['Common', 'Two languages of your choice']
+        "id": "centaur",
+        "name": "Centaur",
+        "size": "Medium",
+        "speed": 40,
+        "description": "Centaurs gallop across the planes with the upper body of a humanoid and the lower body of a horse. Your creature type is Fey.",
+        "traits": [
+            "Charge",
+            "Equine Build",
+            "Hooves",
+            "Natural Affinity"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'deep-gnome',
-        name: 'Deep Gnome (Svirfneblin)',
-        description: 'Deep gnomes, or svirfneblin, are gnomes who live in the Underdark.',
-        size: 'Small',
-        speed: 25,
-        traits: ['Superior Darkvision', 'Stone Camouflage', 'Gnome Cunning'],
-        languages: ['Common', 'Gnomish', 'Undercommon']
+        "id": "changeling",
+        "name": "Changeling",
+        "size": "Medium or Small",
+        "speed": 30,
+        "description": "Changelings are fey-touched shapeshifters who can alter their appearance at will.",
+        "traits": [
+            "Changeling Instincts",
+            "Shapechanger"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'duergar',
-        name: 'Duergar',
-        description: 'Duergar are dwarves who were corrupted by mind flayers and now dwell in the Underdark.',
-        size: 'Medium',
-        speed: 25,
-        traits: ['Superior Darkvision', 'Duergar Resilience', 'Duergar Magic', 'Sunlight Sensitivity'],
-        languages: ['Common', 'Dwarvish', 'Undercommon']
+        "id": "deep-gnome",
+        "name": "Deep Gnome (Svirfneblin)",
+        "size": "Small",
+        "speed": 30,
+        "description": "Deep gnomes are gnomes infused with the magic of the Underdark, naturally stealthy and resistant to magic.",
+        "traits": [
+            "Superior Darkvision",
+            "Gift of the Svirfneblin",
+            "Gnomish Magic Resistance",
+            "Svirfneblin Camouflage"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'eladrin',
-        name: 'Eladrin',
-        description: 'Eladrin are elves closely tied to the Feywild, embodying the seasons.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Fey Ancestry', 'Keen Senses', 'Trance', 'Fey Step'],
-        languages: ['Common', 'Elvish']
+        "id": "duergar",
+        "name": "Duergar",
+        "size": "Medium",
+        "speed": 30,
+        "description": "Duergar are dwarves whose ancestors were changed by centuries of captivity by mind flayers in the Underdark.",
+        "traits": [
+            "Superior Darkvision",
+            "Duergar Magic",
+            "Dwarven Resilience",
+            "Psionic Fortitude"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'fairy',
-        name: 'Fairy',
-        description: 'Fairies are small fey creatures with an otherworldly beauty.',
-        size: 'Small',
-        speed: 30,
-        traits: ['Flight', 'Fairy Magic'],
-        languages: ['Common', 'Sylvan']
+        "id": "eladrin",
+        "name": "Eladrin",
+        "size": "Medium",
+        "speed": 30,
+        "description": "Eladrin are elves of the Feywild whose moods and magic shift with the seasons.",
+        "traits": [
+            "Darkvision",
+            "Fey Ancestry",
+            "Fey Step",
+            "Keen Senses (Perception)",
+            "Trance"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'firbolg',
-        name: 'Firbolg',
-        description: 'Firbolgs are reclusive forest-dwelling giants with a strong connection to nature.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Firbolg Magic', 'Hidden Step', 'Powerful Build', 'Speech of Beast and Leaf'],
-        languages: ['Common', 'Elvish', 'Giant']
+        "id": "fairy",
+        "name": "Fairy",
+        "size": "Small",
+        "speed": 30,
+        "description": "Fairies are tiny winged fey of the Feywild. Your creature type is Fey.",
+        "traits": [
+            "Fairy Magic",
+            "Flight"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'genasi-air',
-        name: 'Genasi (Air)',
-        description: 'Genasi are planetouched beings with elemental ancestry. Air genasi have the power of wind and sky.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Unending Breath', 'Mingle with the Wind'],
-        languages: ['Common', 'Primordial']
+        "id": "firbolg",
+        "name": "Firbolg",
+        "size": "Medium",
+        "speed": 30,
+        "description": "Firbolgs are reclusive forest folk with a gentle manner and a quiet magic tied to the natural world.",
+        "traits": [
+            "Firbolg Magic",
+            "Hidden Step",
+            "Powerful Build",
+            "Speech of Beast and Leaf"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'genasi-earth',
-        name: 'Genasi (Earth)',
-        description: 'Genasi are planetouched beings with elemental ancestry. Earth genasi have the power of stone and earth.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Earth Walk', 'Merge with Stone'],
-        languages: ['Common', 'Primordial']
+        "id": "genasi-air",
+        "name": "Genasi (Air)",
+        "size": "Medium or Small",
+        "speed": 35,
+        "description": "Genasi carry the power of the elemental planes in their bodies. Air genasi have the speed and freedom of the wind.",
+        "traits": [
+            "Darkvision",
+            "Lightning Resistance",
+            "Mingle with the Wind",
+            "Unending Breath"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'genasi-fire',
-        name: 'Genasi (Fire)',
-        description: 'Genasi are planetouched beings with elemental ancestry. Fire genasi have the power of flame.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Fire Resistance', 'Reach to the Blaze'],
-        languages: ['Common', 'Primordial']
+        "id": "genasi-earth",
+        "name": "Genasi (Earth)",
+        "size": "Medium or Small",
+        "speed": 30,
+        "description": "Genasi carry the power of the elemental planes in their bodies. Earth genasi share the steadfastness of stone.",
+        "traits": [
+            "Darkvision",
+            "Earth Walk",
+            "Merge with Stone"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'genasi-water',
-        name: 'Genasi (Water)',
-        description: 'Genasi are planetouched beings with elemental ancestry. Water genasi have the power of water and sea.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Amphibious', 'Swim', 'Call to the Wave'],
-        languages: ['Common', 'Primordial']
+        "id": "genasi-fire",
+        "name": "Genasi (Fire)",
+        "size": "Medium or Small",
+        "speed": 30,
+        "description": "Genasi carry the power of the elemental planes in their bodies. Fire genasi burn with an inner flame.",
+        "traits": [
+            "Darkvision",
+            "Fire Resistance",
+            "Reach to the Blaze"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'githyanki',
-        name: 'Githyanki',
-        description: 'Githyanki are a race of tall, gaunt humanoids with psionic powers, sworn enemies of mind flayers.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Decadent Mastery', 'Githyanki Psionics', 'Martial Prodigy'],
-        languages: ['Common', 'Gith']
+        "id": "genasi-water",
+        "name": "Genasi (Water)",
+        "size": "Medium or Small",
+        "speed": 30,
+        "description": "Genasi carry the power of the elemental planes in their bodies. Water genasi are at home in the sea. You also have a Swim Speed equal to your Speed.",
+        "traits": [
+            "Acid Resistance",
+            "Amphibious",
+            "Darkvision",
+            "Swim",
+            "Call to the Wave"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'githzerai',
-        name: 'Githzerai',
-        description: 'Githzerai are a race of tall, gaunt humanoids with psionic powers, focused on discipline and order.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Mental Discipline', 'Githzerai Psionics'],
-        languages: ['Common', 'Gith']
+        "id": "githyanki",
+        "name": "Githyanki",
+        "size": "Medium",
+        "speed": 30,
+        "description": "Githyanki are Astral Plane raiders, descendants of a people who threw off mind flayer enslavement.",
+        "traits": [
+            "Astral Knowledge",
+            "Githyanki Psionics",
+            "Psychic Resilience"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'goliath',
-        name: 'Goliath',
-        description: 'Goliaths are distant descendants of giants and seek heights above those reached by their ancestors. They are strong, competitive, and mountain-dwelling.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Giant Ancestry', 'Large Form', 'Powerful Build'],
-        languages: ['Common', 'Giant']
+        "id": "githzerai",
+        "name": "Githzerai",
+        "size": "Medium",
+        "speed": 30,
+        "description": "Githzerai are ascetics of Limbo, descendants of a people who threw off mind flayer enslavement, who hone their minds through discipline.",
+        "traits": [
+            "Githzerai Psionics",
+            "Mental Discipline",
+            "Psychic Resilience"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'harengon',
-        name: 'Harengon',
-        description: 'Harengon are rabbit-like humanoids with a strong connection to the Feywild.',
-        size: 'Small or Medium',
-        speed: 30,
-        traits: ['Lucky Footwork', 'Rabbit Hop', 'Hare-Trigger'],
-        languages: ['Common', 'One language of your choice']
+        "id": "goblin",
+        "name": "Goblin",
+        "size": "Small",
+        "speed": 30,
+        "description": "Goblins are small goblinoids with a fey heritage and a knack for escaping danger.",
+        "traits": [
+            "Darkvision",
+            "Fey Ancestry",
+            "Fury of the Small",
+            "Nimble Escape"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'kenku',
-        name: 'Kenku',
-        description: 'Kenku are a race of crow-like humanoids cursed to only mimic sounds they have heard.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Expert Forgery', 'Kenku Training', 'Mimicry'],
-        languages: ['Common', 'Auran']
+        "id": "harengon",
+        "name": "Harengon",
+        "size": "Medium or Small",
+        "speed": 30,
+        "description": "Harengons are rabbitfolk from the Feywild with springy legs and quick reflexes.",
+        "traits": [
+            "Hare-Trigger",
+            "Leporine Senses",
+            "Lucky Footwork",
+            "Rabbit Hop"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'locathah',
-        name: 'Locathah',
-        description: 'Locathah are fish-like humanoids who live in the depths of the ocean.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Amphibious', 'Leviathan Will', 'Natural Armor', 'Observant'],
-        languages: ['Common', 'Aquan']
+        "id": "hobgoblin",
+        "name": "Hobgoblin",
+        "size": "Medium",
+        "speed": 30,
+        "description": "Hobgoblins are goblinoids whose fey heritage shows in their gift for aiding their companions.",
+        "traits": [
+            "Darkvision",
+            "Fey Gift",
+            "Fortune from the Many"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'owlin',
-        name: 'Owlin',
-        description: 'Owlin are owl-like humanoids with the ability to fly.',
-        size: 'Small or Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Flight', 'Silent Feathers'],
-        languages: ['Common', 'One language of your choice']
+        "id": "kenku",
+        "name": "Kenku",
+        "size": "Medium or Small",
+        "speed": 30,
+        "description": "Kenku are feathered folk with a remarkable memory and a talent for mimicry.",
+        "traits": [
+            "Expert Duplication",
+            "Kenku Recall",
+            "Mimicry"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'satyr',
-        name: 'Satyr',
-        description: 'Satyrs are fey creatures with the upper body of a human and the lower body of a goat.',
-        size: 'Medium',
-        speed: 35,
-        traits: ['Fey', 'Ram', 'Reveler', 'Mirthful Leaps'],
-        languages: ['Common', 'Sylvan']
+        "id": "kobold",
+        "name": "Kobold",
+        "size": "Small",
+        "speed": 30,
+        "description": "Kobolds are small reptilian folk with a draconic legacy.",
+        "traits": [
+            "Darkvision",
+            "Draconic Cry",
+            "Kobold Legacy"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'sea-elf',
-        name: 'Sea Elf',
-        description: 'Sea elves are elves who have adapted to life in the ocean depths.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Fey Ancestry', 'Keen Senses', 'Trance', 'Child of the Sea', 'Friend of the Sea'],
-        languages: ['Common', 'Elvish', 'Aquan']
+        "id": "lizardfolk",
+        "name": "Lizardfolk",
+        "size": "Medium",
+        "speed": 30,
+        "description": "Lizardfolk are reptilian people with a keen understanding of the natural world. You also have a Swim Speed equal to your Speed.",
+        "traits": [
+            "Bite",
+            "Hold Breath",
+            "Hungry Jaws",
+            "Natural Armor",
+            "Nature's Intuition"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'shadar-kai',
-        name: 'Shadar-Kai',
-        description: 'Shadar-kai are elves touched by the Shadowfell, serving the Raven Queen.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Fey Ancestry', 'Keen Senses', 'Trance', 'Necrotic Resistance', 'Blessing of the Raven Queen'],
-        languages: ['Common', 'Elvish']
+        "id": "minotaur",
+        "name": "Minotaur",
+        "size": "Medium",
+        "speed": 30,
+        "description": "Minotaurs are powerful, horned folk with an unerring sense of direction.",
+        "traits": [
+            "Horns",
+            "Goring Rush",
+            "Hammering Horns",
+            "Labyrinthine Recall"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'tabaxi',
-        name: 'Tabaxi',
-        description: 'Tabaxi are a race of cat-like humanoids with a curiosity for collecting interesting objects.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Feline Agility', 'Cat\'s Claws', 'Cat\'s Talent'],
-        languages: ['Common', 'One language of your choice']
+        "id": "owlin",
+        "name": "Owlin",
+        "size": "Medium or Small",
+        "speed": 30,
+        "description": "Owlin are owlfolk touched by the magic of the Feywild, with silent wings and keen night vision.",
+        "traits": [
+            "Superior Darkvision",
+            "Flight",
+            "Silent Feathers"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'tortle',
-        name: 'Tortle',
-        description: 'Tortles are a race of humanoid turtles with natural armor.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Claws', 'Hold Breath', 'Natural Armor', 'Shell Defense', 'Survival Instinct'],
-        languages: ['Common', 'Aquan']
+        "id": "satyr",
+        "name": "Satyr",
+        "size": "Medium",
+        "speed": 35,
+        "description": "Satyrs are revelers of the Feywild with the legs and horns of a goat. Your creature type is Fey.",
+        "traits": [
+            "Fey",
+            "Ram",
+            "Magic Resistance",
+            "Mirthful Leaps",
+            "Reveler"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'triton',
-        name: 'Triton',
-        description: 'Tritons are a race of aquatic humanoids from the Elemental Plane of Water.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Amphibious', 'Control Air and Water', 'Emissary of the Sea', 'Guardians of the Depths'],
-        languages: ['Common', 'Primordial']
+        "id": "sea-elf",
+        "name": "Sea Elf",
+        "size": "Medium",
+        "speed": 30,
+        "description": "Sea elves are elves who long ago adapted to life in the ocean depths.",
+        "traits": [
+            "Darkvision",
+            "Fey Ancestry",
+            "Keen Senses (Perception)",
+            "Trance",
+            "Child of the Sea",
+            "Friend of the Sea"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'verdan',
-        name: 'Verdan',
-        description: 'Verdan are a race of goblinoid humanoids who have been transformed by chaos magic.',
-        size: 'Small or Medium',
-        speed: 30,
-        traits: ['Black Blood Healing', 'Limited Telepathy', 'Persuasive', 'Verdan Weapon Training'],
-        languages: ['Common', 'One language of your choice']
+        "id": "shadar-kai",
+        "name": "Shadar-Kai",
+        "size": "Medium",
+        "speed": 30,
+        "description": "Shadar-kai are elves of the Shadowfell, bound to the Raven Queen.",
+        "traits": [
+            "Darkvision",
+            "Fey Ancestry",
+            "Keen Senses (Perception)",
+            "Trance",
+            "Necrotic Resistance",
+            "Blessing of the Raven Queen"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'bugbear',
-        name: 'Bugbear',
-        description: 'Bugbears are large, hairy goblinoids with a talent for stealth and ambush.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Long-Limbed', 'Powerful Build', 'Sneaky', 'Surprise Attack'],
-        languages: ['Common', 'Goblin']
+        "id": "shifter",
+        "name": "Shifter",
+        "size": "Medium",
+        "speed": 30,
+        "description": "Shifters have a bestial aspect they can briefly call upon.",
+        "traits": [
+            "Bestial Instincts",
+            "Darkvision",
+            "Shifting"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'centaur',
-        name: 'Centaur',
-        description: 'Centaurs are humanoid creatures with the upper body of a human and the lower body of a horse.',
-        size: 'Medium',
-        speed: 40,
-        traits: ['Charge', 'Equine Build', 'Hooves', 'Natural Affinity'],
-        languages: ['Common', 'Elvish', 'Sylvan']
+        "id": "tabaxi",
+        "name": "Tabaxi",
+        "size": "Medium or Small",
+        "speed": 30,
+        "description": "Tabaxi are catfolk with boundless curiosity. You also have a Climb Speed equal to your Speed.",
+        "traits": [
+            "Darkvision",
+            "Feline Agility",
+            "Cat's Claws",
+            "Cat's Talent"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'goblin',
-        name: 'Goblin',
-        description: 'Goblins are small, black-hearted humanoids that lair in despoiled dungeons and other dismal settings.',
-        size: 'Small',
-        speed: 30,
-        traits: ['Darkvision', 'Fury of the Small', 'Nimble Escape'],
-        languages: ['Common', 'Goblin']
+        "id": "tortle",
+        "name": "Tortle",
+        "size": "Medium or Small",
+        "speed": 30,
+        "description": "Tortles are turtle folk who carry their shell-homes on their backs.",
+        "traits": [
+            "Claws",
+            "Hold Breath (1 hour)",
+            "Natural Armor (Shell)",
+            "Nature's Intuition",
+            "Shell Defense"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'grung',
-        name: 'Grung',
-        description: 'Grungs are small, froglike humanoids native to tropical forests and jungles.',
-        size: 'Small',
-        speed: 25,
-        traits: ['Amphibious', 'Poison Immunity', 'Poisonous Skin', 'Standing Leap', 'Water Dependency'],
-        languages: ['Common', 'Grung']
+        "id": "triton",
+        "name": "Triton",
+        "size": "Medium",
+        "speed": 30,
+        "description": "Tritons are guardians of the ocean depths with ties to the Elemental Plane of Water. You also have a Swim Speed equal to your Speed.",
+        "traits": [
+            "Amphibious",
+            "Control Air and Water",
+            "Darkvision",
+            "Emissary of the Sea",
+            "Guardians of the Depths"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'hobgoblin',
-        name: 'Hobgoblin',
-        description: 'Hobgoblins are militaristic humanoids known for their discipline and tactical prowess.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Fey Ancestry', 'Martial Training', 'Saving Face'],
-        languages: ['Common', 'Goblin']
+        "id": "yuan-ti",
+        "name": "Yuan-Ti",
+        "size": "Medium or Small",
+        "speed": 30,
+        "description": "Yuan-ti are serpentine humanoids transformed by ancient rituals.",
+        "traits": [
+            "Darkvision",
+            "Magic Resistance",
+            "Poison Resilience",
+            "Serpentine Spellcasting"
+        ],
+        "languages": [
+            "Common",
+            "Two standard languages of your choice"
+        ],
+        "source": "Monsters of the Multiverse"
     },
     {
-        id: 'kobold',
-        name: 'Kobold',
-        description: 'Kobolds are small, reptilian humanoids known for their cowardice and cunning traps.',
-        size: 'Small',
-        speed: 30,
-        traits: ['Darkvision', 'Grovel, Cower, and Beg', 'Pack Tactics', 'Sunlight Sensitivity'],
-        languages: ['Common', 'Draconic']
+        "id": "half-elf",
+        "name": "Half-Elf",
+        "description": "Walking in two worlds but truly belonging to neither, half-elves combine what some say are the best qualities of both races.",
+        "size": "Medium",
+        "speed": 30,
+        "traits": [
+            "Darkvision",
+            "Fey Ancestry",
+            "Skill Versatility"
+        ],
+        "languages": [
+            "Common",
+            "Elvish",
+            "One extra language"
+        ],
+        "legacy": true,
+        "source": "Legacy (pre-2024)"
     },
     {
-        id: 'lizardfolk',
-        name: 'Lizardfolk',
-        description: 'Lizardfolk are primitive reptilian humanoids that lurk in swamps and jungles.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Bite', 'Cunning Artisan', 'Hold Breath', 'Hunter\'s Lore', 'Natural Armor', 'Hungry Jaws'],
-        languages: ['Common', 'Draconic']
+        "id": "half-orc",
+        "name": "Half-Orc",
+        "description": "Half-orcs' grayish pigmentation, sloping foreheads, jutting jaws, prominent teeth, and towering builds make their orcish heritage plain for all to see.",
+        "size": "Medium",
+        "speed": 30,
+        "traits": [
+            "Darkvision",
+            "Menacing",
+            "Relentless Endurance",
+            "Savage Attacks"
+        ],
+        "languages": [
+            "Common",
+            "Orc"
+        ],
+        "legacy": true,
+        "source": "Legacy (pre-2024)"
     },
     {
-        id: 'minotaur',
-        name: 'Minotaur',
-        description: 'Minotaurs are powerful humanoids with the head and horns of a bull.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Horns', 'Goring Rush', 'Hammering Horns', 'Imposing Presence', 'Labyrinthine Recall'],
-        languages: ['Common', 'Minotaur']
+        "id": "locathah",
+        "name": "Locathah",
+        "description": "Locathah are fish-like humanoids who live in the depths of the ocean.",
+        "size": "Medium",
+        "speed": 30,
+        "traits": [
+            "Amphibious",
+            "Leviathan Will",
+            "Natural Armor",
+            "Observant"
+        ],
+        "languages": [
+            "Common",
+            "Aquan"
+        ],
+        "legacy": true,
+        "source": "Legacy (pre-2024)"
     },
     {
-        id: 'shifter',
-        name: 'Shifter',
-        description: 'Shifters are humanoids with a bestial aspect, able to briefly call upon their animalistic nature.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Keen Senses', 'Shifting'],
-        languages: ['Common', 'One language of your choice']
+        "id": "verdan",
+        "name": "Verdan",
+        "description": "Verdan are a race of goblinoid humanoids who have been transformed by chaos magic.",
+        "size": "Small or Medium",
+        "speed": 30,
+        "traits": [
+            "Black Blood Healing",
+            "Limited Telepathy",
+            "Persuasive",
+            "Verdan Weapon Training"
+        ],
+        "languages": [
+            "Common",
+            "One language of your choice"
+        ],
+        "legacy": true,
+        "source": "Legacy (pre-2024)"
     },
     {
-        id: 'yuan-ti',
-        name: 'Yuan-Ti',
-        description: 'Yuan-ti are serpentine humanoids with a connection to dark magic and snake gods.',
-        size: 'Medium',
-        speed: 30,
-        traits: ['Darkvision', 'Magic Resistance', 'Poison Immunity', 'Serpentine Spellcasting'],
-        languages: ['Common', 'Abyssal', 'Draconic']
+        "id": "grung",
+        "name": "Grung",
+        "description": "Grungs are small, froglike humanoids native to tropical forests and jungles.",
+        "size": "Small",
+        "speed": 25,
+        "traits": [
+            "Amphibious",
+            "Poison Immunity",
+            "Poisonous Skin",
+            "Standing Leap",
+            "Water Dependency"
+        ],
+        "languages": [
+            "Common",
+            "Grung"
+        ],
+        "legacy": true,
+        "source": "Legacy (pre-2024)"
     }
 ];

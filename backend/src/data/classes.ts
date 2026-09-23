@@ -1,3 +1,10 @@
+// Includes material from the System Reference Document 5.2 ("SRD 5.2") by
+// Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd and
+// licensed under the Creative Commons Attribution 4.0 International License
+// (https://creativecommons.org/licenses/by/4.0/legalcode). Content outside
+// SRD 5.2 is summarized in our own words. `legacy: true` marks pre-2024
+// content kept for existing characters; pickers hide it by default.
+
 export interface ClassInfo {
     id: string;
     name: string;
@@ -9,220 +16,534 @@ export interface ClassInfo {
     skillOptions: string[];
     armorProficiencies: string[];
     weaponProficiencies: string[];
+    toolProficiencies?: string[];
+    /** One line per choice; options are separated by " or ", items within an option by ", ". */
     startingEquipment: string[];
     spellcaster: boolean;
     spellcastingAbility?: string;
-    preparedCaster?: boolean; // If true, class knows all spells and prepares a subset each day (Cleric, Druid, Paladin, Ranger)
+    /** Cleric, Druid, Paladin, Ranger, Wizard: prepared list can change on a Long Rest. Bard, Sorcerer, Warlock change spells when they gain a level. */
+    preparedCaster?: boolean;
     subclassLevel?: number;
-    multiclassPrerequisites?: { [ability: string]: number }; // Ability score requirements for multiclassing (e.g., { str: 13, cha: 13 })
+    multiclassPrerequisites?: { [ability: string]: number }; // Fighter needs Str OR Dex 13 (handled in logic)
 }
 
 export const classes: ClassInfo[] = [
     {
-        id: 'fighter',
-        name: 'Fighter',
-        description: 'A master of martial combat, skilled with a variety of weapons and armor.',
-        hitDie: 10,
-        primaryAbility: ['str', 'dex'],
-        savingThrows: ['str', 'con'],
-        skillChoices: 2,
-        skillOptions: ['Acrobatics', 'Animal Handling', 'Athletics', 'History', 'Insight', 'Intimidation', 'Perception', 'Survival'],
-        armorProficiencies: ['All armor', 'Shields'],
-        weaponProficiencies: ['Simple weapons', 'Martial weapons'],
-        startingEquipment: ['Chain mail or leather armor', 'Shield and martial weapon or two martial weapons', 'Light crossbow and 20 bolts or two handaxes', 'Dungeoneer\'s pack or Explorer\'s pack'],
-        spellcaster: false,
-        subclassLevel: 3,
-        multiclassPrerequisites: { str: 13 } // Or Dex 13 (handled in logic)
+        "id": "fighter",
+        "name": "Fighter",
+        "hitDie": 10,
+        "description": "A master of all arms and armor, skilled in weapon mastery and combat tactics.",
+        "primaryAbility": [
+            "str",
+            "dex"
+        ],
+        "savingThrows": [
+            "str",
+            "con"
+        ],
+        "skillChoices": 2,
+        "skillOptions": [
+            "Acrobatics",
+            "Animal Handling",
+            "Athletics",
+            "History",
+            "Insight",
+            "Intimidation",
+            "Persuasion",
+            "Perception",
+            "Survival"
+        ],
+        "armorProficiencies": [
+            "Light armor",
+            "Medium armor",
+            "Heavy armor",
+            "Shields"
+        ],
+        "weaponProficiencies": [
+            "Simple weapons",
+            "Martial weapons"
+        ],
+        "toolProficiencies": [],
+        "startingEquipment": [
+            "Chain Mail, Greatsword, Flail, 8 Javelins, Dungeoneer's Pack, 4 GP or Studded Leather Armor, Scimitar, Shortsword, Longbow, 20 Arrows, Quiver, Dungeoneer's Pack, 11 GP or 155 GP"
+        ],
+        "spellcaster": false,
+        "subclassLevel": 3,
+        "multiclassPrerequisites": {
+            "str": 13
+        }
     },
     {
-        id: 'wizard',
-        name: 'Wizard',
-        description: 'A scholarly magic-user capable of manipulating the structures of reality.',
-        hitDie: 6,
-        primaryAbility: ['int'],
-        savingThrows: ['int', 'wis'],
-        skillChoices: 2,
-        skillOptions: ['Arcana', 'History', 'Insight', 'Investigation', 'Medicine', 'Nature', 'Religion'],
-        armorProficiencies: ['None'],
-        weaponProficiencies: ['Simple weapons'],
-        startingEquipment: ['Quarterstaff or dagger', 'Component pouch or arcane focus', 'Scholar\'s pack or Explorer\'s pack', 'Spellbook'],
-        spellcaster: true,
-        spellcastingAbility: 'int',
-        preparedCaster: true,
-        subclassLevel: 3,
-        multiclassPrerequisites: { int: 13 }
+        "id": "wizard",
+        "name": "Wizard",
+        "hitDie": 6,
+        "description": "A scholarly magic-user who studies arcane secrets recorded in a spellbook.",
+        "primaryAbility": [
+            "int"
+        ],
+        "savingThrows": [
+            "int",
+            "wis"
+        ],
+        "skillChoices": 2,
+        "skillOptions": [
+            "Arcana",
+            "History",
+            "Insight",
+            "Investigation",
+            "Medicine",
+            "Nature",
+            "Religion"
+        ],
+        "armorProficiencies": [
+            "None"
+        ],
+        "weaponProficiencies": [
+            "Simple weapons"
+        ],
+        "toolProficiencies": [],
+        "startingEquipment": [
+            "2 Daggers, Arcane Focus (Quarterstaff), Robe, Spellbook, Scholar's Pack, 5 GP or 55 GP"
+        ],
+        "spellcaster": true,
+        "spellcastingAbility": "int",
+        "preparedCaster": true,
+        "subclassLevel": 3,
+        "multiclassPrerequisites": {
+            "int": 13
+        }
     },
     {
-        id: 'rogue',
-        name: 'Rogue',
-        description: 'A scoundrel who uses stealth and trickery to overcome obstacles and enemies.',
-        hitDie: 8,
-        primaryAbility: ['dex'],
-        savingThrows: ['dex', 'int'],
-        skillChoices: 4,
-        skillOptions: ['Acrobatics', 'Athletics', 'Deception', 'Insight', 'Intimidation', 'Investigation', 'Perception', 'Performance', 'Persuasion', 'Sleight of Hand', 'Stealth'],
-        armorProficiencies: ['Light armor'],
-        weaponProficiencies: ['Simple weapons', 'Hand crossbows', 'Longswords', 'Rapiers', 'Shortswords'],
-        startingEquipment: ['Rapier or shortsword', 'Shortbow and quiver of 20 arrows or shortsword', 'Burglar\'s pack or Dungeoneer\'s pack or Explorer\'s pack', 'Leather armor, two daggers, and thieves\' tools'],
-        spellcaster: false,
-        subclassLevel: 3,
-        multiclassPrerequisites: { dex: 13 }
+        "id": "rogue",
+        "name": "Rogue",
+        "hitDie": 8,
+        "description": "A dexterous expert in stealth and subterfuge who strikes where foes are weakest.",
+        "primaryAbility": [
+            "dex"
+        ],
+        "savingThrows": [
+            "dex",
+            "int"
+        ],
+        "skillChoices": 4,
+        "skillOptions": [
+            "Acrobatics",
+            "Athletics",
+            "Deception",
+            "Insight",
+            "Intimidation",
+            "Investigation",
+            "Perception",
+            "Persuasion",
+            "Sleight of Hand",
+            "Stealth"
+        ],
+        "armorProficiencies": [
+            "Light armor"
+        ],
+        "weaponProficiencies": [
+            "Simple weapons",
+            "Martial weapons that have the Finesse or Light property"
+        ],
+        "toolProficiencies": [
+            "Thieves' Tools"
+        ],
+        "startingEquipment": [
+            "Leather Armor, 2 Daggers, Shortsword, Shortbow, 20 Arrows, Quiver, Thieves' Tools, Burglar's Pack, 8 GP or 100 GP"
+        ],
+        "spellcaster": false,
+        "subclassLevel": 3,
+        "multiclassPrerequisites": {
+            "dex": 13
+        }
     },
     {
-        id: 'cleric',
-        name: 'Cleric',
-        description: 'A priestly champion who wields divine magic in service of a higher power.',
-        hitDie: 8,
-        primaryAbility: ['wis'],
-        savingThrows: ['wis', 'cha'],
-        skillChoices: 2,
-        skillOptions: ['History', 'Insight', 'Medicine', 'Persuasion', 'Religion'],
-        armorProficiencies: ['Light armor', 'Medium armor', 'Shields'],
-        weaponProficiencies: ['Simple weapons'],
-        startingEquipment: ['Mace or warhammer', 'Scale mail or leather armor or chain mail', 'Light crossbow and 20 bolts or any simple weapon', 'Priest\'s pack or Explorer\'s pack', 'Shield and holy symbol'],
-        spellcaster: true,
-        spellcastingAbility: 'wis',
-        preparedCaster: true,
-        subclassLevel: 3,
-        multiclassPrerequisites: { wis: 13 }
+        "id": "cleric",
+        "name": "Cleric",
+        "hitDie": 8,
+        "description": "A miraculous priest who channels divine magic in service of a god or pantheon.",
+        "primaryAbility": [
+            "wis"
+        ],
+        "savingThrows": [
+            "wis",
+            "cha"
+        ],
+        "skillChoices": 2,
+        "skillOptions": [
+            "History",
+            "Insight",
+            "Medicine",
+            "Persuasion",
+            "Religion"
+        ],
+        "armorProficiencies": [
+            "Light armor",
+            "Medium armor",
+            "Shields"
+        ],
+        "weaponProficiencies": [
+            "Simple weapons"
+        ],
+        "toolProficiencies": [],
+        "startingEquipment": [
+            "Chain Shirt, Shield, Mace, Holy Symbol, Priest's Pack, 7 GP or 110 GP"
+        ],
+        "spellcaster": true,
+        "spellcastingAbility": "wis",
+        "preparedCaster": true,
+        "subclassLevel": 3,
+        "multiclassPrerequisites": {
+            "wis": 13
+        }
     },
     {
-        id: 'ranger',
-        name: 'Ranger',
-        description: 'A warrior who uses martial prowess and nature magic to combat threats on the edges of civilization.',
-        hitDie: 10,
-        primaryAbility: ['dex', 'wis'],
-        savingThrows: ['str', 'dex'],
-        skillChoices: 3,
-        skillOptions: ['Animal Handling', 'Athletics', 'Insight', 'Investigation', 'Nature', 'Perception', 'Stealth', 'Survival'],
-        armorProficiencies: ['Light armor', 'Medium armor', 'Shields'],
-        weaponProficiencies: ['Simple weapons', 'Martial weapons'],
-        startingEquipment: ['Scale mail or leather armor', 'Two shortswords or two simple melee weapons', 'Dungeoneer\'s pack or Explorer\'s pack', 'Longbow and quiver of 20 arrows'],
-        spellcaster: true,
-        spellcastingAbility: 'wis',
-        preparedCaster: true,
-        subclassLevel: 3,
-        multiclassPrerequisites: { dex: 13, wis: 13 }
+        "id": "ranger",
+        "name": "Ranger",
+        "hitDie": 10,
+        "description": "A wandering warrior imbued with primal magic who hunts threats at the edges of civilization.",
+        "primaryAbility": [
+            "dex",
+            "wis"
+        ],
+        "savingThrows": [
+            "str",
+            "dex"
+        ],
+        "skillChoices": 3,
+        "skillOptions": [
+            "Animal Handling",
+            "Athletics",
+            "Insight",
+            "Investigation",
+            "Nature",
+            "Perception",
+            "Stealth",
+            "Survival"
+        ],
+        "armorProficiencies": [
+            "Light armor",
+            "Medium armor",
+            "Shields"
+        ],
+        "weaponProficiencies": [
+            "Simple weapons",
+            "Martial weapons"
+        ],
+        "toolProficiencies": [],
+        "startingEquipment": [
+            "Studded Leather Armor, Scimitar, Shortsword, Longbow, 20 Arrows, Quiver, Druidic Focus (sprig of mistletoe), Explorer's Pack, 7 GP or 150 GP"
+        ],
+        "spellcaster": true,
+        "spellcastingAbility": "wis",
+        "preparedCaster": true,
+        "subclassLevel": 3,
+        "multiclassPrerequisites": {
+            "dex": 13,
+            "wis": 13
+        }
     },
     {
-        id: 'barbarian',
-        name: 'Barbarian',
-        description: 'A fierce warrior of primitive background who can enter a battle rage.',
-        hitDie: 12,
-        primaryAbility: ['str'],
-        savingThrows: ['str', 'con'],
-        skillChoices: 2,
-        skillOptions: ['Animal Handling', 'Athletics', 'Intimidation', 'Nature', 'Perception', 'Survival'],
-        armorProficiencies: ['Light armor', 'Medium armor', 'Shields'],
-        weaponProficiencies: ['Simple weapons', 'Martial weapons'],
-        startingEquipment: ['Greataxe or any martial melee weapon', 'Two handaxes or any simple weapon', 'Explorer\'s pack and four javelins'],
-        spellcaster: false,
-        subclassLevel: 3,
-        multiclassPrerequisites: { str: 13 }
+        "id": "barbarian",
+        "name": "Barbarian",
+        "hitDie": 12,
+        "description": "A fierce warrior of primal power who can channel Rage into devastating strikes.",
+        "primaryAbility": [
+            "str"
+        ],
+        "savingThrows": [
+            "str",
+            "con"
+        ],
+        "skillChoices": 2,
+        "skillOptions": [
+            "Animal Handling",
+            "Athletics",
+            "Intimidation",
+            "Nature",
+            "Perception",
+            "Survival"
+        ],
+        "armorProficiencies": [
+            "Light armor",
+            "Medium armor",
+            "Shields"
+        ],
+        "weaponProficiencies": [
+            "Simple weapons",
+            "Martial weapons"
+        ],
+        "toolProficiencies": [],
+        "startingEquipment": [
+            "Greataxe, 4 Handaxes, Explorer's Pack, 15 GP or 75 GP"
+        ],
+        "spellcaster": false,
+        "subclassLevel": 3,
+        "multiclassPrerequisites": {
+            "str": 13
+        }
     },
     {
-        id: 'bard',
-        name: 'Bard',
-        description: 'An inspiring magician whose power echoes the music of creation.',
-        hitDie: 8,
-        primaryAbility: ['cha'],
-        savingThrows: ['dex', 'cha'],
-        skillChoices: 3,
-        skillOptions: ['Acrobatics', 'Animal Handling', 'Arcana', 'Athletics', 'Deception', 'History', 'Insight', 'Intimidation', 'Investigation', 'Medicine', 'Nature', 'Perception', 'Performance', 'Persuasion', 'Religion', 'Sleight of Hand', 'Stealth', 'Survival'],
-        armorProficiencies: ['Light armor'],
-        weaponProficiencies: ['Simple weapons', 'Hand crossbows', 'Longswords', 'Rapiers', 'Shortswords'],
-        startingEquipment: ['Rapier or longsword or any simple weapon', 'Diplomat\'s pack or Entertainer\'s pack', 'Lute or other musical instrument', 'Leather armor and dagger'],
-        spellcaster: true,
-        spellcastingAbility: 'cha',
-        subclassLevel: 3,
-        multiclassPrerequisites: { cha: 13 }
+        "id": "bard",
+        "name": "Bard",
+        "hitDie": 8,
+        "description": "An inspiring performer whose music and words weave magic.",
+        "primaryAbility": [
+            "cha"
+        ],
+        "savingThrows": [
+            "dex",
+            "cha"
+        ],
+        "skillChoices": 3,
+        "skillOptions": [
+            "Acrobatics",
+            "Animal Handling",
+            "Arcana",
+            "Athletics",
+            "Deception",
+            "History",
+            "Insight",
+            "Intimidation",
+            "Investigation",
+            "Medicine",
+            "Nature",
+            "Perception",
+            "Performance",
+            "Persuasion",
+            "Religion",
+            "Sleight of Hand",
+            "Stealth",
+            "Survival"
+        ],
+        "armorProficiencies": [
+            "Light armor"
+        ],
+        "weaponProficiencies": [
+            "Simple weapons"
+        ],
+        "toolProficiencies": [
+            "Three Musical Instruments of your choice"
+        ],
+        "startingEquipment": [
+            "Leather Armor, 2 Daggers, Musical Instrument, Entertainer's Pack, 19 GP or 90 GP"
+        ],
+        "spellcaster": true,
+        "spellcastingAbility": "cha",
+        "preparedCaster": false,
+        "subclassLevel": 3,
+        "multiclassPrerequisites": {
+            "cha": 13
+        }
     },
     {
-        id: 'druid',
-        name: 'Druid',
-        description: 'A priest of the Old Faith, wielding the powers of nature and adopting animal forms.',
-        hitDie: 8,
-        primaryAbility: ['wis'],
-        savingThrows: ['int', 'wis'],
-        skillChoices: 2,
-        skillOptions: ['Arcana', 'Animal Handling', 'Insight', 'Medicine', 'Nature', 'Perception', 'Religion', 'Survival'],
-        armorProficiencies: ['Light armor', 'Medium armor', 'Shields'],
-        weaponProficiencies: ['Clubs', 'Daggers', 'Darts', 'Javelins', 'Maces', 'Quarterstaffs', 'Scimitars', 'Sickles', 'Slings', 'Spears'],
-        startingEquipment: ['Wooden shield or any simple weapon', 'Scimitar or any simple melee weapon', 'Leather armor, explorer\'s pack, druidic focus'],
-        spellcaster: true,
-        spellcastingAbility: 'wis',
-        preparedCaster: true,
-        subclassLevel: 3,
-        multiclassPrerequisites: { wis: 13 }
+        "id": "druid",
+        "name": "Druid",
+        "hitDie": 8,
+        "description": "A nature priest of primal power who can take on the forms of beasts.",
+        "primaryAbility": [
+            "wis"
+        ],
+        "savingThrows": [
+            "int",
+            "wis"
+        ],
+        "skillChoices": 2,
+        "skillOptions": [
+            "Animal Handling",
+            "Arcana",
+            "Insight",
+            "Medicine",
+            "Nature",
+            "Perception",
+            "Religion",
+            "Survival"
+        ],
+        "armorProficiencies": [
+            "Light armor",
+            "Shields"
+        ],
+        "weaponProficiencies": [
+            "Simple weapons"
+        ],
+        "toolProficiencies": [
+            "Herbalism Kit"
+        ],
+        "startingEquipment": [
+            "Leather Armor, Shield, Sickle, Druidic Focus (Quarterstaff), Explorer's Pack, Herbalism Kit, 9 GP or 50 GP"
+        ],
+        "spellcaster": true,
+        "spellcastingAbility": "wis",
+        "preparedCaster": true,
+        "subclassLevel": 3,
+        "multiclassPrerequisites": {
+            "wis": 13
+        }
     },
     {
-        id: 'monk',
-        name: 'Monk',
-        description: 'A master of martial arts, harnessing the power of the body in pursuit of physical and spiritual perfection.',
-        hitDie: 8,
-        primaryAbility: ['dex', 'wis'],
-        savingThrows: ['str', 'dex'],
-        skillChoices: 2,
-        skillOptions: ['Acrobatics', 'Athletics', 'History', 'Insight', 'Religion', 'Stealth'],
-        armorProficiencies: ['None'],
-        weaponProficiencies: ['Simple weapons', 'Shortswords'],
-        startingEquipment: ['Shortsword or any simple weapon', 'Dungeoneer\'s pack or Explorer\'s pack', '10 darts'],
-        spellcaster: false,
-        subclassLevel: 3,
-        multiclassPrerequisites: { dex: 13, wis: 13 }
+        "id": "monk",
+        "name": "Monk",
+        "hitDie": 8,
+        "description": "A martial artist who channels a mystic energy called Focus through unarmed strikes and swift movement.",
+        "primaryAbility": [
+            "dex",
+            "wis"
+        ],
+        "savingThrows": [
+            "str",
+            "dex"
+        ],
+        "skillChoices": 2,
+        "skillOptions": [
+            "Acrobatics",
+            "Athletics",
+            "History",
+            "Insight",
+            "Religion",
+            "Stealth"
+        ],
+        "armorProficiencies": [
+            "None"
+        ],
+        "weaponProficiencies": [
+            "Simple weapons",
+            "Martial weapons that have the Light property"
+        ],
+        "toolProficiencies": [
+            "One type of Artisan's Tools or Musical Instrument"
+        ],
+        "startingEquipment": [
+            "Spear, 5 Daggers, Artisan's Tools/Musical Instrument (your tool choice), Explorer's Pack, 11 GP or 50 GP"
+        ],
+        "spellcaster": false,
+        "subclassLevel": 3,
+        "multiclassPrerequisites": {
+            "dex": 13,
+            "wis": 13
+        }
     },
     {
-        id: 'paladin',
-        name: 'Paladin',
-        description: 'A holy warrior bound to a sacred oath.',
-        hitDie: 10,
-        primaryAbility: ['str', 'cha'],
-        savingThrows: ['wis', 'cha'],
-        skillChoices: 2,
-        skillOptions: ['Athletics', 'Insight', 'Intimidation', 'Medicine', 'Persuasion', 'Religion'],
-        armorProficiencies: ['All armor', 'Shields'],
-        weaponProficiencies: ['Simple weapons', 'Martial weapons'],
-        startingEquipment: ['Martial weapon and shield or two martial weapons', 'Five javelins or any simple melee weapon', 'Priest\'s pack or Explorer\'s pack', 'Chain mail and holy symbol'],
-        spellcaster: true,
-        spellcastingAbility: 'cha',
-        preparedCaster: true,
-        subclassLevel: 3,
-        multiclassPrerequisites: { str: 13, cha: 13 }
+        "id": "paladin",
+        "name": "Paladin",
+        "hitDie": 10,
+        "description": "A devout warrior bound by a sacred oath, wielding divine magic.",
+        "primaryAbility": [
+            "str",
+            "cha"
+        ],
+        "savingThrows": [
+            "wis",
+            "cha"
+        ],
+        "skillChoices": 2,
+        "skillOptions": [
+            "Athletics",
+            "Insight",
+            "Intimidation",
+            "Medicine",
+            "Persuasion",
+            "Religion"
+        ],
+        "armorProficiencies": [
+            "Light armor",
+            "Medium armor",
+            "Heavy armor",
+            "Shields"
+        ],
+        "weaponProficiencies": [
+            "Simple weapons",
+            "Martial weapons"
+        ],
+        "toolProficiencies": [],
+        "startingEquipment": [
+            "Chain Mail, Shield, Longsword, 6 Javelins, Holy Symbol, Priest's Pack, 9 GP or 150 GP"
+        ],
+        "spellcaster": true,
+        "spellcastingAbility": "cha",
+        "preparedCaster": true,
+        "subclassLevel": 3,
+        "multiclassPrerequisites": {
+            "str": 13,
+            "cha": 13
+        }
     },
     {
-        id: 'sorcerer',
-        name: 'Sorcerer',
-        description: 'A spellcaster who draws on inherent magic from a gift or bloodline.',
-        hitDie: 6,
-        primaryAbility: ['cha'],
-        savingThrows: ['con', 'cha'],
-        skillChoices: 2,
-        skillOptions: ['Arcana', 'Deception', 'Insight', 'Intimidation', 'Persuasion', 'Religion'],
-        armorProficiencies: ['None'],
-        weaponProficiencies: ['Daggers', 'Darts', 'Slings', 'Quarterstaffs', 'Light crossbows'],
-        startingEquipment: ['Light crossbow and 20 bolts or any simple weapon', 'Component pouch or arcane focus', 'Dungeoneer\'s pack or Explorer\'s pack', 'Two daggers'],
-        spellcaster: true,
-        spellcastingAbility: 'cha',
-        preparedCaster: true,
-        subclassLevel: 3,
-        multiclassPrerequisites: { cha: 13 }
+        "id": "sorcerer",
+        "name": "Sorcerer",
+        "hitDie": 6,
+        "description": "A dazzling mage filled with innate magic from a gift, bloodline, or cosmic event.",
+        "primaryAbility": [
+            "cha"
+        ],
+        "savingThrows": [
+            "con",
+            "cha"
+        ],
+        "skillChoices": 2,
+        "skillOptions": [
+            "Arcana",
+            "Deception",
+            "Insight",
+            "Intimidation",
+            "Persuasion",
+            "Religion"
+        ],
+        "armorProficiencies": [
+            "None"
+        ],
+        "weaponProficiencies": [
+            "Simple weapons"
+        ],
+        "toolProficiencies": [],
+        "startingEquipment": [
+            "Spear, 2 Daggers, Arcane Focus (crystal), Dungeoneer's Pack, 28 GP or 50 GP"
+        ],
+        "spellcaster": true,
+        "spellcastingAbility": "cha",
+        "preparedCaster": false,
+        "subclassLevel": 3,
+        "multiclassPrerequisites": {
+            "cha": 13
+        }
     },
     {
-        id: 'warlock',
-        name: 'Warlock',
-        description: 'A wielder of magic that is derived from a bargain with an extraplanar entity.',
-        hitDie: 8,
-        primaryAbility: ['cha'],
-        savingThrows: ['wis', 'cha'],
-        skillChoices: 2,
-        skillOptions: ['Arcana', 'Deception', 'History', 'Intimidation', 'Investigation', 'Nature', 'Religion'],
-        armorProficiencies: ['Light armor'],
-        weaponProficiencies: ['Simple weapons'],
-        startingEquipment: ['Light crossbow and 20 bolts or any simple weapon', 'Component pouch or arcane focus', 'Scholar\'s pack or Dungeoneer\'s pack', 'Leather armor, any simple weapon, and two daggers'],
-        spellcaster: true,
-        spellcastingAbility: 'cha',
-        preparedCaster: true,
-        subclassLevel: 3,
-        multiclassPrerequisites: { cha: 13 }
+        "id": "warlock",
+        "name": "Warlock",
+        "hitDie": 8,
+        "description": "An occultist empowered by a pact with an otherworldly patron.",
+        "primaryAbility": [
+            "cha"
+        ],
+        "savingThrows": [
+            "wis",
+            "cha"
+        ],
+        "skillChoices": 2,
+        "skillOptions": [
+            "Arcana",
+            "Deception",
+            "History",
+            "Intimidation",
+            "Investigation",
+            "Nature",
+            "Religion"
+        ],
+        "armorProficiencies": [
+            "Light armor"
+        ],
+        "weaponProficiencies": [
+            "Simple weapons"
+        ],
+        "toolProficiencies": [],
+        "startingEquipment": [
+            "Leather Armor, Sickle, 2 Daggers, Arcane Focus (orb), Book (occult lore), Scholar's Pack, 15 GP or 100 GP"
+        ],
+        "spellcaster": true,
+        "spellcastingAbility": "cha",
+        "preparedCaster": false,
+        "subclassLevel": 3,
+        "multiclassPrerequisites": {
+            "cha": 13
+        }
     }
 ];
