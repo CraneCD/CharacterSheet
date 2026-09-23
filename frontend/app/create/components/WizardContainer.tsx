@@ -12,6 +12,8 @@ import { calculateClassResources, mergeHeroicInspiration, RESOURCE_RULES_VERSION
 import { hasDwarvenToughness, hasResourceful, hasSkillful, hasVersatile, hasKeenSensesChoice, getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
 import { getRaceTraits, getBackgroundSkills, getBackgroundAbilityOptions, isValidBackgroundAsi, getRaceLanguages, getRaceLanguageChoices } from '@/lib/wizardReference';
 import { splitEquipmentChoice, itemNameToCharacterItem, parseCurrency } from '@/lib/equipmentMapping';
+import { buildChoicePayload, getClassChoices } from '@/lib/classChoices';
+import ClassChoicesPicker, { choicesComplete } from '@/app/character/[id]/components/ClassChoicesPicker';
 
 type Currency = { cp?: number; sp?: number; ep?: number; gp?: number; pp?: number };
 
@@ -48,7 +50,9 @@ export default function WizardContainer() {
         backgroundEquipmentChoices: [] as string[],
         expertiseChoices: [] as string[],
         classSkillChoices: [] as string[],
-        languageChoices: [] as string[]
+        languageChoices: [] as string[],
+        /** Level 1 class feature choices (Divine Order, first invocation, Weapon Mastery, ...), by choice key. */
+        classChoicePicks: {} as Record<string, string[]>
     });
 
     // We store full objects for race/class/background to display names in Review without refetching
@@ -164,6 +168,10 @@ export default function WizardContainer() {
                 ...(selectedBackground?.toolProficiencies ?? [])
             ];
 
+            // Level 1 class feature choices (Rogue Expertise is picked separately above)
+            const classChoicePayload = buildChoicePayload(creationChoices(), formData.classChoicePicks || {}, {}, 1);
+            features.push(...classChoicePayload.features);
+
             const data: any = {
                 abilityScores: baseScores,
                 backgroundId: formData.backgroundId,
@@ -186,7 +194,8 @@ export default function WizardContainer() {
                 },
                 classResources,
                 classResourcesRules: RESOURCE_RULES_VERSION,
-                equipment
+                equipment,
+                ...(Object.keys(classChoicePayload.classChoices).length > 0 ? { classChoices: classChoicePayload.classChoices } : {})
             };
             if (expertise.length > 0) data.expertise = expertise;
             if (languages.length > 0) data.languages = languages;
@@ -225,6 +234,20 @@ export default function WizardContainer() {
             alert('Failed to create character. Please check your inputs.');
             setLoading(false);
         }
+    };
+
+    /** Level 1 class feature choices asked for at creation (Rogue Expertise has its own picker). */
+    const creationChoices = () => formData.classId
+        ? getClassChoices(formData.classId, 1).filter(c => c.kind !== 'expertise')
+        : [];
+    const creationChoiceContext = {
+        ctx: { warlockLevel: formData.classId === 'warlock' ? 1 : 0, existing: {} },
+        proficientSkills: [] as string[],
+        expertiseSkills: [] as string[],
+        knownLanguages: [] as string[],
+        languageOptions: [] as string[],
+        spells: [],
+        spellbook: [] as string[],
     };
 
     const isStepValid = () => {
@@ -271,6 +294,7 @@ export default function WizardContainer() {
                     const expertiseChoices = (formData.expertiseChoices || []) as string[];
                     if (expertiseChoices.filter((s: string) => s?.trim()).length !== 2) return false;
                 }
+                if (!choicesComplete(creationChoices(), formData.classChoicePicks || {}, creationChoiceContext)) return false;
                 const totalLangChoices = getRaceLanguageChoices(formData.raceId);
                 if (totalLangChoices > 0) {
                     const languageChoices = (formData.languageChoices || []) as string[];
@@ -346,7 +370,8 @@ export default function WizardContainer() {
                                 classId: cls.id,
                                 startingEquipmentChoices: [],
                                 expertiseChoices: [],
-                                classSkillChoices: []
+                                classSkillChoices: [],
+                                classChoicePicks: {}
                             });
                             setSelectedClass(cls);
                             if (selectedClass?.id !== cls.id) {
@@ -401,6 +426,7 @@ export default function WizardContainer() {
                     if (hasSkillful(rt)) add(formData.skillfulChoice);
                     if (hasKeenSensesChoice(rt)) add(formData.keenSensesChoice);
                     return (
+                        <>
                         <StepReview
                             data={formData}
                             onUpdate={(updates) => setFormData({ ...formData, ...updates })}
@@ -419,6 +445,18 @@ export default function WizardContainer() {
                             finalScores={finalScores}
                             backgroundSkills={bgSkills}
                         />
+                        {creationChoices().length > 0 && (
+                            <div className="card" style={{ marginTop: '1rem' }} data-testid="create-class-choices">
+                                <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 'bold' }}>Class Choices</h3>
+                                <ClassChoicesPicker
+                                    choices={creationChoices()}
+                                    value={formData.classChoicePicks || {}}
+                                    onChange={(classChoicePicks) => setFormData({ ...formData, classChoicePicks })}
+                                    {...creationChoiceContext}
+                                />
+                            </div>
+                        )}
+                        </>
                     );
                 })()}
             </div>

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import Link from 'next/link';
@@ -29,6 +29,7 @@ import { getRaceTraits, getBackgroundSkills, getSpeciesSpellEntries, STANDARD_LA
 import { useCharacterSheetData } from './useCharacterSheetData';
 import { calculateAllClassResources, getCharacterSubclasses, getSubclassMap } from '@/lib/subclasses';
 import { SUBCLASS_BONUS_SPELLS } from '@/lib/wizardReference';
+import { getBonusCantrips, getChoiceResources, getChoiceSkillBonuses, getChoiceSpellIds, getWeaponMasteries } from '@/lib/classChoices';
 
 export default function CharacterSheet() {
     const { id } = useParams();
@@ -50,6 +51,15 @@ export default function CharacterSheet() {
     const [editingAC, setEditingAC] = useState(false);
     const [acEditValue, setAcEditValue] = useState<string>('');
     const [showNotepad, setShowNotepad] = useState(false);
+    // Spell names for class-choice spells (Mystic Arcanum, Signature Spells), loaded only when needed
+    const [choiceSpellNames, setChoiceSpellNames] = useState<Record<string, string> | null>(null);
+    const choiceSpellIdsKey = getChoiceSpellIds(character?.data?.classChoices).join(',');
+    useEffect(() => {
+        if (!choiceSpellIdsKey) return;
+        api.get('/reference/spells/summary')
+            .then((list: { id: string; name: string }[]) => setChoiceSpellNames(Object.fromEntries((list || []).map(s => [s.id, s.name]))))
+            .catch(() => setChoiceSpellNames({}));
+    }, [choiceSpellIdsKey]);
 
     if (!character || !gameData) {
         return (
@@ -286,15 +296,25 @@ export default function CharacterSheet() {
     }
 
     const expertiseSkills = (data.expertise || []) as string[];
+    // Divine Order: Thaumaturge / Primal Order: Magician add Wisdom to some Intelligence checks
+    const choiceSkillBonuses = getChoiceSkillBonuses(data.classChoices, effectiveModifiers.wis);
     const skills = skillsList.map(skill => {
         const isProficient = proficientSkills.includes(skill.name);
         const hasExpertise = expertiseSkills.includes(skill.name);
         const proficiencyBonus = hasExpertise ? pb * 2 : (isProficient ? pb : 0);
-        const total = effectiveModifiers[skill.stat] + proficiencyBonus;
+        const total = effectiveModifiers[skill.stat] + proficiencyBonus + (choiceSkillBonuses[skill.name] || 0);
         return { ...skill, total, isProficient, hasExpertise };
     });
 
+    // Weapons chosen for Weapon Mastery (null for characters from before the choice existed)
+    const masteryWeapons = getWeaponMasteries(data.classChoices);
+
     const staticFeatureEntries = [
+        ...(masteryWeapons && masteryWeapons.length > 0 ? [{
+            name: 'Weapon Mastery Weapons',
+            source: 'Class Choice',
+            description: `You can use the mastery properties of: ${masteryWeapons.map(w => w.replace(/\b\w/g, c => c.toUpperCase())).join(', ')}.`
+        }] : []),
         ...((racialTraits || []).map((trait: string) => {
             const traitKey = trait;
             const traitData = gameData.traits?.[traitKey] || 
@@ -951,7 +971,8 @@ export default function CharacterSheet() {
                                     const maxHp = hp.max ?? 0;
                                     const updates: Partial<CharacterData> = {
                                         hp: { ...hp, current: maxHp, max: maxHp, temp: 0 },
-                                        spellSlotsUsed: {}
+                                        spellSlotsUsed: {},
+                                        pactSlotsUsed: 0
                                     };
                                     if (data.hitDice) {
                                         updates.hitDice = { ...data.hitDice, spent: 0 };
@@ -994,6 +1015,19 @@ export default function CharacterSheet() {
                         const hadBlessing = !!(resources && (resources as Record<string, unknown>)['Blessing of the Raven Queen']);
                         resources = mergeBlessingOfTheRavenQueen(resources || {}, needBlessing, level);
                         if (needBlessing && !hadBlessing) didChange = true;
+                        // Mystic Arcanum / Signature Spells uses (added once the spell names are known)
+                        if (choiceSpellNames || !choiceSpellIdsKey) {
+                            const fromChoices = getChoiceResources(data.classChoices, choiceSpellNames || {});
+                            const next: typeof resources = {};
+                            for (const [name, res] of Object.entries(resources || {})) {
+                                const fromChoice = name.startsWith('Mystic Arcanum: ') || name.startsWith('Signature Spell: ');
+                                if (!fromChoice || fromChoices[name]) next[name] = res; else didChange = true;
+                            }
+                            for (const [name, res] of Object.entries(fromChoices)) {
+                                if (!next[name]) { next[name] = res; didChange = true; }
+                            }
+                            resources = next;
+                        }
                         // Psi Warrior: remove Telekinetic Movement (now nested in Psionic Energy Dice UI)
                         const isPsiWarrior = ['psi_warrior', 'psi warrior'].includes(subclassMap.fighter || '') && (classLevels.fighter ?? 0) >= 3;
                         let resourcesToShow = resources;
@@ -1021,14 +1055,23 @@ export default function CharacterSheet() {
                                     psiWarrior={isPsiWarrior}
                                     onUpdate={(newResources) => handleUpdateCharacter({ classResources: newResources })}
                                     onShortRest={() => {
-                                        // Short rest: hit dice can be spent; class resources already reset by ClassResourcesManager
+                                        // Short rest: hit dice can be spent; class resources already reset by ClassResourcesManager.
+                                        // Pact Magic slots come back on a Short Rest (kept apart from other slots when multiclassed).
+                                        if (!classLevels.warlock) return;
+                                        const updates: Partial<CharacterData> = characterClasses.length > 1
+                                            ? { pactSlotsUsed: 0 }
+                                            : { spellSlotsUsed: {} };
+                                        handleUpdateCharacter(updates);
+                                        api.patch(`/characters/${character.id}/data`, updates)
+                                            .catch((err) => console.error('Failed to reset Pact Magic slots', err));
                                     }}
                                     onLongRest={async () => {
                                         const hp = data.hp || { current: 0, max: 0, temp: 0 };
                                         const maxHp = hp.max ?? 0;
                                         const updates: Partial<CharacterData> = {
                                             hp: { ...hp, current: maxHp, max: maxHp, temp: 0 },
-                                            spellSlotsUsed: {}
+                                            spellSlotsUsed: {},
+                                            pactSlotsUsed: 0
                                         };
                                         if (data.hitDice) {
                                             updates.hitDice = { ...data.hitDice, spent: 0 };
@@ -1081,6 +1124,7 @@ export default function CharacterSheet() {
                     <div>
                         <EquipmentManager
                             characterId={character.id}
+                            masteryWeapons={masteryWeapons}
                             initialEquipment={data.equipment || []}
                             onUpdate={(newEquipment) => {
                                 handleUpdateCharacter({ equipment: newEquipment });
@@ -1255,8 +1299,8 @@ export default function CharacterSheet() {
                         ...c,
                         classInfo: (gameData.classes || []).find((gc: any) => (gc.id || '').toLowerCase() === (c.id || '').toLowerCase())
                     }))
-                    // Warlock Pact Magic doesn't combine with other classes' slots; a single-class Warlock casts normally.
-                    .filter(c => c.classInfo?.spellcaster && (c.id.toLowerCase() !== 'warlock' || characterClasses.length === 1))
+                    // A multiclassed Warlock keeps its spells; SpellManager shows its Pact Magic slots separately.
+                    .filter(c => c.classInfo?.spellcaster)
                     .sort((a, b) => b.level - a.level);
 
                 let primarySpellcastingClass = spellcastingClasses[0];
@@ -1344,6 +1388,8 @@ export default function CharacterSheet() {
                                 elvenLineage={(character.race || '').toLowerCase() === 'elf' ? data.elvenLineage : undefined}
                                 speciesSpells={speciesSpells}
                                 subclassSpells={grantedSubclassSpells}
+                                classFeatureSpells={getChoiceSpellIds(data.classChoices)}
+                                bonusCantrips={getBonusCantrips(data.classChoices, primarySpellcastingClass.id)}
                                 subclassClassLevel={level}
                                 magicInitiate={hasMagicInitiateFeat ? data.magicInitiate : undefined}
                                 onMagicInitiateUpdate={(magicInitiate) => {
@@ -1362,6 +1408,7 @@ export default function CharacterSheet() {
                                 } : undefined}
                                 initialSpells={Array.isArray(data.spells) ? data.spells : []}
                                 initialSlotsUsed={data.spellSlotsUsed || {}}
+                                initialPactSlotsUsed={Number(data.pactSlotsUsed) || 0}
                                 spellcastingAbility={primarySpellcastingAbility}
                                 preparedCaster={primarySpellcastingClass.classInfo?.preparedCaster || false}
                                 spellbook={
@@ -1372,7 +1419,17 @@ export default function CharacterSheet() {
                                 abilityScores={effectiveAbilityScores}
                                 classes={data.classes}
                                 allClasses={gameData.classes || []}
-                                onUpdate={(updates) => handleUpdateCharacter(updates)}
+                                onUpdate={(updates) => {
+                                    handleUpdateCharacter(updates);
+                                    // Spells are saved by their own endpoints; slot usage is saved here so it survives a reload.
+                                    const slotUpdates: Partial<CharacterData> = {};
+                                    if (updates.spellSlotsUsed !== undefined) slotUpdates.spellSlotsUsed = updates.spellSlotsUsed;
+                                    if (updates.pactSlotsUsed !== undefined) slotUpdates.pactSlotsUsed = updates.pactSlotsUsed;
+                                    if (Object.keys(slotUpdates).length > 0) {
+                                        api.patch(`/characters/${character.id}/data`, slotUpdates)
+                                            .catch((err) => console.error('Failed to save spell slots', err));
+                                    }
+                                }}
                                 existingActions={Array.isArray(data.actions) ? data.actions : []}
                                 onCreateAction={async (action) => {
                                     try {

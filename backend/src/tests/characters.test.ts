@@ -275,3 +275,46 @@ describe('subclasses per class', () => {
         expect(savedData().class).toBe('Paladin');
     });
 });
+
+describe('2024 class feature choices', () => {
+    const post = (character: object, path: string, body: object) => {
+        (prisma.character.findUnique as jest.Mock).mockResolvedValue(character);
+        return request(app).post(`/characters/char-1/${path}`).set('Authorization', `Bearer ${token}`).send(body);
+    };
+    const saved = () => (prisma.character.update as jest.Mock).mock.calls[0][0].data;
+
+    it('applies expertise, skills, languages and option picks, recording only what is new', async () => {
+        const data = { classes: { ranger: 1 }, skills: ['Survival', 'Stealth'], expertise: [], languages: ['Common', 'Elvish'], abilityScores: {} };
+        const res = await post({ ...ownedCharacter(data), class: 'Ranger', level: 1 }, 'level-up', {
+            hpIncrease: 6,
+            choices: { expertise: ['Survival'], languages: ['Elvish', 'Giant'], classChoices: { 'ranger:weapon-mastery': ['Longbow'] } },
+        });
+        expect(res.status).toBe(200);
+        const d = saved().data;
+        expect(d.expertise).toEqual(['Survival']);
+        expect(d.languages).toEqual(['Common', 'Elvish', 'Giant']);
+        expect(d.classChoices).toEqual({ 'ranger:weapon-mastery': ['Longbow'] });
+        expect(d.levelHistory.at(-1).choices).toEqual({ expertise: ['Survival'], skills: [], languages: ['Giant'], classChoices: { 'ranger:weapon-mastery': ['Longbow'] } });
+    });
+
+    it('appends picks to earlier ones and ignores malformed keys', async () => {
+        const data = { classes: { warlock: 1 }, classChoices: { 'warlock:invocations': ['pact-of-the-blade'] }, abilityScores: {} };
+        await post({ ...ownedCharacter(data), class: 'Warlock', level: 1 }, 'level-up', {
+            hpIncrease: 5,
+            choices: { classChoices: { 'warlock:invocations': ['agonizing-blast', 'devils-sight'], '__proto__': ['x'], 'bad key': ['y'] } },
+        });
+        expect(saved().data.classChoices).toEqual({ 'warlock:invocations': ['pact-of-the-blade', 'agonizing-blast', 'devils-sight'] });
+    });
+
+    it('level-down takes back the choices made at that level', async () => {
+        const data = {
+            classes: { warlock: 2 }, skills: ['Arcana'], expertise: [], languages: ['Common'],
+            classChoices: { 'warlock:invocations': ['pact-of-the-blade', 'agonizing-blast', 'agonizing-blast'] },
+            abilityScores: {},
+            levelHistory: [{ level: 2, classId: 'warlock', newFeatures: [], timestamp: new Date().toISOString(),
+                choices: { expertise: [], skills: [], languages: [], classChoices: { 'warlock:invocations': ['agonizing-blast', 'agonizing-blast'] } } }],
+        };
+        await post({ ...ownedCharacter(data), class: 'Warlock', level: 2 }, 'level-down', {});
+        expect(saved().data.classChoices).toEqual({ 'warlock:invocations': ['pact-of-the-blade'] });
+    });
+});

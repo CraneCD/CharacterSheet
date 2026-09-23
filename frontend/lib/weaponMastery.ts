@@ -109,6 +109,11 @@ const WEAPON_MASTERY: Record<string, string> = {
     'whip': 'slow',
 };
 
+/** Weapons that have a mastery property (display names), for Weapon Mastery choices. */
+export const MASTERY_WEAPON_NAMES: string[] = Object.keys(WEAPON_MASTERY)
+    .map(w => w.replace(/\b\w/g, c => c.toUpperCase()))
+    .sort();
+
 function normalizeWeaponName(name: string): string {
     return name.trim().toLowerCase();
 }

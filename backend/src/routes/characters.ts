@@ -27,6 +27,60 @@ async function getClassFeaturesMap(): Promise<Record<string, any[]>> {
 
 const router = express.Router();
 
+const stringList = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && x.trim() !== '').map(x => x.trim()) : [];
+
+type AppliedChoices = { expertise: string[]; skills: string[]; languages: string[]; classChoices: Record<string, string[]> };
+
+/**
+ * Apply level-up class feature choices to the character. Returns what was newly
+ * added (for levelHistory / level-down), or null when there was nothing.
+ */
+function applyClassChoices(data: any, choices: any): AppliedChoices | null {
+    if (!choices || typeof choices !== 'object') return null;
+    const applied: AppliedChoices = { expertise: [], skills: [], languages: [], classChoices: {} };
+    const addUnique = (field: 'expertise' | 'skills' | 'languages', values: string[]) => {
+        const list: string[] = Array.isArray(data[field]) ? data[field] : [];
+        for (const v of values) {
+            if (!list.includes(v)) { list.push(v); applied[field].push(v); }
+        }
+        data[field] = list;
+    };
+    addUnique('skills', stringList(choices.skills));
+    addUnique('expertise', stringList(choices.expertise));
+    addUnique('languages', stringList(choices.languages));
+    const picks = choices.classChoices && typeof choices.classChoices === 'object' && !Array.isArray(choices.classChoices) ? choices.classChoices : {};
+    const stored: Record<string, string[]> = data.classChoices && typeof data.classChoices === 'object' ? data.classChoices : {};
+    for (const [key, value] of Object.entries(picks)) {
+        if (!/^[a-z-]+:[a-z0-9-]+$/.test(key)) continue;
+        const ids = stringList(value);
+        if (ids.length === 0) continue;
+        stored[key] = [...(stored[key] || []), ...ids];
+        applied.classChoices[key] = ids;
+    }
+    data.classChoices = stored;
+    const any = applied.expertise.length + applied.skills.length + applied.languages.length + Object.keys(applied.classChoices).length;
+    return any > 0 ? applied : null;
+}
+
+/** Undo applyClassChoices for one level (removes one occurrence of each pick). */
+function revertClassChoices(data: any, applied: AppliedChoices): void {
+    for (const field of ['expertise', 'skills', 'languages'] as const) {
+        const remove = new Set(applied[field] || []);
+        if (Array.isArray(data[field])) data[field] = data[field].filter((v: string) => !remove.has(v));
+    }
+    const stored: Record<string, string[]> = data.classChoices || {};
+    for (const [key, ids] of Object.entries(applied.classChoices || {})) {
+        const list = [...(stored[key] || [])];
+        for (const id of ids) {
+            const i = list.lastIndexOf(id);
+            if (i !== -1) list.splice(i, 1);
+        }
+        if (list.length > 0) stored[key] = list; else delete stored[key];
+    }
+    data.classChoices = stored;
+}
+
 /** Highest-level class; on a tie the current primary class stays primary. */
 function pickPrimaryClass(classLevels: Record<string, number>, currentClass: string): string {
     const current = (currentClass || '').toLowerCase();
@@ -443,7 +497,7 @@ router.patch('/:id/equipment', authenticateToken, (req: AuthRequest, res) =>
 router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) => {
     try {
         const characterId = req.params.id;
-        const { hpIncrease, subclassId, newSpells, newFeatures, abilityScoreImprovement, multiclass, classToLevel, fightingStyle, scholarSkill, wizardSpellbookSpells } = req.body;
+        const { hpIncrease, subclassId, newSpells, newFeatures, abilityScoreImprovement, multiclass, classToLevel, fightingStyle, scholarSkill, wizardSpellbookSpells, choices } = req.body;
 
         const character = await findOwnedCharacter(req, res);
         if (!character) return;
@@ -705,6 +759,11 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
             }
         }
 
+        // 2024 class feature choices (Expertise, Primal Knowledge, Deft Explorer languages,
+        // Metamagic, Invocations, Weapon Mastery, ...). Only what was actually new is recorded
+        // so level-down can take exactly that back.
+        const appliedChoices = applyClassChoices(data, choices);
+
         // Update Class Resources - if provided in request, use it; otherwise recalculate
         if (req.body.classResources) {
             data.classResources = req.body.classResources;
@@ -738,6 +797,7 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
             hitDiceAdded: true, // Track that we added a hit die
             scholarSkill: scholarSkill && typeof scholarSkill === 'string' ? scholarSkill.trim() : null,
             wizardSpellbookSpells: wizardSpellbookSpells && Array.isArray(wizardSpellbookSpells) ? wizardSpellbookSpells : null,
+            choices: appliedChoices,
             timestamp: new Date().toISOString()
         });
         data.levelHistory = levelHistory;
@@ -886,6 +946,9 @@ router.post('/:id/level-down', authenticateToken, async (req: AuthRequest, res) 
                 data.expertise = data.expertise.filter((s: string) => s !== skillName);
             }
         }
+
+        // Reverse class feature choices made at this level
+        if (lastLevelUp.choices) revertClassChoices(data, lastLevelUp.choices);
 
         // Remove this level-up entry from history
         data.levelHistory = levelHistory.filter((entry: any) => entry !== lastLevelUp);
