@@ -33,6 +33,11 @@ function ActionManager({ characterId, initialActions, onUpdate, featureActions =
 
     const handleAdd = async () => {
         if (!newItem.name?.trim() || !newItem.description?.trim()) return;
+        const newName = newItem.name.trim().toLowerCase();
+        if ((actions || []).some(a => (a.name || '').trim().toLowerCase() === newName)) {
+            alert(`You already have an action named "${newItem.name.trim()}".`);
+            return;
+        }
 
         try {
             const actionToAdd: CharacterAction = {
@@ -60,7 +65,7 @@ function ActionManager({ characterId, initialActions, onUpdate, featureActions =
     const handleRemove = async (index: number) => {
         try {
             await api.delete(`/characters/${characterId}/actions`, {
-                data: { index }
+                data: { index, name: actions[index]?.name }
             });
             const newActions = [...actions];
             newActions.splice(index, 1);

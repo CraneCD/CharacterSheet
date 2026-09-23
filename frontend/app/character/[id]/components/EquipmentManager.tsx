@@ -259,6 +259,9 @@ export default function EquipmentManager({
         }
     };
 
+    const actionExists = (name: string) =>
+        existingActions.some((a: any) => String(a?.name ?? '').trim().toLowerCase() === name.trim().toLowerCase());
+
     const handleCreateMagicItemAction = async (item: CharacterItem, index: number) => {
         if (!item.name) return;
         
@@ -273,6 +276,10 @@ export default function EquipmentManager({
                 description: item.description || `Use the ${item.name}.`,
                 type: 'action' as const
             };
+            if (actionExists(action.name)) {
+                alert(`"${action.name}" is already in your actions.`);
+                return;
+            }
             await onCreateAction(action);
             alert(`Action "${action.name}" created!`);
         } catch (err) {
@@ -290,11 +297,16 @@ export default function EquipmentManager({
         }
         
         try {
+            // Distinct name from the action version, so the two aren't mistaken for duplicates
             const action = {
-                name: `Use ${item.name}`,
+                name: `Use ${item.name} (Bonus)`,
                 description: item.description || `Use the ${item.name}.`,
                 type: 'bonus' as const
             };
+            if (actionExists(action.name)) {
+                alert(`"${action.name}" is already in your actions.`);
+                return;
+            }
             await onCreateAction(action);
             alert(`Bonus Action "${action.name}" created!`);
         } catch (err) {

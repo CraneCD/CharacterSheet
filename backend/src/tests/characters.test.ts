@@ -318,3 +318,47 @@ describe('2024 class feature choices', () => {
         expect(saved().data.classChoices).toEqual({ 'warlock:invocations': ['pact-of-the-blade'] });
     });
 });
+
+describe('character actions', () => {
+    const act = (method: 'post' | 'delete', body: object, actions: object[]) => {
+        (prisma.character.findUnique as jest.Mock).mockResolvedValue(ownedCharacter({ actions }));
+        return request(app)[method]('/characters/char-1/actions').set('Authorization', `Bearer ${token}`).send(body);
+    };
+    const savedActions = () => (prisma.character.update as jest.Mock).mock.calls[0][0].data.data.actions;
+    const tongues = { name: 'Cast Tongues', type: 'action', description: 'x' };
+
+    it('adds a new action', async () => {
+        const res = await act('post', { action: tongues }, []);
+        expect(res.status).toBe(200);
+        expect(savedActions()).toEqual([tongues]);
+    });
+
+    it('does not add an action whose name already exists (any case / spacing)', async () => {
+        const res = await act('post', { action: { ...tongues, name: ' cast tongues ' } }, [tongues]);
+        expect(res.status).toBe(200);
+        expect(savedActions()).toEqual([tongues]);
+    });
+
+    it('rejects an action without a name', async () => {
+        const res = await act('post', { action: { type: 'action' } }, []);
+        expect(res.status).toBe(400);
+        expect(prisma.character.update).not.toHaveBeenCalled();
+    });
+
+    it('removes by name even when the index is stale', async () => {
+        const a = { name: 'A' }, b = { name: 'Cast Tongues' }, c = { name: 'C' };
+        await act('delete', { index: 0, name: 'Cast Tongues' }, [a, b, c]);
+        expect(savedActions()).toEqual([a, c]);
+    });
+
+    it('removes nothing when the named action is gone', async () => {
+        const a = { name: 'A' };
+        await act('delete', { index: 0, name: 'Cast Tongues' }, [a]);
+        expect(savedActions()).toEqual([a]);
+    });
+
+    it('still removes by index for older clients', async () => {
+        await act('delete', { index: 1 }, [{ name: 'A' }, { name: 'B' }]);
+        expect(savedActions()).toEqual([{ name: 'A' }]);
+    });
+});
