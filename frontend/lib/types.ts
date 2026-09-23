@@ -150,8 +150,11 @@ export interface CharacterData {
 export interface CharacterAction {
     id?: string;
     name: string;
+    /** Saved text. For spell actions the sheet shows the current spell text instead (lib/spellActions). */
     description: string;
     type: 'action' | 'bonus' | 'reaction' | 'other';
+    /** For "Cast <spell>" actions: the spell they cast. */
+    spellId?: string;
 }
 
 export interface CharacterFeature {
