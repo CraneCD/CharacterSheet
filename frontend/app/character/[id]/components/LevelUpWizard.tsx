@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { api } from '@/lib/api';
 import { Subclass, Feat as FeatRecord } from '@/lib/types';
 import { getSubclassMap, updateAllClassResources } from '@/lib/subclasses';
 import { getAbilityScoreIncreasesFromFeatures } from '@/lib/featureStatModifiers';
-import { getBackgroundSkills } from '@/lib/wizardReference';
+import { getBackgroundSkills, STANDARD_LANGUAGES } from '@/lib/wizardReference';
+import { buildChoicePayload, getClassChoices } from '@/lib/classChoices';
+import ClassChoicesPicker, { ChoiceSpell, choicesComplete } from './ClassChoicesPicker';
 import { getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
 
 interface LevelUpWizardProps {
@@ -129,10 +131,14 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     const currentClasses = character.data?.classes || {};
     const hasMultipleClasses = Object.keys(currentClasses).length > 1 || (Object.keys(currentClasses).length === 0 && character.class);
     
-    // If no classes object exists, create it from character.class
-    const effectiveClasses = Object.keys(currentClasses).length > 0 
-        ? currentClasses 
-        : { [character.class.toLowerCase()]: character.level };
+    // If no classes object exists, create it from character.class. Memoized: effects depend on it,
+    // and a fresh object each render re-ran them forever (e.g. multiclassing from level 1).
+    const storedClasses = character.data?.classes;
+    const effectiveClasses: Record<string, number> = useMemo(() => (
+        storedClasses && Object.keys(storedClasses).length > 0
+            ? storedClasses
+            : { [character.class.toLowerCase()]: character.level }
+    ), [storedClasses, character.class, character.level]);
 
     // Calculate next level first (needed for ASI/Feat detection)
     const nextLevel = character.level + 1;
@@ -199,6 +205,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     const scholarSkillOptions = scholarProficientSkills.length > 0 ? scholarProficientSkills : SCHOLAR_SKILL_OPTIONS;
     const [selectedScholarSkill, setSelectedScholarSkill] = useState<string | null>(null);
 
+
     // Wizard: add 2 spells to spellbook when leveling up
     const needsWizardSpellbook = classId === 'wizard';
     const [wizardSpellbookChoices, setWizardSpellbookChoices] = useState<string[]>([]);
@@ -232,6 +239,36 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     const fightingStyleCheck = getFightingStyleForLevel(classId, newClassLevel, effectiveSubclassIdForFS);
     const needsFightingStyle = fightingStyleCheck.needed;
     const allowedFightingStyleIds = fightingStyleCheck.options; // undefined = all
+
+    // 2024 class feature choices at this class level (Expertise, Metamagic, Invocations, Weapon Mastery, ...)
+    const levelChoices = getClassChoices(classId, newClassLevel, effectiveSubclassIdForFS);
+    const levelChoiceKey = levelChoices.map(c => c.key).join('|');
+    const [choicePicks, setChoicePicks] = useState<Record<string, string[]>>({});
+    const [choiceSpells, setChoiceSpells] = useState<ChoiceSpell[]>([]);
+    useEffect(() => setChoicePicks({}), [classId, newClassLevel, levelChoiceKey]);
+    useEffect(() => {
+        if (!levelChoices.some(c => c.kind === 'spell')) return;
+        api.get('/reference/spells/summary')
+            .then((list: ChoiceSpell[]) => setChoiceSpells(Array.isArray(list) ? list : []))
+            .catch(() => setChoiceSpells([]));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [levelChoiceKey]);
+    const choiceContext = {
+        ctx: {
+            warlockLevel: classLevelsAfter.warlock ?? 0,
+            existing: (character.data?.classChoices || {}) as Record<string, string[]>,
+        },
+        proficientSkills: Array.from(new Set([
+            ...(getBackgroundSkills(character.data?.backgroundId || '') || []),
+            ...getSkillProficienciesFromTraits(character.data?.racialTraits || []),
+            ...(character.data?.skills || []),
+        ])),
+        expertiseSkills: (character.data?.expertise || []) as string[],
+        knownLanguages: (character.data?.languages || []) as string[],
+        languageOptions: STANDARD_LANGUAGES,
+        spells: choiceSpells,
+        spellbook: (character.data?.spellbook || []) as string[],
+    };
 
     useEffect(() => {
         api.get('/reference/classes')
@@ -336,6 +373,9 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                         ...Object.keys(classLevelsAfter).flatMap(cid => (allClassInfo.find((c: any) => c.id === cid)?.armorProficiencies) || []),
                         ...(character.classInfo?.armorProficiencies || []),
                     ];
+                    const orders = character.data?.classChoices || {};
+                    if ((orders['cleric:divine-order'] || []).includes('protector')) armorTraining.push('Heavy armor');
+                    if ((orders['druid:primal-order'] || []).includes('warden')) armorTraining.push('Medium armor');
                     const takenFeatIds = (character.data.features || []).map((f: any) => f.featId).filter(Boolean);
                     // Armor-training feats grant the next tier
                     if (takenFeatIds.includes('lightly-armored')) armorTraining.push('Light armor', 'Shields');
@@ -422,6 +462,11 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                 setIsSubmitting(false);
                 return;
             }
+            if (!choicesComplete(levelChoices, choicePicks, choiceContext)) {
+                alert(`Please make your ${levelChoices.map(c => c.title).join(', ')} choices.`);
+                setIsSubmitting(false);
+                return;
+            }
             if (needsScholar && !selectedScholarSkill) {
                 alert('Please choose a skill for your Scholar feature (proficiency and expertise).');
                 setIsSubmitting(false);
@@ -454,6 +499,16 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                         level: f.level
                     }));
                 payload.newFeatures = newFeatures;
+            }
+
+            // Class feature choices: option / spell picks become features on the sheet
+            const classChoicePayload = buildChoicePayload(
+                levelChoices, choicePicks,
+                Object.fromEntries(choiceSpells.map(sp => [sp.id, sp.name])),
+                nextLevel
+            );
+            if (classChoicePayload.features.length > 0) {
+                payload.newFeatures = [...(payload.newFeatures || []), ...classChoicePayload.features];
             }
 
             // Handle ASI/Feat selection
@@ -537,7 +592,8 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                 classToLevel: payload.classToLevel,
                 fightingStyle: needsFightingStyle && selectedFightingStyle ? selectedFightingStyle : undefined,
                 scholarSkill: needsScholar && selectedScholarSkill ? selectedScholarSkill : undefined,
-                wizardSpellbookSpells: needsWizardSpellbook && wizardSpellbookChoices.filter(Boolean).length >= 2 ? wizardSpellbookChoices.filter(Boolean) : undefined
+                wizardSpellbookSpells: needsWizardSpellbook && wizardSpellbookChoices.filter(Boolean).length >= 2 ? wizardSpellbookChoices.filter(Boolean) : undefined,
+                choices: levelChoices.length > 0 ? classChoicePayload : undefined
             });
 
             setIsSubmitting(false);
@@ -751,6 +807,21 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                 <option key={skill} value={skill}>{skill}</option>
                             ))}
                         </select>
+                    </div>
+                )}
+
+                {/* 2024 class feature choices */}
+                {levelChoices.length > 0 && (
+                    <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }} data-testid="levelup-class-choices">
+                        <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                            Class Choices
+                        </h3>
+                        <ClassChoicesPicker
+                            choices={levelChoices}
+                            value={choicePicks}
+                            onChange={setChoicePicks}
+                            {...choiceContext}
+                        />
                     </div>
                 )}
 

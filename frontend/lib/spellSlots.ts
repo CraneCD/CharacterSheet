@@ -53,6 +53,13 @@ const PACT_MAGIC_2024: { [level: number]: [number, number] } = {
 };
 
 /** Pact Magic slots as a per-spell-level array (all slots share the highest level; lower levels have 0). */
+/** Pact Magic slots for a Warlock level: how many slots and their (shared) slot level. */
+export const getPactMagic = (warlockLevel: number): { count: number; slotLevel: number } | null => {
+    if (warlockLevel < 1) return null;
+    const [count, slotLevel] = PACT_MAGIC_2024[Math.min(warlockLevel, 20)];
+    return { count, slotLevel };
+};
+
 export const getPactMagicSlots = (level: number): number[] => {
     if (level < 1) return [];
     const [count, slotLevel] = PACT_MAGIC_2024[Math.min(level, 20)];

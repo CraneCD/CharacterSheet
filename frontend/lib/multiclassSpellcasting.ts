@@ -38,7 +38,8 @@ export function calculateMulticlassSpellcasterLevel(
 }
 
 /**
- * Get all spellcasting classes from a multiclassed character
+ * Get all spellcasting classes from a multiclassed character (Warlock included:
+ * its Pact Magic slots are separate, but its spells are still prepared and cast).
  */
 export function getSpellcastingClasses(
     classes: { [classId: string]: number },
@@ -50,7 +51,7 @@ export function getSpellcastingClasses(
 
     for (const [classId, level] of Object.entries(safeClasses)) {
         const classInfo = safeAllClasses.find(c => c?.id?.toLowerCase() === classId?.toLowerCase());
-        if (classInfo && classInfo.spellcaster && classId.toLowerCase() !== 'warlock') {
+        if (classInfo && classInfo.spellcaster) {
             spellcastingClasses.push({ classId, level, classInfo });
         }
     }

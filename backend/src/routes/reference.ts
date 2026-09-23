@@ -26,8 +26,8 @@ router.get('/spells', async (req, res) => {
 // isn't matched as a spell id.
 router.get('/spells/summary', async (req, res) => {
     const spells = await listOf('spell');
-    const summaries = spells.map(({ id, name, level, school, classes, castingTime, ritual }) => ({
-        id, name, level, school, classes, castingTime, ritual
+    const summaries = spells.map(({ id, name, level, school, classes, castingTime, ritual, legacy }) => ({
+        id, name, level, school, classes, castingTime, ritual, legacy
     }));
     res.json(summaries);
 });

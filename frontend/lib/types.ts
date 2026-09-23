@@ -136,6 +136,8 @@ export interface CharacterData {
     subclassId?: string;
     /** Subclass chosen for each class: { fighter: 'champion', wizard: 'evocation' }. */
     subclasses?: { [classId: string]: string };
+    /** Multiclassed Warlocks: Pact Magic slots expended (separate from spellSlotsUsed). */
+    pactSlotsUsed?: number;
     currency?: Currency;
     classes?: { [classId: string]: number }; // Multiclass support: { 'fighter': 5, 'wizard': 3 } means Fighter 5 / Wizard 3
     fightingStyles?: string[]; // e.g. ['archery', 'defense'] – IDs from fighting-styles reference

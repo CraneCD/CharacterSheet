@@ -15,6 +15,8 @@ interface EquipmentManagerProps {
     existingActions?: any[];
     onCreateAction?: (action: any) => Promise<void>;
     hasWeaponMastery?: boolean;
+    /** Weapons picked for Weapon Mastery (lowercase); null/undefined = every weapon (characters from before the choice existed). */
+    masteryWeapons?: string[] | null;
     onDeleteMasteryActionsForWeapon?: (weaponName: string) => Promise<void>;
 }
 
@@ -28,6 +30,7 @@ export default function EquipmentManager({
     existingActions = [],
     onCreateAction,
     hasWeaponMastery = false,
+    masteryWeapons,
     onDeleteMasteryActionsForWeapon
 }: EquipmentManagerProps) {
     const [equipment, setEquipment] = useState<(string | CharacterItem)[]>(initialEquipment || []);
@@ -198,7 +201,8 @@ export default function EquipmentManager({
         // Weapon attacks are shown only in the Attacks section (CombatManager). Do not create them as actions.
         // Handle Weapon Mastery actions on equip/unequip only.
         if (isWeapon(item)) {
-            if (newEquipped && hasWeaponMastery && onCreateAction) {
+            const masteryChosen = !masteryWeapons || masteryWeapons.includes(item.name.trim().toLowerCase());
+            if (newEquipped && hasWeaponMastery && masteryChosen && onCreateAction) {
                 const masteryActions = getMasteryActionsForWeapon(item.name);
                 for (const ma of masteryActions) {
                     const exists = existingActions.some((a: any) => a.name === ma.name);

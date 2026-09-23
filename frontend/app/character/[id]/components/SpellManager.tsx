@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
 import { Spell, CharacterSpell, CharacterData } from '@/lib/types';
 import { calculateMulticlassSpellcasterLevel, getSpellcastingClasses, calculatePreparedSpellsLimitForClass, getCantripsKnown, getKnownSpellsLimit } from '@/lib/multiclassSpellcasting';
 import { ELVEN_LINEAGE_SPELLS, SUBCLASS_BONUS_SPELLS, MAGIC_INITIATE_CLASSES } from '@/lib/wizardReference';
-import { getSlotsForClass, THIRD_CASTER_SPELLS_KNOWN, getThirdCasterCantrips } from '@/lib/spellSlots';
+import { getSlotsForClass, getPactMagic, THIRD_CASTER_SPELLS_KNOWN, getThirdCasterCantrips } from '@/lib/spellSlots';
 import SpellDetailsModal from './SpellDetailsModal';
 import MagicInitiateConfigModal from './MagicInitiateConfigModal';
 
@@ -30,11 +30,17 @@ interface SpellManagerProps {
     subclassId?: string;
     /** Always-prepared subclass spells from the subclass record (class level -> spell). Falls back to SUBCLASS_BONUS_SPELLS. */
     subclassSpells?: { level: number; spellId: string }[];
+    /** Always-prepared spells from class feature choices (Mystic Arcanum, Spell Mastery, Signature Spells). */
+    classFeatureSpells?: string[];
+    /** Extra cantrips known (Divine Order: Thaumaturge, Primal Order: Magician). */
+    bonusCantrips?: number;
     /** Spells from the species / lineage choice (character level -> spell). Falls back to the elven lineage table. */
     speciesSpells?: { level: number; spellId: string }[];
     /** Level in the class that has the subclass (for subclass bonus spells). Defaults to level if not multiclassed. */
     subclassClassLevel?: number;
     initialSlotsUsed: { [level: number]: number };
+    /** Multiclassed Warlocks: Pact Magic slots expended (kept apart from the shared slots). */
+    initialPactSlotsUsed?: number;
     spellcastingAbility: string;
     preparedCaster?: boolean; // If true, class knows all spells and prepares a subset
     /** Wizard only: spell IDs in the spellbook. If set, wizard can only prepare spells in the spellbook. */
@@ -61,9 +67,10 @@ interface SpellManagerProps {
     onMagicInitiateSlotChange?: (used: number) => void;
 }
 
-export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel, subclassSpells, speciesSpells, magicInitiate, onMagicInitiateUpdate, magicInitiateSpell1Used = 1, onMagicInitiateSlotChange }: SpellManagerProps) {
+export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, initialPactSlotsUsed = 0, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel, subclassSpells, classFeatureSpells = [], bonusCantrips = 0, speciesSpells, magicInitiate, onMagicInitiateUpdate, magicInitiateSpell1Used = 1, onMagicInitiateSlotChange }: SpellManagerProps) {
     const [mySpells, setMySpells] = useState<CharacterSpell[]>(Array.isArray(initialSpells) ? initialSpells : []);
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
+    const [pactSlotsUsed, setPactSlotsUsed] = useState<number>(initialPactSlotsUsed);
     const [allSpells, setAllSpells] = useState<Spell[]>([]);
     const [isAdding, setIsAdding] = useState(false);
     const [isCantripMode, setIsCantripMode] = useState(false); // For prepared casters: true = learn cantrip, false = prepare spell
@@ -92,6 +99,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         setMySpells(Array.isArray(initialSpells) ? initialSpells : []);
         setSlotsUsed(initialSlotsUsed && typeof initialSlotsUsed === 'object' && !Array.isArray(initialSlotsUsed) ? initialSlotsUsed : {});
     }, [initialSpells, slotsUsedKey]);
+    useEffect(() => setPactSlotsUsed(initialPactSlotsUsed), [initialPactSlotsUsed]);
 
 
     useEffect(() => {
@@ -206,7 +214,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             if (!isSubclassSpellcasting && !hasMultipleClasses) {
                 const currentCantrips = safeMySpells.filter(s => s.level === 0).length;
                 const currentSpells = safeMySpells.filter(s => s.level > 0).length;
-                const cantripLimit = getCantripsKnown(classId, level);
+                const cantripLimit = getCantripsKnown(classId, level) + bonusCantrips;
                 if (spell.level === 0 && cantripLimit > 0 && currentCantrips >= cantripLimit) {
                     alert(`You can only know ${cantripLimit} cantrips at this level. Unlearn a cantrip first.`);
                     return;
@@ -419,6 +427,20 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         updateParent(mySpells, newSlots);
     };
 
+    const handlePactSlotChange = (used: number) => {
+        setPactSlotsUsed(used);
+        onUpdate({ pactSlotsUsed: used });
+    };
+
+    /** Rest: 'short' recovers Pact Magic slots only; 'long' recovers every slot. */
+    const handleRest = (kind: 'short' | 'long') => {
+        if (kind === 'long') {
+            setSlotsUsed({});
+            updateParent(mySpells, {});
+        }
+        if (pact) handlePactSlotChange(0);
+    };
+
     // Calculate spell slots - handle multiclassing and subclass spellcasting (Arcane Trickster, Eldritch Knight)
     const hasMultipleClasses = classesData && Object.keys(classesData).length > 1;
     const isSubclassSpellcasting = !!subclassSpellcasting;
@@ -441,8 +463,13 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         maxSlots = getSlotsForClass(classId, level);
     }
 
+    // Multiclassed Warlocks keep Pact Magic slots apart from the shared Spellcasting slots;
+    // either kind can cast spells from any of the character's classes (2024 multiclassing).
+    const warlockLevel = hasMultipleClasses ? Number(classesData?.warlock || 0) : 0;
+    const pact = warlockLevel > 0 ? getPactMagic(warlockLevel) : null;
+
     // Highest spell level we can prepare/cast (based on actual slots, not caster level formula)
-    const maxSpellLevel = maxSlots.length;
+    const maxSpellLevel = Math.max(maxSlots.length, pact?.slotLevel ?? 0);
 
     // Calculate prepared spells limit
     // For multiclassed prepared casters, we need to calculate limit per class
@@ -491,6 +518,17 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     // Get all class IDs that can cast spells (for spell list filtering)
     const availableClassIds = spellcastingClasses.map(sc => sc.classId.toLowerCase());
 
+    // Highest spell level usable for this spell: Warlock spells go up to the Pact Magic slot
+    // level, other classes' spells up to the shared slots.
+    const withinSpellLevel = (s: { level: number; classes?: string[] }): boolean => {
+        if (!pact) return s.level <= maxSpellLevel;
+        return (s.classes || []).some(c => {
+            const cid = c.toLowerCase();
+            if (!availableClassIds.includes(cid)) return false;
+            return s.level <= (cid === 'warlock' ? pact.slotLevel : maxSlots.length);
+        });
+    };
+
     // Spells known limits for third casters (Arcane Trickster, Eldritch Knight)
     const spellsKnownLimit = isSubclassSpellcasting && subclassSpellcasting
         ? THIRD_CASTER_SPELLS_KNOWN[Math.min(Math.max(0, subclassCasterLevel - 1), 19)] ?? 0
@@ -513,7 +551,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         if (!spellAvailableToClass) return false;
         
         // Check spell level availability based on actual spell slots
-        if (s.level === 0 || s.level <= maxSpellLevel) {
+        if (s.level === 0 || withinSpellLevel(s)) {
             if (preparedCaster || spellcastingClasses.some(sc => sc.classInfo.preparedCaster)) {
                 if (isCantripMode) {
                     // Cantrip mode: only show unlearned cantrips
@@ -540,7 +578,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             availableClassIds.includes(spellClass.toLowerCase())
         );
         if (!spellAvailableToClass) return false;
-        if (s.level > maxSpellLevel) return false;
+        if (!withinSpellLevel(s)) return false;
         return !effectiveSpellbook.includes(s.id);
     });
 
@@ -573,8 +611,12 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     const subclassClassLvl = subclassClassLevel ?? level;
     const subclassSpellsConfigRaw = (subclassSpells && subclassSpells.length > 0) ? subclassSpells : (subclassKey ? SUBCLASS_BONUS_SPELLS[subclassKey] : null);
     const subclassSpellsConfig = Array.isArray(subclassSpellsConfigRaw) ? subclassSpellsConfigRaw : [];
-    const subclassSpellsForLevel = subclassSpellsConfig
-        .filter(entry => subclassClassLvl >= entry.level)
+    const subclassSpellsForLevel = [
+        ...subclassSpellsConfig
+            .filter(entry => subclassClassLvl >= entry.level)
+            .map(entry => ({ ...entry, bonusLabel: 'Subclass' })),
+        ...classFeatureSpells.map(spellId => ({ level: 0, spellId, bonusLabel: 'Class feature' })),
+    ]
         .map(entry => ({ ...entry, spell: safeAllSpells.find(s => s.id === entry.spellId) }))
         .filter((x): x is typeof x & { spell: Spell } => !!x.spell);
 
@@ -591,7 +633,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 (!s.legacy || !!safeMySpells.find(ms => ms.id === s.id)) &&
                 (s.classes || []).some((spellClass: string) => availableClassIds.includes(spellClass.toLowerCase())) &&
                 s.level === lvl &&
-                s.level <= maxSpellLevel
+                withinSpellLevel(s)
             );
             if (isWizardSpellbook) {
                 availableAtLevel = availableAtLevel.filter(s => effectiveSpellbook.includes(s.id));
@@ -627,7 +669,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 }
             }
             // Add subclass bonus spells for this level (e.g. Gloom Stalker; always prepared)
-            for (const { spell } of subclassSpellsForLevel) {
+            for (const { spell, bonusLabel } of subclassSpellsForLevel) {
                 if (spell.level === lvl && !spellsAtLevel.some(s => s.id === spell.id)) {
                     spellsAtLevel.push({
                         id: spell.id,
@@ -637,7 +679,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                         prepared: true,
                         isKnown: true,
                         isElvenLineage: false,
-                        isSubclassBonus: true
+                        isSubclassBonus: true,
+                        bonusLabel
                     });
                 }
             }
@@ -659,7 +702,9 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             });
             // Species/lineage cantrips and subclass cantrips (e.g. Starry Wisp, Elementalism) are always known
             for (const [entries, fromLineage] of [[lineageSpellsForLevel, true], [subclassSpellsForLevel, false]] as const) {
-                for (const { spell } of entries) {
+                for (const entry of entries) {
+                    const { spell } = entry;
+                    const bonusLabel = 'bonusLabel' in entry ? entry.bonusLabel : undefined;
                     if (spell.level === 0 && !spellsAtLevel.some(s => s.id === spell.id)) {
                         spellsAtLevel.push({
                             id: spell.id,
@@ -669,7 +714,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             prepared: true,
                             isKnown: true,
                             isElvenLineage: fromLineage,
-                            isSubclassBonus: !fromLineage
+                            isSubclassBonus: !fromLineage,
+                            bonusLabel
                         });
                     }
                 }
@@ -705,7 +751,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 }
             }
             // Add subclass bonus spells for this level
-            for (const { spell } of subclassSpellsForLevel) {
+            for (const { spell, bonusLabel } of subclassSpellsForLevel) {
                 if (spell.level === lvl && !spellsAtLevel.some(s => s.id === spell.id)) {
                     spellsAtLevel.push({
                         id: spell.id,
@@ -715,7 +761,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                         prepared: true,
                         isKnown: true,
                         isElvenLineage: false,
-                        isSubclassBonus: true
+                        isSubclassBonus: true,
+                        bonusLabel
                     });
                 }
             }
@@ -852,7 +899,12 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 </h3>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', justifyContent: 'flex-end' }}>
                     {!isInnateOnly && (
-                    <button className="button secondary" onClick={() => setSlotsUsed({})} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>Rest (Reset Slots)</button>
+                    <>
+                    {pact && (
+                        <button className="button secondary" onClick={() => handleRest('short')} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }} data-testid="pact-short-rest">Short Rest (Pact Slots)</button>
+                    )}
+                    <button className="button secondary" onClick={() => handleRest('long')} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>Rest (Reset Slots)</button>
+                    </>
                     )}
                     {!preparedCaster && !isInnateOnly && (
                         <button
@@ -1128,6 +1180,34 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 </p>
             )}
 
+            {pact && (
+                <div data-testid="pact-magic-slots" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '0.875rem' }}>
+                    <strong>Pact Magic</strong>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                        {pact.count} level {pact.slotLevel} slot{pact.count === 1 ? '' : 's'} (Warlock {warlockLevel}) · regain on a Short or Long Rest · usable for any of your spells
+                    </span>
+                    <div style={{ display: 'flex', gap: '0.25rem', marginLeft: 'auto' }}>
+                        {Array.from({ length: pact.count }).map((_, slotIdx) => {
+                            const isUsed = slotIdx < pactSlotsUsed;
+                            return (
+                                <div
+                                    key={slotIdx}
+                                    data-testid={`pact-slot-${slotIdx}`}
+                                    onClick={() => handlePactSlotChange(isUsed && slotIdx === pactSlotsUsed - 1 ? slotIdx : slotIdx + 1)}
+                                    style={{
+                                        width: '12px', height: '12px', borderRadius: '50%',
+                                        border: '1px solid var(--primary)',
+                                        backgroundColor: isUsed ? 'var(--primary)' : 'transparent',
+                                        cursor: 'pointer'
+                                    }}
+                                    title="Toggle Pact Magic slot"
+                                />
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             {spellsByLevel.map(group => {
                 const isExpanded = expandedLevels[group.level] !== false; // Default to true
                 return (
@@ -1215,7 +1295,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                                 <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: '0.35rem' }}>(Species)</span>
                                             )}
                                             {isSubclassBonusSpell && (
-                                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: '0.35rem' }}>(Subclass)</span>
+                                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: '0.35rem' }}>({(spell as any).bonusLabel || 'Subclass'})</span>
                                             )}
                                         </div>
                                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{spell.school}</div>
