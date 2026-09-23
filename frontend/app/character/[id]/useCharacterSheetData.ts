@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { CharacterData } from '@/lib/types';
+import { getCharacterSubclasses, getClassLevels, getSubclassMap } from '@/lib/subclasses';
 
 export interface GameData {
     races: any[];
@@ -16,6 +17,8 @@ export interface ClassFeature {
     level: number;
     name: string;
     description: string;
+    /** e.g. "Class: Wizard" or "Subclass: Evoker" (set for the sheet's feature lists). */
+    source?: string;
 }
 
 // Module-level cache: reference data is static per session — no need to re-fetch on navigation
@@ -93,9 +96,12 @@ export function useCharacterSheetData(id: string | string[] | undefined) {
                 const featureResults = await Promise.all(
                     characterClasses.map(cls =>
                         api.get(`/reference/class-features/${cls.id}`)
-                            .then((features: ClassFeature[]) =>
-                                (Array.isArray(features) ? features : []).filter(f => f.level <= cls.level)
-                            )
+                            .then((features: ClassFeature[]) => {
+                                const className = (gameData.classes || []).find((c: any) => (c?.id || '').toLowerCase() === cls.id.toLowerCase())?.name || cls.id;
+                                return (Array.isArray(features) ? features : [])
+                                    .filter(f => f.level <= cls.level)
+                                    .map(f => ({ ...f, source: `Class: ${className}` }));
+                            })
                             .catch((err: unknown) => {
                                 console.error(`Failed to load features for ${cls.id}`, err);
                                 return [] as ClassFeature[];
@@ -106,20 +112,18 @@ export function useCharacterSheetData(id: string | string[] | undefined) {
 
                 setClassFeaturesList(allClassFeatures);
 
-                // Load subclass features if character has a subclass (for now, only primary class)
-                if (data.subclassId) {
-                    const subclass = (gameData.subclasses || []).find((s: any) => (s?.id || '') === data.subclassId);
-                    if (subclass) {
-                        const primaryClassLevel = characterClasses[0]?.level ?? character.level ?? 1;
-                        const subclassFeatures = subclass.features || [];
-                        const availableSubclassFeatures = subclassFeatures.filter((f: ClassFeature) => f.level <= primaryClassLevel);
-                        setSubclassFeaturesList(availableSubclassFeatures);
-                    } else {
-                        setSubclassFeaturesList([]);
-                    }
-                } else {
-                    setSubclassFeaturesList([]);
-                }
+                // Subclass features for every class with a subclass, each up to that class's level
+                const primaryClassId = (cls || '').toLowerCase();
+                const allSubclasses = gameData.subclasses || [];
+                const characterSubclasses = getCharacterSubclasses(
+                    getSubclassMap(data, allSubclasses, primaryClassId),
+                    getClassLevels(data, primaryClassId, character.level ?? 1),
+                    allSubclasses
+                );
+                setSubclassFeaturesList(characterSubclasses.flatMap(({ subclass, classLevel }) =>
+                    (subclass.features || [])
+                        .filter((f: ClassFeature) => f.level <= classLevel)
+                        .map((f: ClassFeature) => ({ ...f, source: `Subclass: ${subclass.name}` }))));
             } catch (err) {
                 console.error('Failed to load class features', err);
                 setClassFeaturesList([]);

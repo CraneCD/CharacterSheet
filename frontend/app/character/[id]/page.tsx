@@ -16,7 +16,7 @@ import PortraitUpload from './components/PortraitUpload';
 import FeatureManager from './components/FeatureManager';
 import CurrencyManager from './components/CurrencyManager';
 import { CharacterData, CharacterItem, CharacterFeature } from '@/lib/types';
-import { calculateClassResources, mergeHeroicInspiration, mergeBlessingOfTheRavenQueen, reconcileClassResources, RESOURCE_RULES_VERSION } from '@/lib/classResources';
+import { mergeHeroicInspiration, mergeBlessingOfTheRavenQueen, reconcileClassResources, RESOURCE_RULES_VERSION } from '@/lib/classResources';
 import { 
     calculateSpeedBonusFromFeatures, 
     getACCalculationFromFeatures,
@@ -27,6 +27,8 @@ import { isMasteryActionForWeapon } from '@/lib/weaponMastery';
 import { getSkillProficienciesFromTraits, hasResourceful, hasBlessingOfTheRavenQueen } from '@/lib/racialTraitBonuses';
 import { getRaceTraits, getBackgroundSkills, getSpeciesSpellEntries, STANDARD_LANGUAGES } from '@/lib/wizardReference';
 import { useCharacterSheetData } from './useCharacterSheetData';
+import { calculateAllClassResources, getCharacterSubclasses, getSubclassMap } from '@/lib/subclasses';
+import { SUBCLASS_BONUS_SPELLS } from '@/lib/wizardReference';
 
 export default function CharacterSheet() {
     const { id } = useParams();
@@ -98,13 +100,23 @@ export default function CharacterSheet() {
     const bgId = (data.backgroundId || '').toLowerCase();
     const background = (gameData.backgrounds || []).find((b: any) => (b.id || '').toLowerCase() === bgId) || { name: 'Custom', feature: { name: 'Custom Feature', description: '' } };
 
-    // Subclass (for now, only primary class can have subclass)
-    const subclass = data.subclassId ? (gameData.subclasses || []).find((s: any) => (s.id || '') === data.subclassId) : null;
-    
+    // Subclasses, one per class that has chosen one
+    const classLevels: Record<string, number> = Object.fromEntries(characterClasses.map((c: any) => [String(c.id).toLowerCase(), Number(c.level) || 0]));
+    const subclassMap = getSubclassMap(data, gameData.subclasses || [], primaryClass);
+    const characterSubclasses = getCharacterSubclasses(subclassMap, classLevels, gameData.subclasses || []);
+    const subclassFor = (classId: string) => characterSubclasses.find(s => s.classId === classId.toLowerCase());
+    const subclass = subclassFor(primaryClassId)?.subclass ?? null;
+
     // Build class name display
     let classNameDisplay = '';
     if (hasMultipleClasses && characterClasses.length > 1) {
-        classNameDisplay = characterClasses.map(c => `${c.name} ${c.level}`).join(' / ');
+        // Main class first, then by level (stored class order isn't preserved by the database)
+        const displayClasses = [...characterClasses].sort((a: any, b: any) =>
+            (Number(b.id === primaryClass) - Number(a.id === primaryClass)) || (b.level - a.level));
+        classNameDisplay = displayClasses.map(c => {
+            const sub = subclassFor(c.id)?.subclass;
+            return sub ? `${c.name} ${c.level} (${sub.name})` : `${c.name} ${c.level}`;
+        }).join(' / ');
     } else {
         classNameDisplay = subclass ? `${charClass.name} (${subclass.name})` : charClass.name;
     }
@@ -182,7 +194,7 @@ export default function CharacterSheet() {
     } else {
         // Unarmored Defense calculations
         const unarmoredTraits: string[] = (data.racialTraits && data.racialTraits.length > 0) ? data.racialTraits : (race?.traits || []);
-        const draconicResilience = (data.subclassId === 'draconic') && characterClasses.some((c: any) => c.id === 'sorcerer' && c.level >= 3);
+        const draconicResilience = subclassMap.sorcerer === 'draconic' && (classLevels.sorcerer ?? 0) >= 3;
         if (unarmoredTraits.includes('Natural Armor (Shell)')) {
             // Tortle shell: base AC 17, Dexterity doesn't apply
             calculatedAC = 17;
@@ -301,12 +313,12 @@ export default function CharacterSheet() {
         ) ? [{ name: background.feature.name, source: 'Background Feature', description: background.feature.description }] : []),
         ...(classFeaturesList || []).map(f => ({
             name: f.name,
-            source: `Class: ${charClass.name}`,
+            source: f.source || `Class: ${charClass.name}`,
             description: f.description
         })),
         ...(subclassFeaturesList || []).map(f => ({
             name: f.name,
-            source: subclass ? `Subclass: ${subclass.name}` : 'Subclass',
+            source: f.source || (subclass ? `Subclass: ${subclass.name}` : 'Subclass'),
             description: f.description
         }))
     ];
@@ -966,12 +978,12 @@ export default function CharacterSheet() {
                         let resources = data.classResources;
                         let didChange = false;
                         if (!resources || Object.keys(resources).length === 0) {
-                            resources = calculateClassResources(primaryClass, level, abilityScores, data.subclassId);
+                            resources = calculateAllClassResources(classLevels, subclassMap, abilityScores);
                             if (Object.keys(resources).length > 0) didChange = true;
                         } else if (data.classResourcesRules !== RESOURCE_RULES_VERSION) {
                             // One-time migration of resources stored under the 2014 rules
                             // (e.g. unlimited Rage at 20, Ki Points) to the 2024 tables.
-                            resources = reconcileClassResources(resources, calculateClassResources(primaryClass, level, abilityScores, data.subclassId));
+                            resources = reconcileClassResources(resources, calculateAllClassResources(classLevels, subclassMap, abilityScores));
                             didChange = true;
                         }
                         const needHeroic = hasResourceful(racialTraits);
@@ -983,7 +995,7 @@ export default function CharacterSheet() {
                         resources = mergeBlessingOfTheRavenQueen(resources || {}, needBlessing, level);
                         if (needBlessing && !hadBlessing) didChange = true;
                         // Psi Warrior: remove Telekinetic Movement (now nested in Psionic Energy Dice UI)
-                        const isPsiWarrior = primaryClass === 'fighter' && (data.subclassId === 'psi_warrior' || data.subclassId === 'psi warrior') && level >= 3;
+                        const isPsiWarrior = ['psi_warrior', 'psi warrior'].includes(subclassMap.fighter || '') && (classLevels.fighter ?? 0) >= 3;
                         let resourcesToShow = resources;
                         if (isPsiWarrior && resources?.['Telekinetic Movement']) {
                             const { 'Telekinetic Movement': _, ...rest } = resources;
@@ -1226,10 +1238,10 @@ export default function CharacterSheet() {
                     const clsInfo = (gameData.classes || []).find((gc: any) => (gc.id || '').toLowerCase() === (c.id || '').toLowerCase());
                     return clsInfo?.spellcaster;
                 });
-                const subclassId = (data.subclassId || '').toLowerCase();
-                const primaryLevel = characterClasses[0]?.level ?? level;
-                const subclassGrantsSpellcasting = subclass?.spellcasting && primaryLevel >= 3
-                    && ['arcane_trickster', 'eldritch_knight'].includes(subclassId);
+                // Eldritch Knight / Arcane Trickster: spellcasting from a subclass, keyed to that class's level
+                const casterSubclass = characterSubclasses.find(s =>
+                    s.subclass.spellcasting && s.classLevel >= 3 && ['arcane_trickster', 'eldritch_knight'].includes(s.subclass.id));
+                const subclassGrantsSpellcasting = !!casterSubclass;
                 const speciesSpells = getSpeciesSpellEntries(character.race, data.speciesLineage || data.elvenLineage);
                 const hasElvenLineageSpells = speciesSpells.length > 0;
                 const hasMagicInitiateFeat = (data.features || []).some((f: any) => (f.name || '').toLowerCase() === 'magic initiate');
@@ -1249,22 +1261,24 @@ export default function CharacterSheet() {
 
                 let primarySpellcastingClass = spellcastingClasses[0];
                 let primarySpellcastingAbility = primarySpellcastingClass?.classInfo?.spellcastingAbility || 'int';
-                let subclassSpellcasting: { subclassId: string; spellListClass: string; spellcastingAbility: string; casterLevelDivisor: number } | undefined;
+                let subclassSpellcasting: { subclassId: string; spellListClass: string; spellcastingAbility: string; casterLevelDivisor: number; classLevel?: number } | undefined;
 
-                if (!primarySpellcastingClass && subclassGrantsSpellcasting && subclass?.spellcasting) {
+                if (!primarySpellcastingClass && casterSubclass?.subclass.spellcasting) {
+                    const { subclass: casterSub, classLevel: casterClassLevel } = casterSubclass;
                     subclassSpellcasting = {
-                        subclassId,
-                        spellListClass: subclass.spellcasting.spellListClass,
-                        spellcastingAbility: subclass.spellcasting.spellcastingAbility,
-                        casterLevelDivisor: subclass.spellcasting.casterLevelDivisor
+                        subclassId: casterSub.id,
+                        spellListClass: casterSub.spellcasting.spellListClass,
+                        spellcastingAbility: casterSub.spellcasting.spellcastingAbility,
+                        casterLevelDivisor: casterSub.spellcasting.casterLevelDivisor,
+                        classLevel: casterClassLevel
                     };
                     primarySpellcastingClass = {
-                        id: subclass.spellcasting.spellListClass,
-                        name: subclass.name,
-                        level: primaryLevel,
-                        classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: subclass.spellcasting.spellcastingAbility }
+                        id: casterSub.spellcasting.spellListClass,
+                        name: casterSub.name,
+                        level: casterClassLevel,
+                        classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: casterSub.spellcasting.spellcastingAbility }
                     };
-                    primarySpellcastingAbility = subclass.spellcasting.spellcastingAbility;
+                    primarySpellcastingAbility = casterSub.spellcasting.spellcastingAbility;
                 } else if (!primarySpellcastingClass && hasElvenLineageSpells) {
                     // Virtual spellcasting for elven lineage only (no class spellcasting)
                     primarySpellcastingClass = {
@@ -1284,6 +1298,15 @@ export default function CharacterSheet() {
                     };
                     primarySpellcastingAbility = data.magicInitiate?.ability || 'int';
                 } else if (!primarySpellcastingClass) return null;
+
+                // Always-prepared subclass spells from every subclass, each gated by its own class level
+                // (already filtered here, so SpellManager compares them against the character level).
+                const grantedSubclassSpells = characterSubclasses.flatMap(({ subclass: sub, classLevel }) => {
+                    const entries: { level: number; spellId: string }[] = sub.spells?.length
+                        ? sub.spells
+                        : (SUBCLASS_BONUS_SPELLS[String(sub.id).toLowerCase().replace(/\s+/g, '_')] || []);
+                    return entries.filter(e => classLevel >= e.level);
+                });
                 
                 return (
                     <div style={{ marginTop: '1rem' }}>
@@ -1320,9 +1343,8 @@ export default function CharacterSheet() {
                                 subclassSpellcasting={subclassSpellcasting}
                                 elvenLineage={(character.race || '').toLowerCase() === 'elf' ? data.elvenLineage : undefined}
                                 speciesSpells={speciesSpells}
-                                subclassSpells={subclass?.spells}
-                                subclassId={primarySpellcastingClass.id !== 'innate' && primarySpellcastingClass.id !== 'magic_initiate' ? (data.subclassId || '').toLowerCase().replace(/\s+/g, '_') : undefined}
-                                subclassClassLevel={primarySpellcastingClass?.level ?? level}
+                                subclassSpells={grantedSubclassSpells}
+                                subclassClassLevel={level}
                                 magicInitiate={hasMagicInitiateFeat ? data.magicInitiate : undefined}
                                 onMagicInitiateUpdate={(magicInitiate) => {
                                     handleUpdateCharacter({ magicInitiate });
