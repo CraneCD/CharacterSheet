@@ -53,7 +53,11 @@ export const backgrounds: Background[] = [
             "Calligrapher's Supplies, Book (prayers), Holy Symbol, Parchment (10 sheets), Robe, 8 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "SRD 5.2"
+        "source": "SRD 5.2",
+        "feature": {
+            "name": "Origin Feat: Magic Initiate (Cleric)",
+            "description": "You gain the following benefits.\nTwo Cantrips. You learn two cantrips of your choice from the Cleric, Druid, or Wizard spell list. Intelligence, Wisdom, or Charisma is your spellcasting ability for this feat's spells (choose when you select this feat).\nLevel 1 Spell. Choose a level 1 spell from the same list you selected for this feat's cantrips. You always have that spell prepared. You can cast it once without a spell slot, and you regain the ability to cast it in that way when you finish a Long Rest. You can also cast the spell using any spell slots you have.\nSpell Change. Whenever you gain a new level, you can replace one of the spells you chose for this feat with a different spell of the same level from the chosen spell list."
+        }
     },
     {
         "id": "artisan",
@@ -76,7 +80,11 @@ export const backgrounds: Background[] = [
             "Artisan's Tools, 2 Pouches, Traveler's Clothes, 32 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "PHB 2024"
+        "source": "PHB 2024",
+        "feature": {
+            "name": "Origin Feat: Crafter",
+            "description": "You gain the following benefits.\n- Tool Proficiency. You gain proficiency with three different Artisan's Tools of your choice.\n- Discount. Whenever you buy a nonmagical item, you receive a 20 percent discount on it.\n- Fast Crafting. When you finish a Long Rest, you can craft one piece of gear (such as a ladder, torch, rope or pouch) using a set of Artisan's Tools you are proficient with. The item lasts until you finish another Long Rest."
+        }
     },
     {
         "id": "charlatan",
@@ -99,7 +107,11 @@ export const backgrounds: Background[] = [
             "Forgery Kit, Costume, Fine Clothes, 15 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "PHB 2024"
+        "source": "PHB 2024",
+        "feature": {
+            "name": "Origin Feat: Skilled",
+            "description": "You gain proficiency in any combination of three skills or tools of your choice."
+        }
     },
     {
         "id": "criminal",
@@ -122,7 +134,11 @@ export const backgrounds: Background[] = [
             "2 Daggers, Thieves' Tools, Crowbar, 2 Pouches, Traveler's Clothes, 16 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "SRD 5.2"
+        "source": "SRD 5.2",
+        "feature": {
+            "name": "Origin Feat: Alert",
+            "description": "You gain the following benefits.\nInitiative Proficiency. When you roll Initiative, you can add your Proficiency Bonus to the roll.\nInitiative Swap. Immediately after you roll Initiative, you can swap your Initiative with the Initiative of one willing ally in the same combat. You can't make this swap if you or the ally has the Incapacitated condition."
+        }
     },
     {
         "id": "entertainer",
@@ -145,7 +161,11 @@ export const backgrounds: Background[] = [
             "Musical Instrument, 2 Costumes, Mirror, Perfume, Traveler's Clothes, 11 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "PHB 2024"
+        "source": "PHB 2024",
+        "feature": {
+            "name": "Origin Feat: Musician",
+            "description": "You gain the following benefits.\n- Instrument Training. You gain proficiency with three Musical Instruments of your choice.\n- Encouraging Song. As you finish a Short or Long Rest, you can play a song on a Musical Instrument you are proficient with and give Heroic Inspiration to allies who hear the song. The number of allies you can affect equals your Proficiency Bonus."
+        }
     },
     {
         "id": "farmer",
@@ -168,7 +188,11 @@ export const backgrounds: Background[] = [
             "Sickle, Carpenter's Tools, Healer's Kit, Iron Pot, Shovel, Traveler's Clothes, 30 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "PHB 2024"
+        "source": "PHB 2024",
+        "feature": {
+            "name": "Origin Feat: Tough",
+            "description": "Your Hit Point maximum increases by an amount equal to twice your character level when you gain this feat. Whenever you gain a character level thereafter, your Hit Point maximum increases by an additional 2 Hit Points."
+        }
     },
     {
         "id": "guard",
@@ -191,7 +215,11 @@ export const backgrounds: Background[] = [
             "Spear, Light Crossbow, 20 Bolts, Gaming Set, Hooded Lantern, Manacles, Quiver, Traveler's Clothes, 12 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "PHB 2024"
+        "source": "PHB 2024",
+        "feature": {
+            "name": "Origin Feat: Alert",
+            "description": "You gain the following benefits.\nInitiative Proficiency. When you roll Initiative, you can add your Proficiency Bonus to the roll.\nInitiative Swap. Immediately after you roll Initiative, you can swap your Initiative with the Initiative of one willing ally in the same combat. You can't make this swap if you or the ally has the Incapacitated condition."
+        }
     },
     {
         "id": "guide",
@@ -215,7 +243,11 @@ export const backgrounds: Background[] = [
             "Shortbow, 20 Arrows, Cartographer's Tools, Bedroll, Quiver, Tent, Traveler's Clothes, 3 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "PHB 2024"
+        "source": "PHB 2024",
+        "feature": {
+            "name": "Origin Feat: Magic Initiate (Druid)",
+            "description": "You gain the following benefits.\nTwo Cantrips. You learn two cantrips of your choice from the Cleric, Druid, or Wizard spell list. Intelligence, Wisdom, or Charisma is your spellcasting ability for this feat's spells (choose when you select this feat).\nLevel 1 Spell. Choose a level 1 spell from the same list you selected for this feat's cantrips. You always have that spell prepared. You can cast it once without a spell slot, and you regain the ability to cast it in that way when you finish a Long Rest. You can also cast the spell using any spell slots you have.\nSpell Change. Whenever you gain a new level, you can replace one of the spells you chose for this feat with a different spell of the same level from the chosen spell list."
+        }
     },
     {
         "id": "hermit",
@@ -238,7 +270,11 @@ export const backgrounds: Background[] = [
             "Quarterstaff, Herbalism Kit, Bedroll, Book (philosophy), Lamp, Oil (3 flasks), Traveler's Clothes, 16 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "PHB 2024"
+        "source": "PHB 2024",
+        "feature": {
+            "name": "Origin Feat: Healer",
+            "description": "You gain the following benefits.\n- Battle Medic. If you have a Healer's Kit, you can expend one use of it and tend to a creature within 5 feet of yourself as a Utilize action. That creature can expend one of its Hit Point Dice, and you then roll that die. The creature regains Hit Points equal to the roll plus your Proficiency Bonus.\n- Healing Rerolls. Whenever you roll a die to determine the Hit Points you restore with a spell or with this feat's Battle Medic benefit, you can reroll the die if it rolls a 1, and you must use the new roll."
+        }
     },
     {
         "id": "merchant",
@@ -261,7 +297,11 @@ export const backgrounds: Background[] = [
             "Navigator's Tools, 2 Pouches, Traveler's Clothes, 22 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "PHB 2024"
+        "source": "PHB 2024",
+        "feature": {
+            "name": "Origin Feat: Lucky",
+            "description": "You gain the following benefits.\n- Luck Points. You have a number of Luck Points equal to your Proficiency Bonus and regain all of them when you finish a Long Rest.\n- Advantage. When you roll a d20 for a D20 Test, you can spend 1 Luck Point to give yourself Advantage on the roll.\n- Disadvantage. When a creature rolls a d20 for an attack roll against you, you can spend 1 Luck Point to impose Disadvantage on that roll."
+        }
     },
     {
         "id": "noble",
@@ -284,7 +324,11 @@ export const backgrounds: Background[] = [
             "Gaming Set, Fine Clothes, Perfume, 29 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "PHB 2024"
+        "source": "PHB 2024",
+        "feature": {
+            "name": "Origin Feat: Skilled",
+            "description": "You gain proficiency in any combination of three skills or tools of your choice."
+        }
     },
     {
         "id": "sage",
@@ -308,7 +352,11 @@ export const backgrounds: Background[] = [
             "Quarterstaff, Calligrapher's Supplies, Book (history), Parchment (8 sheets), Robe, 8 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "SRD 5.2"
+        "source": "SRD 5.2",
+        "feature": {
+            "name": "Origin Feat: Magic Initiate (Wizard)",
+            "description": "You gain the following benefits.\nTwo Cantrips. You learn two cantrips of your choice from the Cleric, Druid, or Wizard spell list. Intelligence, Wisdom, or Charisma is your spellcasting ability for this feat's spells (choose when you select this feat).\nLevel 1 Spell. Choose a level 1 spell from the same list you selected for this feat's cantrips. You always have that spell prepared. You can cast it once without a spell slot, and you regain the ability to cast it in that way when you finish a Long Rest. You can also cast the spell using any spell slots you have.\nSpell Change. Whenever you gain a new level, you can replace one of the spells you chose for this feat with a different spell of the same level from the chosen spell list."
+        }
     },
     {
         "id": "sailor",
@@ -331,7 +379,11 @@ export const backgrounds: Background[] = [
             "Dagger, Navigator's Tools, Rope, Traveler's Clothes, 20 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "PHB 2024"
+        "source": "PHB 2024",
+        "feature": {
+            "name": "Origin Feat: Tavern Brawler",
+            "description": "You gain the following benefits.\n- Enhanced Unarmed Strike. When you hit with your Unarmed Strike and deal damage, you can deal Bludgeoning damage equal to 1d4 plus your Strength modifier instead of the normal damage.\n- Damage Rerolls. Whenever you roll a damage die for your Unarmed Strike, you can reroll it if it rolls a 1, and you must use the new roll.\n- Improvised Weaponry. You have proficiency with improvised weapons.\n- Push. When you hit a creature with an Unarmed Strike as part of the Attack action on your turn, you can deal damage and also push the target 5 feet away from you. You can use this benefit only once per turn."
+        }
     },
     {
         "id": "scribe",
@@ -354,7 +406,11 @@ export const backgrounds: Background[] = [
             "Calligrapher's Supplies, Fine Clothes, Lamp, Oil (3 flasks), Parchment (12 sheets), 23 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "PHB 2024"
+        "source": "PHB 2024",
+        "feature": {
+            "name": "Origin Feat: Skilled",
+            "description": "You gain proficiency in any combination of three skills or tools of your choice."
+        }
     },
     {
         "id": "soldier",
@@ -377,7 +433,11 @@ export const backgrounds: Background[] = [
             "Spear, Shortbow, 20 Arrows, Gaming Set, Healer's Kit, Quiver, Traveler's Clothes, 14 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "SRD 5.2"
+        "source": "SRD 5.2",
+        "feature": {
+            "name": "Origin Feat: Savage Attacker",
+            "description": "You've trained to deal particularly damaging strikes. Once per turn when you hit a target with a weapon, you can roll the weapon's damage dice twice and use either roll against the target."
+        }
     },
     {
         "id": "wayfarer",
@@ -400,7 +460,11 @@ export const backgrounds: Background[] = [
             "2 Daggers, Thieves' Tools, Gaming Set, Bedroll, 2 Pouches, Traveler's Clothes, 16 GP or 50 GP"
         ],
         "languages": 0,
-        "source": "PHB 2024"
+        "source": "PHB 2024",
+        "feature": {
+            "name": "Origin Feat: Lucky",
+            "description": "You gain the following benefits.\n- Luck Points. You have a number of Luck Points equal to your Proficiency Bonus and regain all of them when you finish a Long Rest.\n- Advantage. When you roll a d20 for a D20 Test, you can spend 1 Luck Point to give yourself Advantage on the roll.\n- Disadvantage. When a creature rolls a d20 for an attack roll against you, you can spend 1 Luck Point to impose Disadvantage on that roll."
+        }
     },
     {
         "id": "folk-hero",

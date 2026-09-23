@@ -13,7 +13,8 @@
         "prisma:migrate": "prisma migrate dev",
         "prisma:seed": "ts-node prisma/seed.ts",
         "make-admin": "ts-node src/scripts/makeAdmin.ts",
-        "backfill-reference-ids": "ts-node src/scripts/backfillReferenceIds.ts"
+        "backfill-reference-ids": "ts-node src/scripts/backfillReferenceIds.ts",
+        "sync-reference": "ts-node src/scripts/syncReferenceData.ts"
     },
     "prisma": {
         "seed": "ts-node prisma/seed.ts"

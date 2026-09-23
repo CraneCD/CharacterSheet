@@ -293,11 +293,12 @@ export default function CharacterSheet() {
                 description: traitData?.description || `Racial trait: ${trait}`
             };
         })),
-        ...(background?.feature ? [{ name: background.feature.name, source: 'Background Feature', description: background.feature.description }] : []),
-        // 2024 backgrounds grant an Origin feat (stored in data.features at creation); show it for older characters too.
-        ...(background?.originFeat && !(data.features || []).some((f: any) => f.featId === background.originFeat)
-            ? [{ name: `Origin Feat: ${String(background.originFeat).split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`, source: 'Background Feature', description: `Your ${background.name} background grants this Origin feat${background.originFeatNote ? ` (${background.originFeatNote})` : ''}.` }]
-            : []),
+        // 2024 backgrounds carry an "Origin Feat: X" stub as their feature; hide it once the feat itself is stored on the character.
+        ...(background?.feature && !(
+            background.originFeat &&
+            String(background.feature.name || '').startsWith('Origin Feat:') &&
+            (data.features || []).some((f: any) => f.featId === background.originFeat)
+        ) ? [{ name: background.feature.name, source: 'Background Feature', description: background.feature.description }] : []),
         ...(classFeaturesList || []).map(f => ({
             name: f.name,
             source: `Class: ${charClass.name}`,
