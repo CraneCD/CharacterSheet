@@ -834,7 +834,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         <div className="card">
             <div className="spellbook-header" style={{ marginBottom: '0.75rem' }}>
                 <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', margin: 0 }}>
-                    {isInnateOnly ? 'Elven Lineage Spells' : preparedCaster ? 'Spellbook (Prepare Spells)' : 'Spellbook'}
+                    {isInnateOnly ? 'Species Spells' : preparedCaster ? 'Spellbook (Prepare Spells)' : 'Spellbook'}
                     {preparedCaster && (
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', display: 'block', marginTop: '0.25rem' }}>
                             Prepared: {currentPreparedCount} / {preparedSpellsLimit}
@@ -1208,7 +1208,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                         <div style={{ fontWeight: 'bold' }}>
                                             {spell.name}
                                             {isElvenLineageSpell && (
-                                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: '0.35rem' }}>(Elven Lineage)</span>
+                                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: '0.35rem' }}>(Species)</span>
                                             )}
                                             {isSubclassBonusSpell && (
                                                 <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: '0.35rem' }}>(Subclass)</span>

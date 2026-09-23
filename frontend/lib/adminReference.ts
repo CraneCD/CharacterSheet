@@ -81,9 +81,11 @@ export const FIELD_CONFIGS: Record<ReferenceType, FieldConfig[]> = {
     ],
     background: [
         { key: 'name', label: 'Name', kind: 'text' },
-        { key: 'languages', label: 'Bonus Languages (count)', kind: 'number' },
+        { key: 'abilityScores', label: 'Ability Scores (three of str, dex, con, int, wis, cha)', kind: 'stringArray' },
+        { key: 'originFeat', label: 'Origin Feat (feat id)', kind: 'text' },
         { key: 'skillProficiencies', label: 'Skill Proficiencies (comma-separated)', kind: 'stringArray' },
         { key: 'toolProficiencies', label: 'Tool Proficiencies (comma-separated)', kind: 'stringArray' },
+        { key: 'legacy', label: 'Legacy (hidden unless "show legacy" is ticked)', kind: 'boolean' },
         { key: 'description', label: 'Description', kind: 'textarea' },
     ],
     subclass: [
@@ -94,6 +96,11 @@ export const FIELD_CONFIGS: Record<ReferenceType, FieldConfig[]> = {
     classFeature: [], // special-cased: repeating level/name/description rows, see the [type] edit page
     feat: [
         { key: 'name', label: 'Name', kind: 'text' },
+        { key: 'category', label: 'Category', kind: 'select', options: ['origin', 'general', 'fighting-style', 'epic-boon'] },
+        { key: 'abilityScoreOptions', label: '+1 Ability Options (comma-separated)', kind: 'stringArray' },
+        { key: 'abilityScoreMax', label: 'Ability Score Cap (20, or 30 for Epic Boons)', kind: 'number' },
+        { key: 'repeatable', label: 'Repeatable', kind: 'boolean' },
+        { key: 'legacy', label: 'Legacy (hidden from pickers)', kind: 'boolean' },
         { key: 'description', label: 'Description', kind: 'textarea' },
     ],
     baseItem: [

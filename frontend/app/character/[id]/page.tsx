@@ -1269,7 +1269,7 @@ export default function CharacterSheet() {
                     // Virtual spellcasting for elven lineage only (no class spellcasting)
                     primarySpellcastingClass = {
                         id: 'innate',
-                        name: 'Elven Lineage',
+                        name: 'Species Spells',
                         level,
                         classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: 'cha' }
                     };

@@ -25,6 +25,8 @@ interface StepReviewProps {
     background?: Background | null;
     /** Final ability scores after background increases, for the summary. */
     finalScores?: Record<string, number>;
+    /** Skills already granted by the background (not offered again as choices). */
+    backgroundSkills?: string[];
 }
 
 function fightingStyleDisplayName(id: string): string {
@@ -60,7 +62,7 @@ function UniqueSelects({ count, options, values, onChange, testId, placeholder }
     );
 }
 
-export default function StepReview({ data, onUpdate, raceName, className, backgroundName, fightingStyleId, raceTraits = [], proficientSkills = [], raceId, classSkillChoicesCount = 0, classSkillOptions = [], race, background, finalScores }: StepReviewProps) {
+export default function StepReview({ data, onUpdate, raceName, className, backgroundName, fightingStyleId, raceTraits = [], proficientSkills = [], raceId, classSkillChoicesCount = 0, classSkillOptions = [], race, background, finalScores, backgroundSkills = [] }: StepReviewProps) {
     const [feats, setFeats] = useState<{ id: string; name: string; category?: string; repeatable?: boolean }[]>([]);
     const [featsLoading, setFeatsLoading] = useState(false);
     const needsSkillful = hasSkillful(raceTraits);
@@ -71,6 +73,11 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
     const needsSize = (race?.size || '').toLowerCase().includes(' or ');
     const needsClassSkills = classSkillChoicesCount > 0 && classSkillOptions.length > 0;
     const classSkillChoices = (data.classSkillChoices || []) as string[];
+    // Don't offer skills the character already has; a duplicate would waste the choice.
+    const availableClassSkills = classSkillOptions.filter(s => !backgroundSkills.includes(s) && s !== data.skillfulChoice && s !== data.keenSensesChoice);
+    const takenBy = (except: string) => new Set(
+        [...backgroundSkills, ...classSkillChoices, data.skillfulChoice, data.keenSensesChoice].filter(s => s && s !== except)
+    );
 
     // Level 1 expertise: Rogue gets 2 skills
     const needsExpertise = data.classId === 'rogue';
@@ -150,7 +157,7 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
                             <label style={labelStyle}>Keen Senses — choose one skill</label>
                             <select className="input" data-testid="keen-senses" value={data.keenSensesChoice || ''} onChange={(e) => onUpdate({ keenSensesChoice: e.target.value })}>
                                 <option value="">Select a skill</option>
-                                {KEEN_SENSES_SKILLS.map((s) => <option key={s} value={s}>{s}</option>)}
+                                {KEEN_SENSES_SKILLS.filter(s => !takenBy(data.keenSensesChoice).has(s)).map((s) => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
                     )}
@@ -162,7 +169,7 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
                             </label>
                             <UniqueSelects
                                 count={classSkillChoicesCount}
-                                options={classSkillOptions}
+                                options={availableClassSkills}
                                 values={classSkillChoices}
                                 onChange={(v) => onUpdate({ classSkillChoices: v })}
                                 testId="class-skill"
@@ -176,7 +183,7 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
                             <label style={labelStyle}>Skillful — choose one skill</label>
                             <select className="input" data-testid="skillful" value={data.skillfulChoice || ''} onChange={(e) => onUpdate({ skillfulChoice: e.target.value })}>
                                 <option value="">Select a skill</option>
-                                {SKILLS_FOR_SKILLFUL.map((s) => <option key={s} value={s}>{s}</option>)}
+                                {SKILLS_FOR_SKILLFUL.filter(s => !takenBy(data.skillfulChoice).has(s)).map((s) => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
                     )}

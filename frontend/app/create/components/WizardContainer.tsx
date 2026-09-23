@@ -416,6 +416,7 @@ export default function WizardContainer() {
                             race={selectedRace}
                             background={selectedBackground}
                             finalScores={finalScores}
+                            backgroundSkills={bgSkills}
                         />
                     );
                 })()}
