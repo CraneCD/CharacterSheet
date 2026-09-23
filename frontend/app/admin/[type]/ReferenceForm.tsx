@@ -160,7 +160,7 @@ export default function ReferenceForm({ type, initialKey, initialData, onSubmit,
                                         setClassFeatureRows(rows);
                                     }}
                                 />
-                                <button type="button" className="button plain" style={{ color: 'var(--error)' }}
+                                <button type="button" className="btn btn-ghost" style={{ color: 'var(--error)' }}
                                     onClick={() => setClassFeatureRows(classFeatureRows.filter((_, j) => j !== i))}>
                                     Remove
                                 </button>
@@ -181,7 +181,7 @@ export default function ReferenceForm({ type, initialKey, initialData, onSubmit,
                     ))}
                     <button
                         type="button"
-                        className="button secondary"
+                        className="btn btn-secondary"
                         onClick={() => setClassFeatureRows([...classFeatureRows, { level: 1, name: '', description: '' }])}
                         style={{ marginBottom: '1rem' }}
                     >
@@ -249,10 +249,10 @@ export default function ReferenceForm({ type, initialKey, initialData, onSubmit,
             )}
 
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button type="submit" className="button primary" disabled={saving}>
+                <button type="submit" className="btn" disabled={saving}>
                     {saving ? 'Saving...' : 'Save'}
                 </button>
-                <button type="button" className="button secondary" onClick={onCancel} disabled={saving}>
+                <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>
                     Cancel
                 </button>
             </div>

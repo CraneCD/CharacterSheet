@@ -106,20 +106,20 @@ export default function StepAbilities({ initialScores, onUpdate }: StepAbilities
 
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
                 <button
-                    className={`button ${method === 'standard' ? 'primary' : 'plain'}`}
+                    className={`btn ${method === 'standard' ? '' : 'btn-ghost'}`}
                     onClick={() => setMethod('standard')}
                 >
                     Standard Array
                 </button>
                 <button
-                    className={`button ${method === 'pointBuy' ? 'primary' : 'plain'}`}
+                    className={`btn ${method === 'pointBuy' ? '' : 'btn-ghost'}`}
                     onClick={() => setMethod('pointBuy')}
                 >
                     Point Buy
                 </button>
                 <button
                     data-testid="method-manual"
-                    className={`button ${method === 'manual' ? 'primary' : 'plain'}`}
+                    className={`btn ${method === 'manual' ? '' : 'btn-ghost'}`}
                     onClick={() => setMethod('manual')}
                 >
                     Manual / Rolled
@@ -165,13 +165,13 @@ export default function StepAbilities({ initialScores, onUpdate }: StepAbilities
                                     <label style={{ fontWeight: 'bold', width: '3rem', textTransform: 'uppercase' }}>{ability}</label>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                         <button
-                                            className="button secondary"
+                                            className="btn btn-secondary"
                                             onClick={() => handlePointBuy(ability, -1)}
                                             disabled={scores[ability] <= 8}
                                         >-</button>
                                         <span style={{ width: '2rem', textAlign: 'center', fontWeight: 'bold' }}>{scores[ability]}</span>
                                         <button
-                                            className="button secondary"
+                                            className="btn btn-secondary"
                                             onClick={() => handlePointBuy(ability, 1)}
                                             disabled={scores[ability] >= 15 || pointsRemaining < (POINT_BUY_COSTS[scores[ability] + 1] - POINT_BUY_COSTS[scores[ability]])}
                                         >+</button>

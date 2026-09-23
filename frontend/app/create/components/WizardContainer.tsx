@@ -14,6 +14,7 @@ import { getRaceTraits, getBackgroundSkills, getBackgroundAbilityOptions, isVali
 import { splitEquipmentChoice, itemNameToCharacterItem, parseCurrency } from '@/lib/equipmentMapping';
 import { buildChoicePayload, getClassChoices } from '@/lib/classChoices';
 import ClassChoicesPicker, { choicesComplete } from '@/app/character/[id]/components/ClassChoicesPicker';
+import { ConfirmDialog, describeError, useToast } from '@/app/components/ui';
 
 type Currency = { cp?: number; sp?: number; ep?: number; gp?: number; pp?: number };
 
@@ -32,6 +33,8 @@ export default function WizardContainer() {
     const router = useRouter();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    const [confirmingExit, setConfirmingExit] = useState(false);
+    const toast = useToast();
     const [formData, setFormData] = useState({
         raceId: '',
         classId: '',
@@ -64,11 +67,7 @@ export default function WizardContainer() {
 
     const handleNext = () => setStep(step + 1);
     const handleBack = () => setStep(step - 1);
-    const handleExit = () => {
-        if (confirm('Are you sure you want to exit character creation? All progress will be lost.')) {
-            router.push('/dashboard');
-        }
-    };
+    const handleExit = () => setConfirmingExit(true);
 
     const lineageId = formData.raceId === 'elf' ? formData.elvenLineageChoice : formData.speciesLineageChoice;
     const currentRaceTraits = () => getRaceTraits(formData.raceId, formData.elvenLineageChoice, selectedRace, formData.speciesLineageChoice);
@@ -231,7 +230,7 @@ export default function WizardContainer() {
             router.push('/dashboard');
         } catch (err) {
             console.error('Failed to create character', err);
-            alert('Failed to create character. Please check your inputs.');
+            toast.error(describeError("Couldn't create character. Please check your choices", err));
             setLoading(false);
         }
     };
@@ -307,12 +306,24 @@ export default function WizardContainer() {
     };
 
     return (
-        <div className="container" style={{ maxWidth: '800px', margin: '2rem auto', paddingBottom: '100px' }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto 2rem', paddingBottom: '100px' }}>
+            {confirmingExit && (
+                <ConfirmDialog
+                    title="Exit character creation?"
+                    confirmLabel="Exit and discard"
+                    cancelLabel="Keep editing"
+                    danger
+                    onConfirm={() => router.push('/dashboard')}
+                    onCancel={() => setConfirmingExit(false)}
+                >
+                    Your choices so far will be lost.
+                </ConfirmDialog>
+            )}
             {/* Header with Exit Button */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <h1 className="heading" style={{ margin: 0 }}>Create New Character</h1>
                 <button
-                    className="button secondary"
+                    className="btn btn-secondary"
                     onClick={handleExit}
                     style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
                 >
@@ -483,7 +494,7 @@ export default function WizardContainer() {
                     alignItems: 'center'
                 }}>
                     <button
-                        className="button secondary"
+                        className="btn btn-secondary"
                         onClick={handleBack}
                         disabled={step === 1 || loading}
                         style={{
@@ -497,7 +508,7 @@ export default function WizardContainer() {
 
                     {step < 6 ? (
                         <button
-                            className="button primary"
+                            className="btn"
                             data-testid="wizard-next"
                             onClick={handleNext}
                             disabled={!isStepValid()}
@@ -510,7 +521,7 @@ export default function WizardContainer() {
                         </button>
                     ) : (
                         <button
-                            className="button primary"
+                            className="btn"
                             data-testid="wizard-create"
                             onClick={handleCreate}
                             disabled={loading || !isStepValid()}

@@ -3,6 +3,7 @@
 import { useState, useEffect, memo } from 'react';
 import { api } from '@/lib/api';
 import { CharacterFeature } from '@/lib/types';
+import { describeError, useToast } from '@/app/components/ui';
 
 interface StaticFeature {
     name: string;
@@ -18,6 +19,7 @@ interface FeatureManagerProps {
 }
 
 function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onUpdate }: FeatureManagerProps) {
+    const toast = useToast();
     const [features, setFeatures] = useState<CharacterFeature[]>(initialFeatures || []);
     const [isAdding, setIsAdding] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
@@ -75,7 +77,7 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
             setIsAdding(false);
         } catch (err) {
             console.error('Failed to add feature', err);
-            alert('Failed to add feature');
+            toast.error(describeError("Couldn't add feature", err));
         }
     };
 
@@ -90,7 +92,7 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
             onUpdate(newFeatures);
         } catch (err) {
             console.error('Failed to remove feature', err);
-            alert('Failed to remove feature');
+            toast.error(describeError("Couldn't remove feature", err));
         }
     };
 
@@ -99,7 +101,7 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
             <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                 Features & Traits
                 <button
-                    className="button primary"
+                    className="btn"
                     style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
                     onClick={() => setIsAdding(true)}
                 >
@@ -135,8 +137,8 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
                         />
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="button primary" onClick={handleAdd}>Add Feature</button>
-                        <button className="button secondary" onClick={() => setIsAdding(false)}>Cancel</button>
+                        <button className="btn" onClick={handleAdd}>Add Feature</button>
+                        <button className="btn btn-secondary" onClick={() => setIsAdding(false)}>Cancel</button>
                     </div>
                 </div>
             )}
@@ -178,7 +180,7 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
                                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{feature.source}</span>
                                     <button
-                                        className="button plain"
+                                        className="btn btn-ghost"
                                         style={{ color: 'var(--text-muted)', fontSize: '1.25rem', lineHeight: 1, padding: '0 0.25rem' }}
                                         onClick={() => handleRemove(i)}
                                         title="Remove"
@@ -210,7 +212,7 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
                         flexShrink: 0
                     }}>
                         <button
-                            className="button secondary"
+                            className="btn btn-secondary"
                             onClick={() => setIsExpanded(!isExpanded)}
                             style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
                         >

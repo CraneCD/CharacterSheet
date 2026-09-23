@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { CharacterItem, ItemCategory } from '@/lib/types';
 import { getMasteryActionsForWeapon, getMasteryForWeapon } from '@/lib/weaponMastery';
+import { describeError, Modal, useToast } from '@/app/components/ui';
 
 interface EquipmentManagerProps {
     characterId: string;
@@ -33,6 +34,7 @@ export default function EquipmentManager({
     masteryWeapons,
     onDeleteMasteryActionsForWeapon
 }: EquipmentManagerProps) {
+    const toast = useToast();
     const [equipment, setEquipment] = useState<(string | CharacterItem)[]>(initialEquipment || []);
     const [baseItems, setBaseItems] = useState<CharacterItem[]>([]);
     // Full base-item reference list, keyed by id, used only to overlay live
@@ -123,7 +125,7 @@ export default function EquipmentManager({
             setIsAdding(false);
         } catch (err) {
             console.error('Failed to add equipment', err);
-            alert('Failed to add equipment');
+            toast.error(describeError("Couldn't add equipment", err));
         }
     };
 
@@ -155,7 +157,7 @@ export default function EquipmentManager({
             setIsAdding(false);
         } catch (err) {
             console.error('Failed to add equipment', err);
-            alert('Failed to add equipment');
+            toast.error(describeError("Couldn't add equipment", err));
         }
     };
 
@@ -171,7 +173,7 @@ export default function EquipmentManager({
             if (onEquipChange) onEquipChange();
         } catch (err) {
             console.error('Failed to remove equipment', err);
-            alert('Failed to remove equipment');
+            toast.error(describeError("Couldn't remove equipment", err));
         }
     };
 
@@ -266,7 +268,7 @@ export default function EquipmentManager({
         if (!item.name) return;
         
         if (!onCreateAction) {
-            alert('Action creation is not available');
+            toast.error('Action creation is not available');
             return;
         }
         
@@ -277,14 +279,14 @@ export default function EquipmentManager({
                 type: 'action' as const
             };
             if (actionExists(action.name)) {
-                alert(`"${action.name}" is already in your actions.`);
+                toast.error(`"${action.name}" is already in your actions.`);
                 return;
             }
             await onCreateAction(action);
-            alert(`Action "${action.name}" created!`);
+            toast.success(`Action "${action.name}" created!`);
         } catch (err) {
             console.error('Failed to create action', err);
-            alert('Failed to create action');
+            toast.error(describeError("Couldn't create action", err));
         }
     };
 
@@ -292,7 +294,7 @@ export default function EquipmentManager({
         if (!item.name) return;
         
         if (!onCreateAction) {
-            alert('Action creation is not available');
+            toast.error('Action creation is not available');
             return;
         }
         
@@ -304,14 +306,14 @@ export default function EquipmentManager({
                 type: 'bonus' as const
             };
             if (actionExists(action.name)) {
-                alert(`"${action.name}" is already in your actions.`);
+                toast.error(`"${action.name}" is already in your actions.`);
                 return;
             }
             await onCreateAction(action);
-            alert(`Bonus Action "${action.name}" created!`);
+            toast.success(`Bonus Action "${action.name}" created!`);
         } catch (err) {
             console.error('Failed to create bonus action', err);
-            alert('Failed to create bonus action');
+            toast.error(describeError("Couldn't create bonus action", err));
         }
     };
 
@@ -356,7 +358,7 @@ export default function EquipmentManager({
             <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 Equipment
                 <button
-                    className="button primary"
+                    className="btn"
                     style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
                     onClick={() => setIsAdding(true)}
                 >
@@ -365,120 +367,118 @@ export default function EquipmentManager({
             </h3>
 
             {isAdding && (
-                <div className="modal-overlay" onClick={() => {
+                <Modal onClose={() => {
                     setIsAdding(false);
                     setSearchTerm('');
-                }}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-                        <h3>Add Item</h3>
-                        <div style={{ marginBottom: '1rem' }}>
-                            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Select Category</label>
+                }} ariaLabel="Add Item" contentStyle={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+                    <h3>Add Item</h3>
+                    <div style={{ marginBottom: '1rem' }}>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Select Category</label>
+                        <select
+                            className="input"
+                            value={selectedCategory}
+                            onChange={e => {
+                                setSelectedCategory(e.target.value as ItemCategory | 'custom');
+                                setSearchTerm('');
+                            }}
+                            style={{ width: '100%' }}
+                        >
+                            <option value="custom">Custom Item</option>
+                            {categories.map(cat => (
+                                <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {selectedCategory === 'custom' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <input
+                                type="text"
+                                className="input"
+                                placeholder="Item name"
+                                value={newCustomItem.name || ''}
+                                onChange={e => setNewCustomItem({ ...newCustomItem, name: e.target.value })}
+                            />
                             <select
                                 className="input"
-                                value={selectedCategory}
-                                onChange={e => {
-                                    setSelectedCategory(e.target.value as ItemCategory | 'custom');
-                                    setSearchTerm('');
-                                }}
-                                style={{ width: '100%' }}
+                                value={newCustomItem.category || 'miscellaneous'}
+                                onChange={e => setNewCustomItem({ ...newCustomItem, category: e.target.value as ItemCategory })}
                             >
-                                <option value="custom">Custom Item</option>
                                 {categories.map(cat => (
                                     <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}</option>
                                 ))}
                             </select>
+                            <textarea
+                                className="input"
+                                placeholder="Description (optional)"
+                                value={newCustomItem.description || ''}
+                                onChange={e => setNewCustomItem({ ...newCustomItem, description: e.target.value })}
+                                rows={3}
+                            />
+                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                <button className="btn" onClick={handleAddCustomItem}>Add</button>
+                                <button className="btn btn-secondary" onClick={() => setIsAdding(false)}>Cancel</button>
+                            </div>
                         </div>
-
-                        {selectedCategory === 'custom' ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    ) : (
+                        <div style={{ overflowY: 'auto', flex: 1, marginTop: '0.5rem', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ marginBottom: '0.75rem' }}>
                                 <input
                                     type="text"
                                     className="input"
-                                    placeholder="Item name"
-                                    value={newCustomItem.name || ''}
-                                    onChange={e => setNewCustomItem({ ...newCustomItem, name: e.target.value })}
+                                    placeholder="Search items..."
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                    style={{ width: '100%' }}
                                 />
-                                <select
-                                    className="input"
-                                    value={newCustomItem.category || 'miscellaneous'}
-                                    onChange={e => setNewCustomItem({ ...newCustomItem, category: e.target.value as ItemCategory })}
-                                >
-                                    {categories.map(cat => (
-                                        <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}</option>
-                                    ))}
-                                </select>
-                                <textarea
-                                    className="input"
-                                    placeholder="Description (optional)"
-                                    value={newCustomItem.description || ''}
-                                    onChange={e => setNewCustomItem({ ...newCustomItem, description: e.target.value })}
-                                    rows={3}
-                                />
-                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                                    <button className="button primary" onClick={handleAddCustomItem}>Add</button>
-                                    <button className="button secondary" onClick={() => setIsAdding(false)}>Cancel</button>
-                                </div>
                             </div>
-                        ) : (
-                            <div style={{ overflowY: 'auto', flex: 1, marginTop: '0.5rem', display: 'flex', flexDirection: 'column' }}>
-                                <div style={{ marginBottom: '0.75rem' }}>
-                                    <input
-                                        type="text"
-                                        className="input"
-                                        placeholder="Search items..."
-                                        value={searchTerm}
-                                        onChange={e => setSearchTerm(e.target.value)}
-                                        style={{ width: '100%' }}
-                                    />
-                                </div>
-                                {filteredBaseItems.length === 0 ? (
-                                    <p style={{ color: 'var(--text-muted)' }}>
-                                        {searchTerm.trim() 
-                                            ? `No items found matching "${searchTerm}"` 
-                                            : 'No base items in this category.'}
-                                    </p>
-                                ) : (
-                                    <>
-                                        <div style={{ 
-                                            fontSize: '0.75rem', 
-                                            color: 'var(--text-muted)', 
-                                            marginBottom: '0.5rem' 
-                                        }}>
-                                            {filteredBaseItems.length} item{filteredBaseItems.length !== 1 ? 's' : ''} found
-                                        </div>
-                                        <div style={{ display: 'grid', gap: '0.5rem', flex: 1, overflowY: 'auto' }}>
-                                            {filteredBaseItems.map((item, i) => (
-                                                <div
-                                                    key={i}
-                                                    className="card"
-                                                    style={{ cursor: 'pointer', padding: '0.75rem' }}
-                                                    onClick={() => handleAddBaseItem(item)}
-                                                >
-                                                    <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>{item.name}</div>
-                                                    {item.description && (
-                                                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                                                            {item.description.substring(0, 100)}{item.description.length > 100 ? '...' : ''}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </>
-                                )}
-                                <button 
-                                    className="button secondary" 
-                                    style={{ marginTop: '1rem', width: '100%' }} 
-                                    onClick={() => {
-                                        setIsAdding(false);
-                                        setSearchTerm('');
-                                    }}
-                                >
-                                    Close
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                            {filteredBaseItems.length === 0 ? (
+                                <p style={{ color: 'var(--text-muted)' }}>
+                                    {searchTerm.trim() 
+                                        ? `No items found matching "${searchTerm}"` 
+                                        : 'No base items in this category.'}
+                                </p>
+                            ) : (
+                                <>
+                                    <div style={{ 
+                                        fontSize: '0.75rem', 
+                                        color: 'var(--text-muted)', 
+                                        marginBottom: '0.5rem' 
+                                    }}>
+                                        {filteredBaseItems.length} item{filteredBaseItems.length !== 1 ? 's' : ''} found
+                                    </div>
+                                    <div style={{ display: 'grid', gap: '0.5rem', flex: 1, overflowY: 'auto' }}>
+                                        {filteredBaseItems.map((item, i) => (
+                                            <div
+                                                key={i}
+                                                className="card"
+                                                style={{ cursor: 'pointer', padding: '0.75rem' }}
+                                                onClick={() => handleAddBaseItem(item)}
+                                            >
+                                                <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>{item.name}</div>
+                                                {item.description && (
+                                                    <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                                                        {item.description.substring(0, 100)}{item.description.length > 100 ? '...' : ''}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                            <button 
+                                className="btn btn-secondary" 
+                                style={{ marginTop: '1rem', width: '100%' }} 
+                                onClick={() => {
+                                    setIsAdding(false);
+                                    setSearchTerm('');
+                                }}
+                            >
+                                Close
+                            </button>
+                        </div>
+                    )}
+                </Modal>
             )}
 
             <div style={{ position: 'relative' }}>
@@ -542,7 +542,7 @@ export default function EquipmentManager({
                                                         {itemObj.category === 'magic-item' && (
                                                             <>
                                                                 <button
-                                                                    className="button secondary"
+                                                                    className="btn btn-secondary"
                                                                     style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
                                                                     onClick={() => handleCreateMagicItemAction(itemObj, actualIndex)}
                                                                     title="Create Action"
@@ -550,7 +550,7 @@ export default function EquipmentManager({
                                                                     + Action
                                                                 </button>
                                                                 <button
-                                                                    className="button secondary"
+                                                                    className="btn btn-secondary"
                                                                     style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
                                                                     onClick={() => handleCreateMagicItemBonusAction(itemObj, actualIndex)}
                                                                     title="Create Bonus Action"
@@ -560,14 +560,14 @@ export default function EquipmentManager({
                                                             </>
                                                         )}
                                                         <button
-                                                            className="button plain"
+                                                            className="btn btn-ghost"
                                                             style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
                                                             onClick={() => setExpandedIndex(isItemExpanded ? null : actualIndex)}
                                                         >
                                                             {isItemExpanded ? 'Collapse' : 'Edit'}
                                                         </button>
                                                         <button
-                                                            className="button plain"
+                                                            className="btn btn-ghost"
                                                             style={{ color: 'var(--text-muted)', fontSize: '1.25rem', lineHeight: 1, padding: '0 0.5rem' }}
                                                             onClick={() => handleRemove(actualIndex)}
                                                             title="Remove"
@@ -710,7 +710,7 @@ export default function EquipmentManager({
                         borderTop: isExpanded ? '1px solid var(--border)' : 'none'
                     }}>
                         <button
-                            className="button secondary"
+                            className="btn btn-secondary"
                             onClick={() => setIsExpanded(!isExpanded)}
                             style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
                         >

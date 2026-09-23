@@ -15,6 +15,7 @@ import NotepadManager from './components/NotepadManager';
 import PortraitUpload from './components/PortraitUpload';
 import FeatureManager from './components/FeatureManager';
 import CurrencyManager from './components/CurrencyManager';
+import CharacterSheetSkeleton from './components/CharacterSheetSkeleton';
 import { CharacterData, CharacterItem, CharacterFeature } from '@/lib/types';
 import { mergeHeroicInspiration, mergeBlessingOfTheRavenQueen, reconcileClassResources, RESOURCE_RULES_VERSION } from '@/lib/classResources';
 import { 
@@ -30,6 +31,7 @@ import { useCharacterSheetData } from './useCharacterSheetData';
 import { calculateAllClassResources, getCharacterSubclasses, getSubclassMap } from '@/lib/subclasses';
 import { SUBCLASS_BONUS_SPELLS } from '@/lib/wizardReference';
 import { getBonusCantrips, getChoiceResources, getChoiceSkillBonuses, getChoiceSpellIds, getWeaponMasteries } from '@/lib/classChoices';
+import { ConfirmDialog, describeError, EditableStat, SectionHeader, Stat, useToast } from '@/app/components/ui';
 
 export default function CharacterSheet() {
     const { id } = useParams();
@@ -37,19 +39,19 @@ export default function CharacterSheet() {
         character,
         setCharacter,
         handleUpdateCharacter,
+        persistData,
         gameData,
         classFeaturesList,
-        subclassFeaturesList
+        subclassFeaturesList,
+        loadError,
+        reload
     } = useCharacterSheetData(id);
+    const toast = useToast();
     const [showLevelUp, setShowLevelUp] = useState(false);
     const [showLevelDownConfirm, setShowLevelDownConfirm] = useState(false);
     const [isLevelingDown, setIsLevelingDown] = useState(false);
     const [editingAbility, setEditingAbility] = useState<string | null>(null);
     const [abilityEditValue, setAbilityEditValue] = useState<string>('');
-    const [editingSpeed, setEditingSpeed] = useState(false);
-    const [speedEditValue, setSpeedEditValue] = useState<string>('');
-    const [editingAC, setEditingAC] = useState(false);
-    const [acEditValue, setAcEditValue] = useState<string>('');
     const [showNotepad, setShowNotepad] = useState(false);
     // Spell names for class-choice spells (Mystic Arcanum, Signature Spells), loaded only when needed
     const [choiceSpellNames, setChoiceSpellNames] = useState<Record<string, string> | null>(null);
@@ -61,20 +63,28 @@ export default function CharacterSheet() {
             .catch(() => setChoiceSpellNames({}));
     }, [choiceSpellIdsKey]);
 
-    if (!character || !gameData) {
+    if (loadError) {
         return (
-            <div className="p-8 text-center">
-                <div>Loading character sheet...</div>
+            <div className="card" role="alert" style={{ maxWidth: '480px', margin: '3rem auto', textAlign: 'center' }}>
+                <p style={{ marginTop: 0 }}>{loadError}</p>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button type="button" className="btn" onClick={reload}>Try again</button>
+                    <Link href="/dashboard" className="btn btn-secondary">Back to My Characters</Link>
+                </div>
             </div>
         );
+    }
+
+    if (!character || !gameData) {
+        return <CharacterSheetSkeleton />;
     }
 
     // Validate character has required fields
     if (typeof character !== 'object') {
         return (
-            <div className="p-8 text-center">
-                <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>Invalid character data.</p>
-                <Link href="/dashboard">Back to Dashboard</Link>
+            <div className="card" style={{ maxWidth: '480px', margin: '3rem auto', textAlign: 'center' }}>
+                <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>Invalid character data.</p>
+                <Link href="/dashboard">Back to My Characters</Link>
             </div>
         );
     }
@@ -363,25 +373,13 @@ export default function CharacterSheet() {
         const currentLangs = Array.isArray(data.languages) ? data.languages : [];
         if (currentLangs.includes(language)) return;
         const updated = [...currentLangs, language];
-        try {
-            await api.patch(`/characters/${character.id}/data`, { languages: updated });
-            handleUpdateCharacter({ languages: updated });
-        } catch (err) {
-            console.error('Failed to add language', err);
-            alert('Failed to add language');
-        }
+        await persistData({ languages: updated }, "Couldn't add language");
     };
 
     const handleRemoveLanguage = async (language: string) => {
         const currentLangs = Array.isArray(data.languages) ? data.languages : [];
         const updated = currentLangs.filter((l: string) => l !== language);
-        try {
-            await api.patch(`/characters/${character.id}/data`, { languages: updated });
-            handleUpdateCharacter({ languages: updated });
-        } catch (err) {
-            console.error('Failed to remove language', err);
-            alert('Failed to remove language');
-        }
+        await persistData({ languages: updated }, "Couldn't remove language");
     };
 
     const handleToggleSkillProficiency = async (skillName: string) => {
@@ -401,30 +399,18 @@ export default function CharacterSheet() {
             if (!toPersist.includes(s)) toPersist.push(s);
         }
 
-        try {
-            await api.patch(`/characters/${character.id}/data`, { skills: toPersist });
-            handleUpdateCharacter({ skills: toPersist });
-        } catch (err) {
-            console.error('Failed to update skill proficiency', err);
-            alert('Failed to update skill proficiency');
-        }
+        await persistData({ skills: toPersist }, "Couldn't update skill proficiency");
     };
 
     const handleAbilityScoreChange = async (stat: string, newValue: number) => {
         if (newValue < 1 || newValue > 30) {
-            alert('Ability scores must be between 1 and 30');
+            toast.error('Ability scores must be between 1 and 30');
             return;
         }
 
-        try {
-            const updatedScores = { ...abilityScores, [stat]: newValue };
-            await api.patch(`/characters/${character.id}/data`, { abilityScores: updatedScores });
-            handleUpdateCharacter({ abilityScores: updatedScores });
-            setEditingAbility(null);
-        } catch (err) {
-            console.error('Failed to update ability score', err);
-            alert('Failed to update ability score');
-        }
+        setEditingAbility(null);
+        const updatedScores = { ...abilityScores, [stat]: newValue };
+        await persistData({ abilityScores: updatedScores }, "Couldn't update ability score");
     };
 
     const startEditingAbility = (stat: string) => {
@@ -450,70 +436,6 @@ export default function CharacterSheet() {
         }
     };
 
-    const handleSpeedChange = async (newValue: number) => {
-        if (newValue < 0 || newValue > 200) {
-            alert('Speed must be between 0 and 200');
-            return;
-        }
-
-        try {
-            await api.patch(`/characters/${character.id}/data`, { speed: newValue });
-            handleUpdateCharacter({ speed: newValue });
-            setEditingSpeed(false);
-        } catch (err) {
-            console.error('Failed to update speed', err);
-            alert('Failed to update speed');
-        }
-    };
-
-    const handleACChange = async (newValue: number) => {
-        if (newValue < 0 || newValue > 50) {
-            alert('AC must be between 0 and 50');
-            return;
-        }
-
-        try {
-            await api.patch(`/characters/${character.id}/data`, { ac: newValue });
-            handleUpdateCharacter({ ac: newValue });
-            setEditingAC(false);
-        } catch (err) {
-            console.error('Failed to update AC', err);
-            alert('Failed to update AC');
-        }
-    };
-
-    const startEditingSpeed = () => {
-        setEditingSpeed(true);
-        setSpeedEditValue(speed.toString());
-    };
-
-    const startEditingAC = () => {
-        setEditingAC(true);
-        setAcEditValue(ac.toString());
-    };
-
-    const saveSpeed = () => {
-        const value = parseInt(speedEditValue);
-        if (!isNaN(value) && speedEditValue.trim() !== '') {
-            handleSpeedChange(value);
-        } else {
-            // Restore original value if empty or invalid
-            setSpeedEditValue(speed.toString());
-            setEditingSpeed(false);
-        }
-    };
-
-    const saveAC = () => {
-        const value = parseInt(acEditValue);
-        if (!isNaN(value) && acEditValue.trim() !== '') {
-            handleACChange(value);
-        } else {
-            // Restore original value if empty or invalid
-            setAcEditValue(ac.toString());
-            setEditingAC(false);
-        }
-    };
-
     const handleLevelUpComplete = (updatedChar: any) => {
         setCharacter(updatedChar);
         setShowLevelUp(false);
@@ -521,7 +443,7 @@ export default function CharacterSheet() {
 
     const handleLevelDown = async () => {
         if (character.level <= 1) {
-            alert('Cannot level down below level 1');
+            toast.error('Cannot level down below level 1');
             return;
         }
 
@@ -532,47 +454,38 @@ export default function CharacterSheet() {
             setShowLevelDownConfirm(false);
         } catch (err: any) {
             console.error('Failed to level down', err);
-            const errorMessage = err.message || 'Failed to level down';
-            alert(errorMessage);
+            toast.error(describeError("Couldn't level down", err));
         } finally {
             setIsLevelingDown(false);
         }
     };
 
     return (
-        <div className="container" style={{ marginTop: '2rem', marginBottom: '2rem' }}>
+        <div style={{ marginBottom: '2rem' }}>
             {/* Header */}
             <div className="sheet-header">
                 <div style={{ flex: '1 1 auto', minWidth: 0, maxWidth: '100%', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
                     <PortraitUpload
-                        portrait={data.portrait}
+                        portrait={data.portrait ?? undefined}
                         onUpdate={async (dataUrl) => {
-                            const updates = { portrait: dataUrl ?? undefined };
-                            handleUpdateCharacter(updates);
-                            try {
-                                // null (not undefined) so removal survives JSON serialization
-                                await api.patch(`/characters/${character.id}/data`, { portrait: dataUrl });
-                            } catch (err) {
-                                console.error('Failed to save portrait', err);
-                            }
+                            // null (not undefined) so removal survives JSON serialization
+                            await persistData({ portrait: dataUrl }, "Couldn't save portrait");
                         }}
                     />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <Link href="/dashboard" style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'inline-block' }}>&larr; Back to Dashboard</Link>
+                        <Link href="/dashboard" className="no-print" style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'inline-block' }}>&larr; My Characters</Link>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                             <h1 className="heading" style={{ marginBottom: '0.25rem', flex: '1 1 auto', minWidth: 0, wordBreak: 'break-word' }}>{characterName}</h1>
                         <div className="no-print" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <button
-                                className="button primary"
-                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                className="btn btn-sm"
                                 onClick={() => setShowLevelUp(true)}
                             >
                                 Level Up
                             </button>
                             {character.level > 1 && (
                                 <button
-                                    className="button secondary"
-                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                    className="btn btn-secondary btn-sm"
                                     onClick={() => setShowLevelDownConfirm(true)}
                                     disabled={isLevelingDown}
                                 >
@@ -580,8 +493,7 @@ export default function CharacterSheet() {
                                 </button>
                             )}
                             <button
-                                className="button secondary"
-                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                className="btn btn-secondary btn-sm"
                                 onClick={() => {
                                     const blob = new Blob([JSON.stringify(character, null, 2)], { type: 'application/json' });
                                     const url = URL.createObjectURL(blob);
@@ -594,15 +506,13 @@ export default function CharacterSheet() {
                                 Export JSON
                             </button>
                             <button
-                                className="button secondary"
-                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                className="btn btn-secondary btn-sm"
                                 onClick={() => window.print()}
                             >
                                 Print / PDF
                             </button>
                             <button
-                                className="button secondary"
-                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                className="btn btn-secondary btn-sm"
                                 onClick={() => setShowNotepad(true)}
                                 title="Notes and reminders"
                             >
@@ -616,131 +526,26 @@ export default function CharacterSheet() {
                     </div>
                 </div>
                 <div className="sheet-stats-row" style={{ flex: '0 0 auto', width: '100%', marginTop: '1rem' }}>
-                    <div className="stat-box">
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Prof Bonus</div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>+{pb}</div>
-                    </div>
-                    <div className="stat-box">
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Speed</div>
-                        {editingSpeed ? (
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={speedEditValue}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    // Allow empty string or valid numbers
-                                    if (val === '' || /^\d+$/.test(val)) {
-                                        setSpeedEditValue(val);
-                                    }
-                                }}
-                                onBlur={saveSpeed}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        saveSpeed();
-                                    } else if (e.key === 'Escape') {
-                                        setEditingSpeed(false);
-                                    }
-                                }}
-                                style={{
-                                    fontSize: '1.25rem',
-                                    fontWeight: 'bold',
-                                    width: '3rem',
-                                    textAlign: 'center',
-                                    padding: '0.125rem',
-                                    border: '1px solid var(--primary)',
-                                    borderRadius: '0.25rem',
-                                    backgroundColor: 'var(--surface)',
-                                    color: 'var(--text)'
-                                }}
-                                autoFocus
-                            />
-                        ) : (
-                            <div 
-                                style={{ 
-                                    fontSize: '1.25rem', 
-                                    fontWeight: 'bold',
-                                    cursor: 'pointer',
-                                    padding: '0.25rem',
-                                    borderRadius: '0.25rem',
-                                    transition: 'background-color 0.2s'
-                                }}
-                                onClick={startEditingSpeed}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface)'}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                title="Click to edit"
-                            >
-                                <div>
-                                    {speed} ft.
-                                    {speedBonusDisplay > 0 && (
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--primary)', marginLeft: '0.25rem', display: 'block' }}>
-                                            (+{speedBonusDisplay} from features)
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    <div className="stat-box">
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Initiative</div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{formatMod(effectiveModifiers.dex)}</div>
-                    </div>
-                    <div className="stat-box highlight">
-                        <div style={{ fontSize: '0.75rem', color: 'var(--primary)', textTransform: 'uppercase' }}>AC</div>
-                        {editingAC ? (
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={acEditValue}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    // Allow empty string or valid numbers
-                                    if (val === '' || /^\d+$/.test(val)) {
-                                        setAcEditValue(val);
-                                    }
-                                }}
-                                onBlur={saveAC}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        saveAC();
-                                    } else if (e.key === 'Escape') {
-                                        setEditingAC(false);
-                                    }
-                                }}
-                                style={{
-                                    fontSize: '1.5rem',
-                                    fontWeight: 'bold',
-                                    width: '3rem',
-                                    textAlign: 'center',
-                                    padding: '0.125rem',
-                                    border: '1px solid var(--primary)',
-                                    borderRadius: '0.25rem',
-                                    backgroundColor: 'var(--surface)',
-                                    color: 'var(--text)'
-                                }}
-                                autoFocus
-                            />
-                        ) : (
-                            <div 
-                                style={{ 
-                                    fontSize: '1.5rem', 
-                                    fontWeight: 'bold',
-                                    cursor: 'pointer',
-                                    padding: '0.25rem',
-                                    borderRadius: '0.25rem',
-                                    transition: 'background-color 0.2s'
-                                }}
-                                onClick={startEditingAC}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface)'}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                title="Click to edit"
-                            >
-                                {ac}
-                            </div>
-                        )}
-                    </div>
+                    <Stat label="Prof Bonus" value={`+${pb}`} />
+                    {/* Edits the base speed; feature bonuses are added on top */}
+                    <EditableStat
+                        label="Speed"
+                        value={baseSpeed}
+                        display={`${speed} ft.`}
+                        sublabel={speedBonusDisplay > 0 ? `(+${speedBonusDisplay} from features)` : undefined}
+                        min={0}
+                        max={200}
+                        onSave={(value) => persistData({ speed: value }, "Couldn't update speed")}
+                    />
+                    <Stat label="Initiative" value={formatMod(effectiveModifiers.dex)} />
+                    <EditableStat
+                        label="AC"
+                        value={ac}
+                        min={0}
+                        max={50}
+                        highlight
+                        onSave={(value) => persistData({ ac: value }, "Couldn't update AC")}
+                    />
                 </div>
             </div>
 
@@ -750,11 +555,13 @@ export default function CharacterSheet() {
                     onClose={async (pages) => {
                         setShowNotepad(false);
                         const updates = { notepad: { pages } };
+                        // Keep the notes on the page even if saving fails, so nothing typed is lost
                         handleUpdateCharacter(updates);
                         try {
                             await api.patch(`/characters/${character.id}/data`, updates);
                         } catch (err) {
                             console.error('Failed to save notepad', err);
+                            toast.error(describeError("Couldn't save your notes. Open and close the notepad to retry", err));
                         }
                     }}
                 />
@@ -769,43 +576,26 @@ export default function CharacterSheet() {
             )}
 
             {showLevelDownConfirm && (
-                <div className="modal-overlay">
-                    <div className="modal-content">
-                        <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                            Level Down: {character.level} → {character.level - 1}
-                        </h2>
-                        <p style={{ marginBottom: '1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            Are you sure you want to level down? This will:
-                        </p>
-                        <ul style={{ marginBottom: '1.5rem', paddingLeft: '1.5rem' }}>
-                            <li>Reduce your level by 1</li>
-                            <li>Remove HP gained at this level</li>
-                            <li>Remove features gained at this level</li>
-                            <li>Remove spells learned at this level</li>
-                            <li>Reverse ability score improvements from this level</li>
-                        </ul>
-                        <p style={{ marginBottom: '1.5rem', textAlign: 'center', color: 'var(--error)', fontWeight: 'bold' }}>
-                            This action cannot be undone automatically. Make sure you want to proceed.
-                        </p>
-                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                            <button
-                                className="button secondary"
-                                onClick={() => setShowLevelDownConfirm(false)}
-                                disabled={isLevelingDown}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                className="button primary"
-                                onClick={handleLevelDown}
-                                disabled={isLevelingDown}
-                                style={{ backgroundColor: isLevelingDown ? 'var(--text-muted)' : 'var(--error)' }}
-                            >
-                                {isLevelingDown ? 'Leveling Down...' : 'Confirm Level Down'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ConfirmDialog
+                    title={`Level down: ${character.level} → ${character.level - 1}?`}
+                    confirmLabel="Level down"
+                    danger
+                    busy={isLevelingDown}
+                    onConfirm={handleLevelDown}
+                    onCancel={() => setShowLevelDownConfirm(false)}
+                >
+                    <p style={{ marginTop: 0 }}>This will:</p>
+                    <ul style={{ paddingLeft: '1.5rem', color: 'var(--text)' }}>
+                        <li>Reduce your level by 1</li>
+                        <li>Remove HP gained at this level</li>
+                        <li>Remove features gained at this level</li>
+                        <li>Remove spells learned at this level</li>
+                        <li>Reverse ability score improvements from this level</li>
+                    </ul>
+                    <p style={{ marginBottom: 0, color: 'var(--error)', fontWeight: 600 }}>
+                        This can&apos;t be undone automatically.
+                    </p>
+                </ConfirmDialog>
             )}
 
             <div className="sheet-grid">
@@ -813,7 +603,7 @@ export default function CharacterSheet() {
                 <div className="sheet-column">
                     {/* Ability Scores */}
                     <div className="card">
-                        <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '1rem' }}>Ability Scores</h3>
+                        <SectionHeader title="Ability Scores" />
                         <div>
                             {['str', 'dex', 'con', 'int', 'wis', 'cha'].map(stat => (
                                 <div key={stat} className="ability-row">
@@ -884,7 +674,7 @@ export default function CharacterSheet() {
 
                     {/* Saving Throws */}
                     <div className="card">
-                        <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>Saving Throws</h3>
+                        <SectionHeader title="Saving Throws" />
                         <div>
                             {saves.map(save => (
                                 <div key={save.stat} className="save-row">
@@ -900,7 +690,7 @@ export default function CharacterSheet() {
 
                     {/* Skills */}
                     <div className="card">
-                        <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>Skills</h3>
+                        <SectionHeader title="Skills" />
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', columnGap: '1rem', rowGap: '0.25rem' }}>
                             {skills.map(skill => (
                                 <div key={skill.name} className="skill-row">
@@ -1063,7 +853,10 @@ export default function CharacterSheet() {
                                             : { spellSlotsUsed: {} };
                                         handleUpdateCharacter(updates);
                                         api.patch(`/characters/${character.id}/data`, updates)
-                                            .catch((err) => console.error('Failed to reset Pact Magic slots', err));
+                                            .catch((err) => {
+                                                console.error('Failed to reset Pact Magic slots', err);
+                                                toast.error(describeError("Couldn't save your Pact Magic slots", err));
+                                            });
                                     }}
                                     onLongRest={async () => {
                                         const hp = data.hp || { current: 0, max: 0, temp: 0 };
@@ -1088,6 +881,7 @@ export default function CharacterSheet() {
                                             setCharacter(updated);
                                         } catch (err) {
                                             console.error('Failed to persist long rest (HP, spell slots, hit dice)', err);
+                                            toast.error(describeError("Couldn't save your long rest (HP, spell slots, hit dice)", err));
                                         }
                                     }}
                                 />
@@ -1180,9 +974,7 @@ export default function CharacterSheet() {
 
                     {/* Languages */}
                     <div className="card">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                            <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', margin: 0 }}>Languages</h3>
-                        </div>
+                        <SectionHeader title="Languages" />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             {(data.languages || []).length > 0 ? (
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -1395,7 +1187,10 @@ export default function CharacterSheet() {
                                 onMagicInitiateUpdate={(magicInitiate) => {
                                     handleUpdateCharacter({ magicInitiate });
                                     api.patch(`/characters/${character.id}/data`, { magicInitiate })
-                                        .catch((err) => console.error('Failed to persist Magic Initiate', err));
+                                        .catch((err) => {
+                                            console.error('Failed to persist Magic Initiate', err);
+                                            toast.error(describeError("Couldn't save Magic Initiate choices", err));
+                                        });
                                 }}
                                 magicInitiateSpell1Used={hasMagicInitiateFeat && data.magicInitiate?.spell1 ? (data.magicInitiateSpell1Used ?? 1) : 1}
                                 onMagicInitiateSlotChange={hasMagicInitiateFeat && data.magicInitiate?.spell1 ? async (used: number) => {
@@ -1404,6 +1199,7 @@ export default function CharacterSheet() {
                                         setCharacter(updated);
                                     } catch (err) {
                                         console.error('Failed to update Magic Initiate spell slot', err);
+                                        toast.error(describeError("Couldn't update your Magic Initiate spell", err));
                                     }
                                 } : undefined}
                                 initialSpells={Array.isArray(data.spells) ? data.spells : []}
@@ -1427,7 +1223,10 @@ export default function CharacterSheet() {
                                     if (updates.pactSlotsUsed !== undefined) slotUpdates.pactSlotsUsed = updates.pactSlotsUsed;
                                     if (Object.keys(slotUpdates).length > 0) {
                                         api.patch(`/characters/${character.id}/data`, slotUpdates)
-                                            .catch((err) => console.error('Failed to save spell slots', err));
+                                            .catch((err) => {
+                                                console.error('Failed to save spell slots', err);
+                                                toast.error(describeError("Couldn't save spell slot usage", err));
+                                            });
                                     }
                                 }}
                                 existingActions={Array.isArray(data.actions) ? data.actions : []}

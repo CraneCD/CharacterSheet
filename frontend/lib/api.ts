@@ -28,13 +28,35 @@ const getApiUrl = () => {
 
 const API_URL = getApiUrl();
 
-// Debug: Log the API URL (only in browser, not during SSR)
-if (typeof window !== 'undefined') {
-    console.log('🔗 API_URL:', API_URL);
-    console.log('🔗 NEXT_PUBLIC_API_URL env var:', process.env.NEXT_PUBLIC_API_URL);
-    if (!process.env.NEXT_PUBLIC_API_URL) {
-        console.warn('⚠️ NEXT_PUBLIC_API_URL is not set! Using fallback:', API_URL);
+if (typeof window !== 'undefined' && !process.env.NEXT_PUBLIC_API_URL) {
+    console.warn('NEXT_PUBLIC_API_URL is not set; using fallback:', API_URL);
+}
+
+/** Error thrown for a non-2xx response; `message` is the server's error text, readable enough for a toast. */
+export class ApiError extends Error {
+    constructor(message: string, readonly status: number) {
+        super(message);
+        this.name = 'ApiError';
     }
+}
+
+async function toApiError(res: Response): Promise<ApiError> {
+    const text = await res.text().catch(() => '');
+    let message = text;
+    try {
+        const body = JSON.parse(text);
+        if (body && typeof body === 'object') {
+            if (typeof body.error === 'string') message = body.error;
+            else if (typeof body.message === 'string') message = body.message;
+            else if (Array.isArray(body.error)) {
+                // Validation issues ({ message }[]), e.g. from zod
+                message = body.error.map((issue: any) => issue?.message).filter(Boolean).join('. ') || text;
+            }
+        }
+    } catch {
+        // Not JSON: use the text as-is
+    }
+    return new ApiError(message.trim() || `Request failed (HTTP ${res.status})`, res.status);
 }
 
 async function getJson(endpoint: string) {
@@ -46,7 +68,7 @@ async function getJson(endpoint: string) {
         },
     });
     redirectIfUnauthorized(res);
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) throw await toApiError(res);
     return res.json();
 }
 
@@ -86,7 +108,7 @@ export const api = {
             body: JSON.stringify(data),
         });
         redirectIfUnauthorized(res);
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) throw await toApiError(res);
         return res.json();
     },
 
@@ -101,7 +123,7 @@ export const api = {
             body: JSON.stringify(data),
         });
         redirectIfUnauthorized(res);
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) throw await toApiError(res);
         return res.json();
     },
 
@@ -116,7 +138,7 @@ export const api = {
             body: JSON.stringify(data),
         });
         redirectIfUnauthorized(res);
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) throw await toApiError(res);
         return res.json();
     },
 
@@ -130,33 +152,20 @@ export const api = {
             headers['Content-Type'] = 'application/json';
         }
         
-        const url = `${API_URL}${endpoint}`;
-        console.log('DELETE request to:', url, 'with options:', options);
-        
-        const res = await fetch(url, {
+        const res = await fetch(`${API_URL}${endpoint}`, {
             method: 'DELETE',
             headers,
             body: options?.data ? JSON.stringify(options.data) : undefined,
         });
-        
-        console.log('DELETE response status:', res.status, res.statusText);
 
         redirectIfUnauthorized(res);
-        
-        if (!res.ok) {
-            const errorText = await res.text();
-            console.error('DELETE error response:', errorText);
-            throw new Error(errorText || `HTTP ${res.status}: ${res.statusText}`);
-        }
+        if (!res.ok) throw await toApiError(res);
         // Handle empty responses (204 No Content)
         const contentType = res.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
-            const json = await res.json();
-            console.log('DELETE response JSON:', json);
-            return json;
+            return res.json();
         }
         // Return empty object for successful DELETE with no body
-        console.log('DELETE successful, no body');
         return {};
     }
 };

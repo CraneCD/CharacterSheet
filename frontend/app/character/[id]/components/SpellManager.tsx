@@ -9,6 +9,7 @@ import { getSlotsForClass, getPactMagic, THIRD_CASTER_SPELLS_KNOWN, getThirdCast
 import SpellDetailsModal from './SpellDetailsModal';
 import { isActionForSpell, spellActionDescription, spellActionName } from '@/lib/spellActions';
 import MagicInitiateConfigModal from './MagicInitiateConfigModal';
+import { ConfirmDialog, describeError, Modal, useToast } from '@/app/components/ui';
 
 /** Subclass spellcasting (Arcane Trickster, Eldritch Knight). */
 interface SubclassSpellcasting {
@@ -70,6 +71,7 @@ interface SpellManagerProps {
 }
 
 export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, initialPactSlotsUsed = 0, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel, subclassSpells, classFeatureSpells = [], bonusCantrips = 0, speciesSpells, magicInitiate, onMagicInitiateUpdate, magicInitiateSpell1Used = 1, onMagicInitiateSlotChange }: SpellManagerProps) {
+    const toast = useToast();
     const [mySpells, setMySpells] = useState<CharacterSpell[]>(Array.isArray(initialSpells) ? initialSpells : []);
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
     const [pactSlotsUsed, setPactSlotsUsed] = useState<number>(initialPactSlotsUsed);
@@ -78,6 +80,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     const [isCantripMode, setIsCantripMode] = useState(false); // For prepared casters: true = learn cantrip, false = prepare spell
     const [searchTerm, setSearchTerm] = useState('');
     const [spellToDelete, setSpellToDelete] = useState<string | null>(null);
+    const [spellbookSpellToRemove, setSpellbookSpellToRemove] = useState<{ id: string; name: string } | null>(null);
     const [expandedLevels, setExpandedLevels] = useState<{ [level: number]: boolean }>(() => {
         // Initialize all levels as expanded by default
         const expanded: { [level: number]: boolean } = {};
@@ -200,11 +203,11 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 const currentCantrips = safeMySpells.filter(s => s.level === 0).length;
                 const currentSpells = safeMySpells.filter(s => s.level > 0).length;
                 if (spell.level === 0 && currentCantrips >= cantripsKnownLimit) {
-                    alert(`You can only know ${cantripsKnownLimit} cantrips. Unlearn a cantrip first.`);
+                    toast.error(`You can only know ${cantripsKnownLimit} cantrips. Unlearn a cantrip first.`);
                     return;
                 }
                 if (spell.level > 0 && currentSpells >= spellsKnownLimit) {
-                    alert(`You can only know ${spellsKnownLimit} spells. Unlearn a spell first.`);
+                    toast.error(`You can only know ${spellsKnownLimit} spells. Unlearn a spell first.`);
                     return;
                 }
             }
@@ -214,12 +217,12 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 const currentSpells = safeMySpells.filter(s => s.level > 0).length;
                 const cantripLimit = getCantripsKnown(classId, level) + bonusCantrips;
                 if (spell.level === 0 && cantripLimit > 0 && currentCantrips >= cantripLimit) {
-                    alert(`You can only know ${cantripLimit} cantrips at this level. Unlearn a cantrip first.`);
+                    toast.error(`You can only know ${cantripLimit} cantrips at this level. Unlearn a cantrip first.`);
                     return;
                 }
                 const knownLimit = getKnownSpellsLimit(classId, level);
                 if (spell.level > 0 && knownLimit > 0 && currentSpells >= knownLimit) {
-                    alert(`You can only have ${knownLimit} spells at this level. Remove a spell first.`);
+                    toast.error(`You can only have ${knownLimit} spells at this level. Remove a spell first.`);
                     return;
                 }
             }
@@ -249,7 +252,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             setSearchTerm('');
         } catch (err) {
             console.error('Failed to learn spell', err);
-            alert('Failed to learn spell');
+            toast.error(describeError("Couldn't learn spell", err));
         }
     };
 
@@ -266,9 +269,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             const spellToRemove = safeMySpells.find(s => s.id === spellId);
             if (!spellToRemove) return;
 
-            console.log('Attempting to delete spell:', `/characters/${characterId}/spells/${spellId}`);
-            const response = await api.delete(`/characters/${characterId}/spells/${spellId}`);
-            console.log('Delete response:', response);
+            await api.delete(`/characters/${characterId}/spells/${spellId}`);
             const updated = safeMySpells.filter(s => s.id !== spellId);
             setMySpells(updated);
             updateParent(updated, slotsUsed);
@@ -276,12 +277,9 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             // Remove corresponding action and bonus action
             await removeSpellAction(spellToRemove, 'action');
             await removeSpellAction(spellToRemove, 'bonus');
-            
-            console.log('Spell removed successfully');
         } catch (err: any) {
             console.error('Failed to remove spell', err);
-            const errorMessage = err?.message || 'Failed to remove spell';
-            alert(`Failed to remove spell: ${errorMessage}`);
+            toast.error(describeError("Couldn't remove spell", err));
         }
     };
 
@@ -298,7 +296,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             setIsAddingToSpellbook(false);
         } catch (err) {
             console.error('Failed to add spell to spellbook', err);
-            alert('Failed to add spell to spellbook');
+            toast.error(describeError("Couldn't add spell to spellbook", err));
         }
     };
 
@@ -320,7 +318,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             }
         } catch (err) {
             console.error('Failed to remove spell from spellbook', err);
-            alert('Failed to remove spell from spellbook');
+            toast.error(describeError("Couldn't remove spell from spellbook", err));
         }
     };
 
@@ -338,7 +336,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             // Check prepared spells limit (only for non-cantrip spells)
             if (spell.level > 0 && preparedCaster) {
                 if (currentPreparedCount >= preparedSpellsLimit) {
-                    alert(`You have reached your prepared spells limit (${preparedSpellsLimit}). Unprepare a spell first to prepare a new one.`);
+                    toast.error(`You have reached your prepared spells limit (${preparedSpellsLimit}). Unprepare a spell first to prepare a new one.`);
                     return;
                 }
             }
@@ -366,7 +364,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             await createSpellAction(newSpell);
         } catch (err) {
             console.error('Failed to prepare spell', err);
-            alert('Failed to prepare spell');
+            toast.error(describeError("Couldn't prepare spell", err));
         }
     };
 
@@ -378,7 +376,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             // Check prepared spells limit when preparing (only for non-cantrip spells)
             if (!currentStatus && spell.level > 0 && preparedCaster) {
                 if (currentPreparedCount >= preparedSpellsLimit) {
-                    alert(`You have reached your prepared spells limit (${preparedSpellsLimit}). Unprepare a spell first to prepare a new one.`);
+                    toast.error(`You have reached your prepared spells limit (${preparedSpellsLimit}). Unprepare a spell first to prepare a new one.`);
                     return;
                 }
             }
@@ -799,7 +797,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     </h3>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                         {!mi?.class ? (
-                            <button className="button primary" onClick={() => setMagicInitiateModalOpen(true)} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>
+                            <button className="btn" onClick={() => setMagicInitiateModalOpen(true)} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>
                                 Set up Magic Initiate
                             </button>
                         ) : (
@@ -828,7 +826,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                         </div>
                                     )}
                                 </div>
-                                <button className="button secondary" onClick={() => setMagicInitiateModalOpen(true)} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>
+                                <button className="btn btn-secondary" onClick={() => setMagicInitiateModalOpen(true)} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>
                                     Change spells
                                 </button>
                             </>
@@ -848,7 +846,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                     <button
                                         type="button"
-                                        className="button plain"
+                                        className="btn btn-ghost"
                                         style={{ fontSize: '0.75rem' }}
                                         onClick={() => setSpellDetailsModal({ isOpen: true, spell: safeAllSpellsForMi.find(s => s.id === spell.id) || null })}
                                     >
@@ -891,14 +889,14 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     {!isInnateOnly && (
                     <>
                     {pact && (
-                        <button className="button secondary" onClick={() => handleRest('short')} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }} data-testid="pact-short-rest">Short Rest (Pact Slots)</button>
+                        <button className="btn btn-secondary" onClick={() => handleRest('short')} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }} data-testid="pact-short-rest">Short Rest (Pact Slots)</button>
                     )}
-                    <button className="button secondary" onClick={() => handleRest('long')} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>Rest (Reset Slots)</button>
+                    <button className="btn btn-secondary" onClick={() => handleRest('long')} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>Rest (Reset Slots)</button>
                     </>
                     )}
                     {!preparedCaster && !isInnateOnly && (
                         <button
-                            className="button primary"
+                            className="btn"
                             style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
                             onClick={() => setIsAdding(true)}
                         >
@@ -908,7 +906,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     {preparedCaster && !isInnateOnly && (
                         <>
                             <button
-                                className="button primary"
+                                className="btn"
                                 style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
                                 onClick={() => {
                                     setIsCantripMode(true);
@@ -920,7 +918,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             </button>
                             {isWizardSpellbook && (
                                 <button
-                                    className="button secondary"
+                                    className="btn btn-secondary"
                                     style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
                                     onClick={() => {
                                         setSearchTerm('');
@@ -931,7 +929,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                 </button>
                             )}
                             <button
-                                className="button primary"
+                                className="btn"
                                 style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
                                 onClick={() => {
                                     setIsCantripMode(false);
@@ -954,214 +952,222 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             />
 
             {spellToDelete && (
-                <div className="modal-overlay" onClick={cancelDeleteSpell}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <h3>Remove Spell</h3>
-                        <p>Are you sure you want to remove this spell? This action cannot be undone.</p>
-                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
-                            <button className="button secondary" onClick={cancelDeleteSpell}>Cancel</button>
-                            <button className="button primary" onClick={confirmDeleteSpell}>Remove</button>
-                        </div>
-                    </div>
-                </div>
+                <ConfirmDialog
+                    title="Remove spell?"
+                    confirmLabel="Remove"
+                    danger
+                    onConfirm={confirmDeleteSpell}
+                    onCancel={cancelDeleteSpell}
+                >
+                    <strong style={{ color: 'var(--text)' }}>{safeMySpells.find(s => s.id === spellToDelete)?.name ?? 'This spell'}</strong>{' '}will be removed from your known spells.
+                </ConfirmDialog>
+            )}
+
+            {spellbookSpellToRemove && (
+                <ConfirmDialog
+                    title="Remove from spellbook?"
+                    confirmLabel="Remove"
+                    danger
+                    onConfirm={() => {
+                        removeFromSpellbook(spellbookSpellToRemove.id);
+                        setSpellbookSpellToRemove(null);
+                    }}
+                    onCancel={() => setSpellbookSpellToRemove(null)}
+                >
+                    <strong style={{ color: 'var(--text)' }}>{spellbookSpellToRemove.name}</strong>{' '}will be removed from your spellbook, and unprepared if it is currently prepared.
+                </ConfirmDialog>
             )}
 
             {isAdding && (
-                <div className="modal-overlay" onClick={() => {
+                <Modal onClose={() => {
                     setIsAdding(false);
                     setIsCantripMode(false);
                     setSearchTerm('');
-                }}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-                        <h3>
-                            {preparedCaster && isCantripMode
-                                ? 'Learn Cantrip'
-                                : preparedCaster && !isCantripMode
-                                ? 'Prepare Spell'
-                                : 'Learn New Spell'}
-                        </h3>
-                        {preparedCaster && !isCantripMode && (
-                            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                                {isWizardSpellbook
-                                    ? 'Select a spell from your spellbook to prepare it. Add spells via "Add to Spellbook". Prepared: ' + currentPreparedCount + ' / ' + preparedSpellsLimit
-                                    : 'You know all spells of your class (except cantrips). Select a spell to prepare it. Prepared: ' + currentPreparedCount + ' / ' + preparedSpellsLimit}
-                            </p>
-                        )}
-                        {preparedCaster && isCantripMode && (
-                            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                                Cantrips must be learned one by one. Select a cantrip to learn it.
-                            </p>
-                        )}
-                        <input
-                            type="text"
-                            placeholder="Search spells by name, school, description, casting time, range, components, or duration..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                marginTop: '1rem',
-                                marginBottom: '1rem',
-                                border: '1px solid var(--border)',
-                                borderRadius: '4px',
-                                backgroundColor: 'var(--surface)',
-                                color: 'var(--text)',
-                                fontSize: '0.875rem'
-                            }}
-                            autoFocus
-                        />
-                        <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.5rem', overflowY: 'auto', flex: 1 }}>
-                            {filteredSpells.map(spell => {
-                                const isPrepared = safeMySpells.find(ms => ms.id === spell.id)?.prepared || false;
-                                const isKnown = safeMySpells.some(ms => ms.id === spell.id);
-                                // For prepared casters: if in cantrip mode, use learn. Otherwise use prepare.
-                                const shouldLearn = !preparedCaster || isCantripMode;
-                                // Subclass spellcasting (AT/EK): enforce spells known limit
-                                const atSpellsLimit = isSubclassSpellcasting && (
-                                    (spell.level === 0 && safeMySpells.filter(s => s.level === 0).length >= cantripsKnownLimit && !isKnown) ||
-                                    (spell.level > 0 && safeMySpells.filter(s => s.level > 0).length >= spellsKnownLimit && !isKnown)
-                                );
-                                // Check if spell can be prepared/learned (not at limit)
-                                const canPrepare = !atSpellsLimit && (
-                                    shouldLearn || spell.level === 0 || isPrepared || currentPreparedCount < preparedSpellsLimit
-                                );
-                                
-                                return (
-                                    <div 
-                                        key={spell.id} 
-                                        className="spell-row" 
-                                        style={{ 
-                                            cursor: canPrepare ? 'pointer' : 'not-allowed', 
-                                            padding: '0.5rem', 
-                                            border: '1px solid var(--border)', 
-                                            borderRadius: '4px',
-                                            backgroundColor: isPrepared ? 'var(--surface)' : 'transparent',
-                                            opacity: canPrepare ? 1 : 0.5
-                                        }} 
-                                        onClick={() => {
-                                            if (canPrepare) {
-                                                shouldLearn ? learnSpell(spell) : prepareSpellDirectly(spell);
-                                            } else if (atSpellsLimit) {
-                                                alert(spell.level === 0
-                                                    ? `You can only know ${cantripsKnownLimit} cantrips. Unlearn a cantrip first.`
-                                                    : `You can only know ${spellsKnownLimit} spells. Unlearn a spell first.`);
-                                            } else if (!shouldLearn && spell.level > 0) {
-                                                alert(`You have reached your prepared spells limit (${preparedSpellsLimit}). Unprepare a spell first to prepare a new one.`);
-                                            }
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
-                                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                                {preparedCaster && !shouldLearn && isPrepared && (
-                                                    <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 'bold' }}>Prepared</span>
-                                                )}
-                                                <button
-                                                    className="button secondary"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setSpellDetailsModal({ isOpen: true, spell });
-                                                    }}
-                                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                                                    title="View spell details"
-                                                >
-                                                    View
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                            Level {spell.level} {spell.school} • {spell.castingTime}
-                                        </div>
-                                        <div style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>{spell.description.substring(0, 100)}...</div>
-                                    </div>
-                                );
-                            })}
-                            {filteredSpells.length === 0 && availableSpells.length > 0 && (
-                                <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No spells match your search.</p>
-                            )}
-                            {availableSpells.length === 0 && (
-                                <p>No spells available to learn at this level.</p>
-                            )}
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-                            <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                                {filteredSpells.length} of {availableSpells.length} spells
-                            </span>
-                            <button className="button secondary" onClick={() => {
-                                setIsAdding(false);
-                                setIsCantripMode(false);
-                                setSearchTerm('');
-                            }}>Close</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {isAddingToSpellbook && (
-                <div className="modal-overlay" onClick={() => setIsAddingToSpellbook(false)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-                        <h3>Add to Spellbook</h3>
+                }} ariaLabel={preparedCaster && isCantripMode ? 'Learn Cantrip' : preparedCaster ? 'Prepare Spell' : 'Learn New Spell'} contentStyle={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+                    <h3>
+                        {preparedCaster && isCantripMode
+                            ? 'Learn Cantrip'
+                            : preparedCaster && !isCantripMode
+                            ? 'Prepare Spell'
+                            : 'Learn New Spell'}
+                    </h3>
+                    {preparedCaster && !isCantripMode && (
                         <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                            Choose a wizard spell to add to your spellbook (e.g. from copying a scroll or research). You can then prepare it.
+                            {isWizardSpellbook
+                                ? 'Select a spell from your spellbook to prepare it. Add spells via "Add to Spellbook". Prepared: ' + currentPreparedCount + ' / ' + preparedSpellsLimit
+                                : 'You know all spells of your class (except cantrips). Select a spell to prepare it. Prepared: ' + currentPreparedCount + ' / ' + preparedSpellsLimit}
                         </p>
-                        <input
-                            type="text"
-                            placeholder="Search spells..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                marginBottom: '1rem',
-                                border: '1px solid var(--border)',
-                                borderRadius: '4px',
-                                backgroundColor: 'var(--surface)',
-                                color: 'var(--text)',
-                                fontSize: '0.875rem'
-                            }}
-                        />
-                        <div style={{ display: 'grid', gap: '0.5rem', overflowY: 'auto', flex: 1 }}>
-                            {spellsToAddToSpellbook
-                                .filter(spell => !searchTerm.trim() || spell.name.toLowerCase().includes(searchTerm.toLowerCase()))
-                                .map(spell => (
-                                    <div
-                                        key={spell.id}
-                                        className="spell-row"
-                                        style={{ cursor: 'pointer', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '4px' }}
-                                        onClick={() => addToSpellbook(spell)}
-                                    >
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
+                    )}
+                    {preparedCaster && isCantripMode && (
+                        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                            Cantrips must be learned one by one. Select a cantrip to learn it.
+                        </p>
+                    )}
+                    <input
+                        type="text"
+                        placeholder="Search spells by name, school, description, casting time, range, components, or duration..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{
+                            width: '100%',
+                            padding: '0.75rem',
+                            marginTop: '1rem',
+                            marginBottom: '1rem',
+                            border: '1px solid var(--border)',
+                            borderRadius: '4px',
+                            backgroundColor: 'var(--surface)',
+                            color: 'var(--text)',
+                            fontSize: '0.875rem'
+                        }}
+                        autoFocus
+                    />
+                    <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.5rem', overflowY: 'auto', flex: 1 }}>
+                        {filteredSpells.map(spell => {
+                            const isPrepared = safeMySpells.find(ms => ms.id === spell.id)?.prepared || false;
+                            const isKnown = safeMySpells.some(ms => ms.id === spell.id);
+                            // For prepared casters: if in cantrip mode, use learn. Otherwise use prepare.
+                            const shouldLearn = !preparedCaster || isCantripMode;
+                            // Subclass spellcasting (AT/EK): enforce spells known limit
+                            const atSpellsLimit = isSubclassSpellcasting && (
+                                (spell.level === 0 && safeMySpells.filter(s => s.level === 0).length >= cantripsKnownLimit && !isKnown) ||
+                                (spell.level > 0 && safeMySpells.filter(s => s.level > 0).length >= spellsKnownLimit && !isKnown)
+                            );
+                            // Check if spell can be prepared/learned (not at limit)
+                            const canPrepare = !atSpellsLimit && (
+                                shouldLearn || spell.level === 0 || isPrepared || currentPreparedCount < preparedSpellsLimit
+                            );
+                            
+                            return (
+                                <div 
+                                    key={spell.id} 
+                                    className="spell-row" 
+                                    style={{ 
+                                        cursor: canPrepare ? 'pointer' : 'not-allowed', 
+                                        padding: '0.5rem', 
+                                        border: '1px solid var(--border)', 
+                                        borderRadius: '4px',
+                                        backgroundColor: isPrepared ? 'var(--surface)' : 'transparent',
+                                        opacity: canPrepare ? 1 : 0.5
+                                    }} 
+                                    onClick={() => {
+                                        if (canPrepare) {
+                                            shouldLearn ? learnSpell(spell) : prepareSpellDirectly(spell);
+                                        } else if (atSpellsLimit) {
+                                            toast.error(spell.level === 0
+                                                ? `You can only know ${cantripsKnownLimit} cantrips. Unlearn a cantrip first.`
+                                                : `You can only know ${spellsKnownLimit} spells. Unlearn a spell first.`);
+                                        } else if (!shouldLearn && spell.level > 0) {
+                                            toast.error(`You have reached your prepared spells limit (${preparedSpellsLimit}). Unprepare a spell first to prepare a new one.`);
+                                        }
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
+                                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                            {preparedCaster && !shouldLearn && isPrepared && (
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 'bold' }}>Prepared</span>
+                                            )}
                                             <button
-                                                className="button secondary"
-                                                onClick={(e) => { e.stopPropagation(); setSpellDetailsModal({ isOpen: true, spell }); }}
-                                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                                className="btn btn-secondary btn-sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSpellDetailsModal({ isOpen: true, spell });
+                                                }}
+                                                title="View spell details"
                                             >
                                                 View
                                             </button>
                                         </div>
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                            Level {spell.level} {spell.school} • {spell.castingTime}
-                                        </div>
                                     </div>
-                                ))}
-                            {spellsToAddToSpellbook.filter(s => !searchTerm.trim() || s.name.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
-                                <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                    {spellsToAddToSpellbook.length === 0
-                                        ? 'All wizard spells at your level are already in your spellbook.'
-                                        : 'No spells match your search.'}
-                                </p>
-                            )}
-                        </div>
-                        <button
-                            className="button secondary"
-                            onClick={() => { setIsAddingToSpellbook(false); setSearchTerm(''); }}
-                            style={{ marginTop: '1rem' }}
-                        >
-                            Close
-                        </button>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                        Level {spell.level} {spell.school} • {spell.castingTime}
+                                    </div>
+                                    <div style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>{spell.description.substring(0, 100)}...</div>
+                                </div>
+                            );
+                        })}
+                        {filteredSpells.length === 0 && availableSpells.length > 0 && (
+                            <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No spells match your search.</p>
+                        )}
+                        {availableSpells.length === 0 && (
+                            <p>No spells available to learn at this level.</p>
+                        )}
                     </div>
-                </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                        <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                            {filteredSpells.length} of {availableSpells.length} spells
+                        </span>
+                        <button className="btn btn-secondary" onClick={() => {
+                            setIsAdding(false);
+                            setIsCantripMode(false);
+                            setSearchTerm('');
+                        }}>Close</button>
+                    </div>
+                </Modal>
+            )}
+
+            {isAddingToSpellbook && (
+                <Modal onClose={() => setIsAddingToSpellbook(false)} ariaLabel="Add to Spellbook" contentStyle={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+                    <h3>Add to Spellbook</h3>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                        Choose a wizard spell to add to your spellbook (e.g. from copying a scroll or research). You can then prepare it.
+                    </p>
+                    <input
+                        type="text"
+                        placeholder="Search spells..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{
+                            width: '100%',
+                            padding: '0.75rem',
+                            marginBottom: '1rem',
+                            border: '1px solid var(--border)',
+                            borderRadius: '4px',
+                            backgroundColor: 'var(--surface)',
+                            color: 'var(--text)',
+                            fontSize: '0.875rem'
+                        }}
+                    />
+                    <div style={{ display: 'grid', gap: '0.5rem', overflowY: 'auto', flex: 1 }}>
+                        {spellsToAddToSpellbook
+                            .filter(spell => !searchTerm.trim() || spell.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                            .map(spell => (
+                                <div
+                                    key={spell.id}
+                                    className="spell-row"
+                                    style={{ cursor: 'pointer', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '4px' }}
+                                    onClick={() => addToSpellbook(spell)}
+                                >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
+                                        <button
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={(e) => { e.stopPropagation(); setSpellDetailsModal({ isOpen: true, spell }); }}
+                                        >
+                                            View
+                                        </button>
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                        Level {spell.level} {spell.school} • {spell.castingTime}
+                                    </div>
+                                </div>
+                            ))}
+                        {spellsToAddToSpellbook.filter(s => !searchTerm.trim() || s.name.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
+                            <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                {spellsToAddToSpellbook.length === 0
+                                    ? 'All wizard spells at your level are already in your spellbook.'
+                                    : 'No spells match your search.'}
+                            </p>
+                        )}
+                    </div>
+                    <button
+                        className="btn btn-secondary"
+                        onClick={() => { setIsAddingToSpellbook(false); setSearchTerm(''); }}
+                        style={{ marginTop: '1rem' }}
+                    >
+                        Close
+                    </button>
+                </Modal>
             )}
 
             {spellsByLevel.length === 0 && (
@@ -1293,12 +1299,11 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                                         {fullSpell && (
                                             <button
-                                                className="button secondary"
+                                                className="btn btn-secondary btn-sm"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     setSpellDetailsModal({ isOpen: true, spell: fullSpell });
                                                 }}
-                                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
                                                 title="View spell details"
                                             >
                                                 View
@@ -1306,8 +1311,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                         )}
                                         {spell.level > 0 && !isElvenLineageSpell && !isSubclassBonusSpell && (
                                             <button
-                                                className={`button ${spellPrepared ? 'primary' : 'secondary'}`}
-                                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                                className={`btn ${spellPrepared ? '' : 'btn-secondary'} btn-sm`}
                                                 onClick={() => {
                                                     if (preparedCaster && !isKnown) {
                                                         const fullSpell = safeAllSpells.find(s => s.id === spell.id);
@@ -1330,15 +1334,15 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                         {!preparedCaster && !isElvenLineageSpell && !isSubclassBonusSpell && (
                                             <button
                                                 type="button"
-                                                className="button plain"
+                                                className="btn btn-ghost"
                                                 style={{ color: 'var(--error)', fontSize: '1.25rem', lineHeight: 1 }}
                                                 onClick={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();
-                                                    console.log('Remove button clicked for spell:', spell.id);
                                                     removeSpell(spell.id);
                                                 }}
                                                 title="Remove Spell"
+                                                aria-label={`Remove ${spell.name}`}
                                             >
                                                 &times;
                                             </button>
@@ -1346,14 +1350,12 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                         {isWizardSpellbook && spell.level > 0 && !isElvenLineageSpell && !isSubclassBonusSpell && (
                                             <button
                                                 type="button"
-                                                className="button plain"
+                                                className="btn btn-ghost"
                                                 style={{ color: 'var(--error)', fontSize: '1rem', lineHeight: 1 }}
                                                 onClick={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();
-                                                    if (confirm(`Remove ${spell.name} from your spellbook? It will also be unprepared if currently prepared.`)) {
-                                                        removeFromSpellbook(spell.id);
-                                                    }
+                                                    setSpellbookSpellToRemove({ id: spell.id, name: spell.name });
                                                 }}
                                                 title="Remove from Spellbook"
                                             >
@@ -1376,7 +1378,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                         <h4 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 'bold', margin: 0 }}>
                             Magic Initiate ({MAGIC_INITIATE_CLASSES.find(c => c.id === magicInitiate.class)?.name ?? magicInitiate.class})
                         </h4>
-                        <button className="button secondary" onClick={() => setMagicInitiateModalOpen(true)} style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setMagicInitiateModalOpen(true)}>
                             Change spells
                         </button>
                     </div>
@@ -1411,7 +1413,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             return (
                                 <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0.5rem', backgroundColor: 'var(--surface)', borderRadius: '4px' }}>
                                     <span style={{ fontWeight: 'bold', fontSize: '0.875rem' }}>{s.name}</span>
-                                    <button type="button" className="button plain" style={{ fontSize: '0.75rem' }} onClick={() => setSpellDetailsModal({ isOpen: true, spell: s })}>View</button>
+                                    <button type="button" className="btn btn-ghost" style={{ fontSize: '0.75rem' }} onClick={() => setSpellDetailsModal({ isOpen: true, spell: s })}>View</button>
                                 </div>
                             );
                         })}

@@ -3,6 +3,7 @@
 import { useState, useEffect, memo } from 'react';
 import { api } from '@/lib/api';
 import { HP } from '@/lib/types';
+import { describeError, useToast } from '@/app/components/ui';
 
 interface HPManagerProps {
     characterId: string;
@@ -11,6 +12,7 @@ interface HPManagerProps {
 }
 
 function HPManager({ characterId, initialHP, onUpdate }: HPManagerProps) {
+    const toast = useToast();
     const [hp, setHp] = useState<HP>(initialHP || { current: 0, max: 0, temp: 0 });
     const [isEditing, setIsEditing] = useState(false);
     const [editValues, setEditValues] = useState<{ current: number | string; max: number | string; temp: number | string }>({
@@ -49,7 +51,7 @@ function HPManager({ characterId, initialHP, onUpdate }: HPManagerProps) {
             setIsEditing(false);
         } catch (err) {
             console.error('Failed to update HP', err);
-            alert('Failed to update HP');
+            toast.error(describeError("Couldn't update HP", err));
         }
     };
 
@@ -169,8 +171,8 @@ function HPManager({ characterId, initialHP, onUpdate }: HPManagerProps) {
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                    <button className="button secondary" onClick={() => setIsEditing(false)}>Cancel</button>
-                    <button className="button primary" onClick={handleSave}>Save</button>
+                    <button className="btn btn-secondary" onClick={() => setIsEditing(false)}>Cancel</button>
+                    <button className="btn" onClick={handleSave}>Save</button>
                 </div>
             </div>
         );
@@ -254,7 +256,7 @@ function HPManager({ characterId, initialHP, onUpdate }: HPManagerProps) {
                     {(deathSaves.successes > 0 || deathSaves.failures > 0) && (
                         <button
                             type="button"
-                            className="button secondary"
+                            className="btn btn-secondary"
                             onClick={handleResetDeathSaves}
                             style={{ fontSize: '0.65rem', padding: '0.15rem 0.35rem' }}
                             title="Reset death saves"

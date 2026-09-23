@@ -3,6 +3,7 @@
 import { useState, useEffect, memo } from 'react';
 import { api } from '@/lib/api';
 import { HitDice } from '@/lib/types';
+import { describeError, useToast } from '@/app/components/ui';
 
 interface HitDiceManagerProps {
     characterId: string;
@@ -14,6 +15,7 @@ interface HitDiceManagerProps {
 }
 
 function HitDiceManager({ characterId, initialHitDice, onUpdate, onHPUpdate, onLongRest, conModifier }: HitDiceManagerProps) {
+    const toast = useToast();
     const [hitDice, setHitDice] = useState<HitDice>(initialHitDice || { total: 1, spent: 0, dieType: 8 });
     const [isRolling, setIsRolling] = useState(false);
     const [lastRoll, setLastRoll] = useState<number | null>(null);
@@ -29,7 +31,7 @@ function HitDiceManager({ characterId, initialHitDice, onUpdate, onHPUpdate, onL
 
     const handleSpendHitDie = async (heal: boolean = false) => {
         if (available <= 0) {
-            alert('No hit dice available to spend');
+            toast.error('No hit dice available to spend');
             return;
         }
 
@@ -70,7 +72,7 @@ function HitDiceManager({ characterId, initialHitDice, onUpdate, onHPUpdate, onL
             }
         } catch (err) {
             console.error('Failed to spend hit die', err);
-            alert('Failed to spend hit die');
+            toast.error(describeError("Couldn't spend hit die", err));
         } finally {
             setIsRolling(false);
         }
@@ -81,11 +83,11 @@ function HitDiceManager({ characterId, initialHitDice, onUpdate, onHPUpdate, onL
         // Actually, in D&D 5e, hit dice are spent on short rest and recovered on long rest
         // For now, we'll just allow spending them. Long rest recovery can be added later.
         if (available <= 0) {
-            alert('No hit dice available');
+            toast.error('No hit dice available');
             return;
         }
         // Just show message - actual spending happens when user clicks "Spend & Heal"
-        alert('Spend hit dice to heal during a short rest. Click "Spend & Heal" to use a hit die.');
+        toast.info('Spend hit dice to heal during a short rest. Click "Spend & Heal" to use a hit die.');
     };
 
     const handleLongRest = async () => {
@@ -107,7 +109,7 @@ function HitDiceManager({ characterId, initialHitDice, onUpdate, onHPUpdate, onL
             setLastHealing(null);
         } catch (err) {
             console.error('Failed to recover hit dice', err);
-            alert('Failed to recover hit dice');
+            toast.error(describeError("Couldn't recover hit dice", err));
         }
     };
 
@@ -147,7 +149,7 @@ function HitDiceManager({ characterId, initialHitDice, onUpdate, onHPUpdate, onL
 
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button
-                    className="button primary"
+                    className="btn"
                     onClick={() => handleSpendHitDie(true)}
                     disabled={available <= 0 || isRolling}
                     style={{ flex: '1 1 auto', minWidth: '120px' }}
@@ -155,7 +157,7 @@ function HitDiceManager({ characterId, initialHitDice, onUpdate, onHPUpdate, onL
                     {isRolling ? 'Rolling...' : 'Spend & Heal'}
                 </button>
                 <button
-                    className="button secondary"
+                    className="btn btn-secondary"
                     onClick={() => handleSpendHitDie(false)}
                     disabled={available <= 0 || isRolling}
                     style={{ flex: '1 1 auto', minWidth: '120px' }}
@@ -163,7 +165,7 @@ function HitDiceManager({ characterId, initialHitDice, onUpdate, onHPUpdate, onL
                     {isRolling ? 'Rolling...' : 'Spend (No Heal)'}
                 </button>
                 <button
-                    className="button secondary"
+                    className="btn btn-secondary"
                     onClick={handleLongRest}
                     style={{ flex: '1 1 auto', minWidth: '100px', fontSize: '0.875rem' }}
                 >
