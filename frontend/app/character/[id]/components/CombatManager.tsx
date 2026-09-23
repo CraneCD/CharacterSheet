@@ -36,7 +36,7 @@ function CombatManager({ equipment, strMod, dexMod, profBonus, fightingStyles = 
     const isTwoHandedOrVersatile = (w: CharacterItem) =>
         w.properties?.some((p: string) => {
             const s = String(p).toLowerCase();
-            return s === 'two-handed' || s === 'versatile';
+            return s === 'two-handed' || s.startsWith('versatile');
         });
 
     const oneMeleeNoOther = equippedWeapons.length === 1 && isMeleeWeapon(equippedWeapons[0]);

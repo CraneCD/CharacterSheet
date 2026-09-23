@@ -19,6 +19,8 @@ npm test              # Run tests across all workspaces
 npm run dev                              # Run with nodemon
 npm run build                            # prisma generate && tsc --skipLibCheck
 npm run prisma:migrate                   # Run Prisma migrations
+npm run sync-reference                   # Dry run: diff src/data against the ReferenceItem table
+npm run sync-reference -- --apply        # Push rules updates (skips admin-edited rows)
 npm test                                 # Jest
 npx jest --testPathPattern=auth          # Run a single test file
 ```
@@ -71,7 +73,11 @@ Routes are mounted in `backend/src/index.ts`:
 - `/api/auth` — register, login
 - `/api/characters` — CRUD; protected by `authenticateToken` middleware
 - `/api/campaigns` — CRUD + membership; protected
-- `/api/reference` — D&D reference data (classes, races, spells, feats) served from static JSON/TS files in `backend/src/data/`
+- `/api/reference` — D&D reference data (classes, races, spells, feats, ...) served from the `ReferenceItem` table (admin-editable). `backend/src/data/*.ts` is the seed/sync source: `prisma db seed` fills an empty DB, `npm run sync-reference` pushes later rules updates.
+
+### Rules Data (2024 / 5.5e)
+
+`backend/src/data` follows the 2024 PHB; text comes from SRD 5.2 (CC-BY-4.0, attribution in README) where available and is summarized otherwise. Pre-2024 content is kept with `legacy: true` (never deleted — characters reference ids) and hidden from pickers. Keep ids stable; append new base items to the end of `baseItems.ts` (keys are slugs assigned in order). `backend/src/tests/referenceData.test.ts` checks cross-references.
 
 ### Key Data Models (Prisma)
 

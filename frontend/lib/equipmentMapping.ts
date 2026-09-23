@@ -6,7 +6,36 @@ const NAME_ALIASES: Record<string, string> = {
     'heavy crossbow': 'Crossbow, Heavy',
     'crossbow, light': 'Crossbow, Light',
     'crossbow, heavy': 'Crossbow, Heavy',
+    'hand crossbow': 'Hand Crossbow',
+    'arcane focus (quarterstaff)': 'Quarterstaff',
+    'druidic focus (quarterstaff)': 'Quarterstaff',
+    'druidic focus (sprig of mistletoe)': 'Sprig of Mistletoe',
+    'arcane focus (crystal)': 'Crystal',
+    'arcane focus (orb)': 'Orb',
+    "traveler's clothes": "Clothes, Traveler's",
+    'fine clothes': 'Clothes, Fine',
+    'hooded lantern': 'Lantern, Hooded',
+    'iron pot': 'Pot, Iron',
+    'rope': 'Rope, Hempen (50 feet)',
+    'gaming set': 'Dice set',
 };
+
+/**
+ * Split an equipment line into its options: "A items or B items or 50 GP".
+ * Item names never contain " or " (use "/" for alternatives inside an item).
+ */
+export function optionsFromLine(line: string): string[] {
+    return line.split(/\s+or\s+/i).map((s) => s.trim()).filter(Boolean);
+}
+
+const CURRENCY_RE = /^\s*(\d+)\s*(gp|sp|cp|ep|pp)\s*$/i;
+
+/** "15 GP" -> { gp: 15 }; null if the part isn't a currency amount. */
+export function parseCurrency(part: string): { key: 'gp' | 'sp' | 'cp' | 'ep' | 'pp'; amount: number } | null {
+    const m = part.match(CURRENCY_RE);
+    if (!m) return null;
+    return { key: m[2].toLowerCase() as 'gp' | 'sp' | 'cp' | 'ep' | 'pp', amount: parseInt(m[1], 10) };
+}
 
 export interface BaseItemLike {
     name: string;
@@ -54,12 +83,22 @@ export function itemNameToCharacterItem(
     }
     const norm = normalizeForLookup(name);
     const resolvedName = NAME_ALIASES[norm] ?? name;
-    const base = baseItems.find(
-        (b) => normalizeForLookup(b.name) === normalizeForLookup(resolvedName)
-    );
+    const findBase = (n: string) => baseItems.find((b) => normalizeForLookup(b.name) === normalizeForLookup(n));
+    // Exact name, then singular forms for counted items ("8 Javelins" -> "Javelin"); "20 Arrows" stays plural.
+    let base = findBase(resolvedName);
+    if (!base && quantity > 1) {
+        const singular = resolvedName.replace(/ies$/i, 'y').replace(/(ch|sh|x|s)es$/i, '$1').replace(/s$/i, '');
+        base = findBase(NAME_ALIASES[normalizeForLookup(singular)] ?? singular);
+    }
+    // "Book (prayers)", "Parchment (10 sheets)" -> the base item, keeping the descriptive name
+    let keepName = false;
+    if (!base && /\(.*\)\s*$/.test(resolvedName)) {
+        base = findBase(resolvedName.replace(/\s*\(.*\)\s*$/, ''));
+        keepName = !!base;
+    }
     if (base) {
         return {
-            name: base.name,
+            name: keepName ? name : base.name,
             category: base.category as ItemCategory,
             type: (base.type as CharacterItem['type']) ?? 'other',
             armorMethod: base.armorMethod as CharacterItem['armorMethod'],

@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Spell, CharacterSpell, CharacterData } from '@/lib/types';
-import { calculateMulticlassSpellcasterLevel, getSpellcastingClasses, calculatePreparedSpellsLimitForClass } from '@/lib/multiclassSpellcasting';
+import { calculateMulticlassSpellcasterLevel, getSpellcastingClasses, calculatePreparedSpellsLimitForClass, getCantripsKnown, getKnownSpellsLimit } from '@/lib/multiclassSpellcasting';
 import { ELVEN_LINEAGE_SPELLS, SUBCLASS_BONUS_SPELLS, MAGIC_INITIATE_CLASSES } from '@/lib/wizardReference';
-import { getSlotsForClass, THIRD_CASTER_SPELLS_KNOWN, THIRD_CASTER_CANTRIPS } from '@/lib/spellSlots';
+import { getSlotsForClass, THIRD_CASTER_SPELLS_KNOWN, getThirdCasterCantrips } from '@/lib/spellSlots';
 import SpellDetailsModal from './SpellDetailsModal';
 import MagicInitiateConfigModal from './MagicInitiateConfigModal';
 
@@ -26,6 +26,10 @@ interface SpellManagerProps {
     elvenLineage?: string;
     /** Subclass ID (e.g. gloom_stalker). Subclass bonus spells are always prepared at the appropriate class levels. */
     subclassId?: string;
+    /** Always-prepared subclass spells from the subclass record (class level -> spell). Falls back to SUBCLASS_BONUS_SPELLS. */
+    subclassSpells?: { level: number; spellId: string }[];
+    /** Spells from the species / lineage choice (character level -> spell). Falls back to the elven lineage table. */
+    speciesSpells?: { level: number; spellId: string }[];
     /** Level in the class that has the subclass (for subclass bonus spells). Defaults to level if not multiclassed. */
     subclassClassLevel?: number;
     initialSlotsUsed: { [level: number]: number };
@@ -55,7 +59,7 @@ interface SpellManagerProps {
     onMagicInitiateSlotChange?: (used: number) => void;
 }
 
-export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel, magicInitiate, onMagicInitiateUpdate, magicInitiateSpell1Used = 1, onMagicInitiateSlotChange }: SpellManagerProps) {
+export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel, subclassSpells, speciesSpells, magicInitiate, onMagicInitiateUpdate, magicInitiateSpell1Used = 1, onMagicInitiateSlotChange }: SpellManagerProps) {
     const [mySpells, setMySpells] = useState<CharacterSpell[]>(Array.isArray(initialSpells) ? initialSpells : []);
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
     const [allSpells, setAllSpells] = useState<Spell[]>([]);
@@ -193,6 +197,21 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 }
                 if (spell.level > 0 && currentSpells >= spellsKnownLimit) {
                     alert(`You can only know ${spellsKnownLimit} spells. Unlearn a spell first.`);
+                    return;
+                }
+            }
+            // 2024: cantrip counts and (for Bard, Sorcerer, Warlock) spell counts come from the class table
+            if (!isSubclassSpellcasting && !hasMultipleClasses) {
+                const currentCantrips = safeMySpells.filter(s => s.level === 0).length;
+                const currentSpells = safeMySpells.filter(s => s.level > 0).length;
+                const cantripLimit = getCantripsKnown(classId, level);
+                if (spell.level === 0 && cantripLimit > 0 && currentCantrips >= cantripLimit) {
+                    alert(`You can only know ${cantripLimit} cantrips at this level. Unlearn a cantrip first.`);
+                    return;
+                }
+                const knownLimit = getKnownSpellsLimit(classId, level);
+                if (spell.level > 0 && knownLimit > 0 && currentSpells >= knownLimit) {
+                    alert(`You can only have ${knownLimit} spells at this level. Remove a spell first.`);
                     return;
                 }
             }
@@ -473,7 +492,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         ? THIRD_CASTER_SPELLS_KNOWN[Math.min(Math.max(0, level - 1), 19)] ?? 0
         : 0;
     const cantripsKnownLimit = isSubclassSpellcasting && subclassSpellcasting
-        ? (THIRD_CASTER_CANTRIPS[subclassSpellcasting.subclassId] ?? 2)
+        ? getThirdCasterCantrips(subclassSpellcasting.subclassId, level)
         : 0;
     
     // For prepared casters in cantrip mode: show only cantrips not yet learned
@@ -481,6 +500,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     // For known casters: only show spells not yet learned
     const safeAllSpells = Array.isArray(allSpells) ? allSpells : [];
     const availableSpells = safeAllSpells.filter(s => {
+        if (s.legacy && !safeMySpells.find(ms => ms.id === s.id)) return false;
         // Check if spell is available to any of the character's spellcasting classes
         const spellClasses = s.classes || [];
         const spellAvailableToClass = spellClasses.some((spellClass: string) => 
@@ -537,7 +557,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
 
     // Elven lineage spells (2024 PHB): granted at character levels 1, 3, 5. Always prepared.
     const lineageKey = (elvenLineage || '').toLowerCase().replace(/\s+/g, '_');
-    const lineageSpellsConfigRaw = lineageKey ? ELVEN_LINEAGE_SPELLS[lineageKey] : null;
+    const lineageSpellsConfigRaw = speciesSpells ?? (lineageKey ? ELVEN_LINEAGE_SPELLS[lineageKey] : null);
     const lineageSpellsConfig = Array.isArray(lineageSpellsConfigRaw) ? lineageSpellsConfigRaw : [];
     const lineageSpellsForLevel = lineageSpellsConfig
         .filter(entry => level >= entry.level)
@@ -547,7 +567,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     // Subclass bonus spells (e.g. Gloom Stalker): granted at class levels 3, 5, 9, 13, 17. Always prepared.
     const subclassKey = (subclassIdProp || '').toLowerCase().replace(/\s+/g, '_');
     const subclassClassLvl = subclassClassLevel ?? level;
-    const subclassSpellsConfigRaw = subclassKey ? SUBCLASS_BONUS_SPELLS[subclassKey] : null;
+    const subclassSpellsConfigRaw = (subclassSpells && subclassSpells.length > 0) ? subclassSpells : (subclassKey ? SUBCLASS_BONUS_SPELLS[subclassKey] : null);
     const subclassSpellsConfig = Array.isArray(subclassSpellsConfigRaw) ? subclassSpellsConfigRaw : [];
     const subclassSpellsForLevel = subclassSpellsConfig
         .filter(entry => subclassClassLvl >= entry.level)
@@ -564,6 +584,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         if ((preparedCaster || spellcastingClasses.some(sc => sc.classInfo.preparedCaster) || isInnateOnly) && lvl > 0) {
             // For prepared casters: show spells at this level. Wizard = spellbook only; others = all.
             let availableAtLevel = safeAllSpells.filter(s => 
+                (!s.legacy || !!safeMySpells.find(ms => ms.id === s.id)) &&
                 (s.classes || []).some((spellClass: string) => availableClassIds.includes(spellClass.toLowerCase())) &&
                 s.level === lvl &&
                 s.level <= maxSpellLevel
@@ -632,17 +653,22 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     isElvenLineage: false
                 };
             });
-            const lineageCantrip = lineageSpellsForLevel.find(l => l.spell.level === 0);
-            if (lineageCantrip && !spellsAtLevel.some(s => s.id === lineageCantrip.spell.id)) {
-                spellsAtLevel.push({
-                    id: lineageCantrip.spell.id,
-                    name: lineageCantrip.spell.name,
-                    level: 0,
-                    school: lineageCantrip.spell.school,
-                    prepared: true,
-                    isKnown: true,
-                    isElvenLineage: true
-                });
+            // Species/lineage cantrips and subclass cantrips (e.g. Starry Wisp, Elementalism) are always known
+            for (const [entries, fromLineage] of [[lineageSpellsForLevel, true], [subclassSpellsForLevel, false]] as const) {
+                for (const { spell } of entries) {
+                    if (spell.level === 0 && !spellsAtLevel.some(s => s.id === spell.id)) {
+                        spellsAtLevel.push({
+                            id: spell.id,
+                            name: spell.name,
+                            level: 0,
+                            school: spell.school,
+                            prepared: true,
+                            isKnown: true,
+                            isElvenLineage: fromLineage,
+                            isSubclassBonus: !fromLineage
+                        });
+                    }
+                }
             }
         } else {
             // Known casters (non-cantrip): only show learned spells. Name/school
@@ -808,7 +834,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         <div className="card">
             <div className="spellbook-header" style={{ marginBottom: '0.75rem' }}>
                 <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', margin: 0 }}>
-                    {isInnateOnly ? 'Elven Lineage Spells' : preparedCaster ? 'Spellbook (Prepare Spells)' : 'Spellbook'}
+                    {isInnateOnly ? 'Species Spells' : preparedCaster ? 'Spellbook (Prepare Spells)' : 'Spellbook'}
                     {preparedCaster && (
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal', display: 'block', marginTop: '0.25rem' }}>
                             Prepared: {currentPreparedCount} / {preparedSpellsLimit}
@@ -1182,7 +1208,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                         <div style={{ fontWeight: 'bold' }}>
                                             {spell.name}
                                             {isElvenLineageSpell && (
-                                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: '0.35rem' }}>(Elven Lineage)</span>
+                                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: '0.35rem' }}>(Species)</span>
                                             )}
                                             {isSubclassBonusSpell && (
                                                 <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: '0.35rem' }}>(Subclass)</span>

@@ -61,7 +61,7 @@ export const featureStatModifiers: FeatureStatModifiers = {
         {
             type: 'abilityScore',
             value: { str: 4, con: 4 },
-            description: 'Strength and Constitution scores increase by 4 (max 24)'
+            description: 'Strength and Constitution scores increase by 4 (max 25)'
         }
     ],
 
@@ -111,6 +111,13 @@ export function calculateSpeedBonusFromFeatures(
         bonus += 10;
     }
 
+    // Roving (Ranger 6), Aura of Alacrity (Oath of Glory 7), Speedy feat, Boon of Speed
+    const has = (name: string) => features.some(f => f.name === name);
+    if (has('Roving')) bonus += 10;
+    if (has('Aura of Alacrity')) bonus += 10;
+    if (has('Speedy')) bonus += 10;
+    if (has('Boon of Speed')) bonus += 30;
+
     return bonus;
 }
 
@@ -149,6 +156,13 @@ export function getAbilityScoreIncreasesFromFeatures(
         increases.con = (increases.con || 0) + 4;
     }
 
+    // Body and Mind (Monk level 20, 2024)
+    const hasBodyAndMind = features.some(f => f.name === 'Body and Mind');
+    if (hasBodyAndMind) {
+        increases.dex = (increases.dex || 0) + 4;
+        increases.wis = (increases.wis || 0) + 4;
+    }
+
     return increases;
 }
 
@@ -161,14 +175,16 @@ export function getSavingThrowProficienciesFromFeatures(
 ): string[] {
     const proficiencies = [...baseProficiencies];
 
-    // Check for Slippery Mind (Rogue level 15)
+    // Check for Slippery Mind (Rogue level 15): Wisdom and Charisma saves (2024)
     const hasSlipperyMind = features.some(f => f.name === 'Slippery Mind');
-    if (hasSlipperyMind && !proficiencies.includes('wis')) {
-        proficiencies.push('wis');
+    if (hasSlipperyMind) {
+        for (const save of ['wis', 'cha']) {
+            if (!proficiencies.includes(save)) proficiencies.push(save);
+        }
     }
 
-    // Check for Diamond Soul (Monk level 14)
-    const hasDiamondSoul = features.some(f => f.name === 'Diamond Soul');
+    // Disciplined Survivor (Monk level 14, 2024) / Diamond Soul (2014): all saving throws
+    const hasDiamondSoul = features.some(f => f.name === 'Diamond Soul' || f.name === 'Disciplined Survivor');
     if (hasDiamondSoul) {
         // Diamond Soul grants proficiency in all saving throws
         const allSaves = ['str', 'dex', 'con', 'int', 'wis', 'cha'];

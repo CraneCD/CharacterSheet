@@ -46,7 +46,10 @@ const shapeSchemas: Record<ReferenceType, z.ZodTypeAny> = {
     background: z.object({
         name: z.string().min(1),
         description: z.string().min(1),
-        feature: z.object({ name: z.string(), description: z.string() }),
+        // 2024 backgrounds: three ability options and an Origin feat; legacy ones may keep a narrative feature.
+        abilityScores: z.array(z.enum(['str', 'dex', 'con', 'int', 'wis', 'cha'])).length(3).optional(),
+        originFeat: z.string().min(1).optional(),
+        feature: z.object({ name: z.string(), description: z.string() }).optional(),
     }).passthrough(),
     subclass: z.object({
         classId: z.string().min(1),

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { Subclass } from '@/lib/types';
+import { Subclass, Feat as FeatRecord } from '@/lib/types';
 import { updateClassResourcesForLevel } from '@/lib/classResources';
 import { getAbilityScoreIncreasesFromFeatures } from '@/lib/featureStatModifiers';
 import { getBackgroundSkills } from '@/lib/wizardReference';
@@ -20,36 +20,82 @@ interface ClassFeature {
     description: string;
 }
 
-interface Feat {
-    id: string;
-    name: string;
-    description: string;
-    prerequisites?: {
-        abilityScore?: { [ability: string]: number };
-        race?: string[];
-        class?: string[];
-        proficiency?: string[];
-        level?: number;
-    };
-    abilityScoreIncrease?: { [ability: string]: number };
-}
+type Feat = FeatRecord;
 
-/** Whether this level-up grants a Fighting Style, and optional restricted options (e.g. Soulknife). */
-function getFightingStyleForLevel(
+const ABILITY_LABELS: Record<string, string> = {
+    str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma'
+};
+
+/** Whether this level-up grants a Fighting Style, and optional restricted options (e.g. College of Swords). */
+export function getFightingStyleForLevel(
     classId: string,
-    nextLevel: number,
+    classLevel: number,
     effectiveSubclassId: string | undefined
 ): { needed: boolean; options?: string[] } {
-    if ((classId === 'ranger' && nextLevel === 2) || (classId === 'paladin' && nextLevel === 2)) {
+    if ((classId === 'ranger' && classLevel === 2) || (classId === 'paladin' && classLevel === 2)) {
         return { needed: true };
     }
-    if (effectiveSubclassId === 'champion' && classId === 'fighter' && nextLevel === 10) {
+    // 2024 Champion: Additional Fighting Style at Fighter level 7
+    if (effectiveSubclassId === 'champion' && classId === 'fighter' && classLevel === 7) {
         return { needed: true };
     }
-    if (effectiveSubclassId === 'soulknife' && classId === 'rogue' && nextLevel === 3) {
+    // Legacy College of Swords: Dueling or Two-Weapon Fighting at Bard level 3
+    if (effectiveSubclassId === 'swords' && classId === 'bard' && classLevel === 3) {
         return { needed: true, options: ['dueling', 'two-weapon-fighting'] };
     }
     return { needed: false };
+}
+
+/** Classes whose Fighting Style feature (at these class levels) unlocks Fighting Style feats. */
+const FIGHTING_STYLE_FROM_LEVEL: Record<string, number> = { fighter: 1, paladin: 2, ranger: 2 };
+
+/**
+ * 2024 feat eligibility for a level-up. `classLevels` is the character's class
+ * levels after this level-up; `characterLevel` is the new total level.
+ */
+export function isFeatAvailable(
+    feat: Feat,
+    ctx: {
+        characterLevel: number;
+        classLevels: Record<string, number>;
+        abilityScores: Record<string, number>;
+        race: string;
+        armorTraining: string[];
+        takenFeatIds: string[];
+    }
+): boolean {
+    if (feat.legacy) return false;
+    // Taken through the ASI option instead
+    if (feat.id === 'ability-score-improvement') return false;
+    if (ctx.takenFeatIds.includes(feat.id) && !feat.repeatable) return false;
+    const pre = feat.prerequisites || {};
+    if (pre.level && ctx.characterLevel < pre.level) return false;
+    if (feat.category === 'epic-boon' && ctx.characterLevel < 19) return false;
+    if (feat.category === 'general' && ctx.characterLevel < 4) return false;
+    if (pre.abilityScore) {
+        for (const [ability, min] of Object.entries(pre.abilityScore)) {
+            if ((ctx.abilityScores[ability] || 0) < min) return false;
+        }
+    }
+    if (pre.abilityScoreAny) {
+        if (!Object.entries(pre.abilityScoreAny).some(([ability, min]) => (ctx.abilityScores[ability] || 0) >= min)) return false;
+    }
+    if (pre.race && pre.race.length > 0 && !pre.race.some(r => ctx.race.toLowerCase().includes(r.toLowerCase()))) return false;
+    if (feat.category === 'fighting-style') {
+        const ok = Object.entries(ctx.classLevels).some(([cid, lvl]) => FIGHTING_STYLE_FROM_LEVEL[cid] !== undefined && lvl >= FIGHTING_STYLE_FROM_LEVEL[cid]);
+        if (!ok) return false;
+    } else if (pre.class && pre.class.length > 0) {
+        if (!Object.keys(ctx.classLevels).some(cid => pre.class!.includes(cid))) return false;
+    }
+    if (pre.proficiency && pre.proficiency.length > 0) {
+        const training = ctx.armorTraining.map(t => t.toLowerCase());
+        const hasTraining = (req: string) => {
+            const r = req.toLowerCase().replace(' armor', '');
+            return training.some(t => t.includes('all armor') || t.includes(r));
+        };
+        if (!pre.proficiency.every(hasTraining)) return false;
+    }
+    return true;
 }
 
 /** Scholar-eligible skills for Wizard level 2 (must pick one in which you have proficiency). */
@@ -106,8 +152,10 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     };
     
     const classId = getClassIdForLevelUp();
-    const classLevel = levelUpMode === 'multiclass' ? 1 : (effectiveClasses[classId] || 1);
-    const needsASI = getASILevels(classId).includes(classLevel + 1);
+    // Level the chosen class reaches with this level-up (a new multiclass starts at 1)
+    const newClassLevel = levelUpMode === 'multiclass' ? 1 : (effectiveClasses[classId] || 0) + 1;
+    const needsASI = getASILevels(classId).includes(newClassLevel);
+    const classLevelsAfter: Record<string, number> = { ...effectiveClasses, [classId]: newClassLevel };
 
     // Subclass State
     const [subclasses, setSubclasses] = useState<Subclass[]>([]);
@@ -126,6 +174,9 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     const [asiDual1, setAsiDual1] = useState<string>('');
     const [asiDual2, setAsiDual2] = useState<string>('');
     const [selectedFeat, setSelectedFeat] = useState<Feat | null>(null);
+    const [featAbility, setFeatAbility] = useState<string>('');
+    const [allClassInfo, setAllClassInfo] = useState<any[]>([]);
+    const [showLegacySubclasses, setShowLegacySubclasses] = useState(false);
     const [availableFeats, setAvailableFeats] = useState<Feat[]>([]);
     const [loadingFeats, setLoadingFeats] = useState(false);
 
@@ -134,7 +185,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     const [selectedFightingStyle, setSelectedFightingStyle] = useState<string | null>(null);
 
     // Scholar (Wizard level 2) - pick one skill for proficiency + expertise
-    const needsScholar = classId === 'wizard' && nextLevel === 2;
+    const needsScholar = classId === 'wizard' && newClassLevel === 2;
     const scholarProficientSkills = (() => {
         if (!needsScholar) return [];
         const bgSkills = getBackgroundSkills(character.data?.backgroundId || '') || [];
@@ -157,11 +208,9 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
         if (levelUpMode === 'multiclass' && selectedMulticlass) {
             const multiclassInfo = availableClasses.find((c: any) => c.id === selectedMulticlass);
             return multiclassInfo?.hitDie || 8;
-        } else if (levelUpMode === 'existing' && selectedClassToLevel) {
-            // Would need to fetch class info, but for now use character.classInfo
-            return character.classInfo?.hitDie || 8;
         }
-        return character.classInfo?.hitDie || 8;
+        const info = allClassInfo.find((c: any) => c.id === classId);
+        return info?.hitDie || character.classInfo?.hitDie || 8;
     };
     
     const hitDie = getHitDie();
@@ -171,39 +220,45 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     const hpGainAvg = Math.max(1, averageHp + conMod);
     const hpGainRoll = Math.max(1, rolledHp + conMod);
 
-    const subclassLevel = character.classInfo?.subclassLevel;
-    const needsSubclass = nextLevel === subclassLevel && !character.data.subclassId;
+    const leveledClassInfo = allClassInfo.find((c: any) => c.id === classId) || character.classInfo;
+    const subclassLevel = leveledClassInfo?.subclassLevel ?? 3;
+    // One subclass is tracked per character (for the class it was chosen for)
+    const needsSubclass = newClassLevel === subclassLevel && !character.data.subclassId;
 
     const effectiveSubclassIdForFS = (needsSubclass && selectedSubclass) ? selectedSubclass.id : character.data?.subclassId;
-    const fightingStyleCheck = getFightingStyleForLevel(classId, nextLevel, effectiveSubclassIdForFS);
+    const fightingStyleCheck = getFightingStyleForLevel(classId, newClassLevel, effectiveSubclassIdForFS);
     const needsFightingStyle = fightingStyleCheck.needed;
     const allowedFightingStyleIds = fightingStyleCheck.options; // undefined = all
+
+    useEffect(() => {
+        api.get('/reference/classes')
+            .then((list: any[]) => setAllClassInfo(Array.isArray(list) ? list : []))
+            .catch(() => setAllClassInfo([]));
+    }, []);
 
     useEffect(() => {
         if (needsSubclass) {
             setLoadingSubclasses(true);
             api.get('/reference/subclasses')
                 .then((data: Subclass[]) => {
-                    const available = data.filter(s => s.classId === (character.classId || character.class.toLowerCase())); // Ensure ID match
+                    const available = data.filter(s => s.classId === classId);
                     setSubclasses(available);
                 })
                 .catch(err => console.error('Failed to load subclasses', err))
                 .finally(() => setLoadingSubclasses(false));
         }
-    }, [needsSubclass, character.class, character.classId]);
+    }, [needsSubclass, classId]);
 
     // Load class and subclass features for the new level
     useEffect(() => {
         setLoadingFeatures(true);
-        const classId = character.classId || character.class.toLowerCase();
-        
+
         const promises: Promise<any>[] = [];
         
-        // Load class features
+        // Load class features for the level the leveled class reaches
         const classFeaturesPromise = api.get(`/reference/class-features/${classId}`)
             .then((features: ClassFeature[]) => {
-                // Filter features for the new level
-                const featuresForLevel = features.filter(f => f.level === nextLevel);
+                const featuresForLevel = features.filter(f => f.level === newClassLevel);
                 setClassFeatures(featuresForLevel);
             })
             .catch(err => {
@@ -217,8 +272,8 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
             const subclassFeaturesPromise = api.get('/reference/subclasses')
                 .then((subclasses: Subclass[]) => {
                     const subclass = subclasses.find(s => s.id === character.data.subclassId);
-                    if (subclass) {
-                        const featuresForLevel = subclass.features.filter(f => f.level === nextLevel);
+                    if (subclass && subclass.classId === classId) {
+                        const featuresForLevel = subclass.features.filter(f => f.level === newClassLevel);
                         setSubclassFeatures(featuresForLevel);
                     } else {
                         setSubclassFeatures([]);
@@ -235,7 +290,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
 
         // Wait for all promises to complete
         Promise.all(promises).finally(() => setLoadingFeatures(false));
-    }, [nextLevel, character.class, character.classId, character.data.subclassId, needsSubclass]);
+    }, [newClassLevel, classId, character.data.subclassId, needsSubclass]);
 
     // Load available classes for multiclassing
     useEffect(() => {
@@ -292,42 +347,25 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
             setLoadingFeats(true);
             api.get('/reference/feats')
                 .then((feats: Feat[]) => {
-                    // Filter feats based on prerequisites
-                    const scores = character.data.abilityScores || {};
-                    const race = character.race?.toLowerCase() || '';
-                    const charClass = classId;
-                    const proficiencies: string[] = []; // TODO: Get from character data if available
-                    
-                    const filtered = feats.filter(feat => {
-                        if (!feat.prerequisites) return true;
-                        const prereq = feat.prerequisites;
-                        
-                        // Check ability score prerequisites
-                        if (prereq.abilityScore) {
-                            for (const [ability, minScore] of Object.entries(prereq.abilityScore)) {
-                                if ((scores[ability] || 0) < minScore) return false;
-                            }
-                        }
-                        
-                        // Check race prerequisites
-                        if (prereq.race && prereq.race.length > 0) {
-                            if (!prereq.race.some(r => race.includes(r.toLowerCase()))) return false;
-                        }
-                        
-                        // Check class prerequisites
-                        if (prereq.class && prereq.class.length > 0) {
-                            if (!prereq.class.some(c => charClass.includes(c.toLowerCase()))) return false;
-                        }
-                        
-                        // Check proficiency prerequisites (simplified - would need character proficiencies)
-                        if (prereq.proficiency && prereq.proficiency.length > 0) {
-                            // For now, allow all if we can't check proficiencies
-                            // TODO: Implement proper proficiency checking
-                        }
-                        
-                        return true;
-                    });
-                    
+                    const armorTraining = [
+                        ...Object.keys(classLevelsAfter).flatMap(cid => (allClassInfo.find((c: any) => c.id === cid)?.armorProficiencies) || []),
+                        ...(character.classInfo?.armorProficiencies || []),
+                    ];
+                    const takenFeatIds = (character.data.features || []).map((f: any) => f.featId).filter(Boolean);
+                    // Armor-training feats grant the next tier
+                    if (takenFeatIds.includes('lightly-armored')) armorTraining.push('Light armor', 'Shields');
+                    if (takenFeatIds.includes('moderately-armored')) armorTraining.push('Medium armor');
+                    if (takenFeatIds.includes('heavily-armored')) armorTraining.push('Heavy armor');
+                    const filtered = (feats || []).filter(feat => isFeatAvailable(feat, {
+                        characterLevel: nextLevel,
+                        classLevels: classLevelsAfter,
+                        abilityScores: character.data.abilityScores || {},
+                        race: character.race || '',
+                        armorTraining,
+                        takenFeatIds,
+                    }));
+                    const order: Record<string, number> = { 'epic-boon': 0, general: 1, 'fighting-style': 2, origin: 3 };
+                    filtered.sort((a, b) => (order[a.category || 'general'] ?? 9) - (order[b.category || 'general'] ?? 9) || a.name.localeCompare(b.name));
                     setAvailableFeats(filtered);
                 })
                 .catch(err => {
@@ -336,7 +374,8 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                 })
                 .finally(() => setLoadingFeats(false));
         }
-    }, [needsASI, character.data.abilityScores, character.race, classId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [needsASI, character.data.abilityScores, character.race, classId, allClassInfo.length, nextLevel]);
 
     useEffect(() => {
         if (!needsScholar) {
@@ -348,7 +387,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
         if (needsWizardSpellbook) {
             api.get('/reference/spells/summary')
                 .then((spells: { id: string; name: string; level: number; classes: string[] }[]) => {
-                    const maxSpellLevel = Math.ceil(nextLevel / 2);
+                    const maxSpellLevel = Math.min(9, Math.ceil(newClassLevel / 2));
                     const wizardSpells = spells.filter(s =>
                         s.level > 0 &&
                         s.level <= maxSpellLevel &&
@@ -361,7 +400,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
             setWizardSpellsList([]);
             setWizardSpellbookChoices([]);
         }
-    }, [needsWizardSpellbook, nextLevel]);
+    }, [needsWizardSpellbook, newClassLevel]);
 
     useEffect(() => {
         if (needsFightingStyle) {
@@ -444,6 +483,14 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                         };
                     }
                 } else if (asiOrFeat === 'feat' && selectedFeat) {
+                    if (selectedFeat.abilityScoreOptions && selectedFeat.abilityScoreOptions.length > 0) {
+                        const abil = featAbility || selectedFeat.abilityScoreOptions[0];
+                        const cap = selectedFeat.abilityScoreMax ?? 20;
+                        const current = (character.data.abilityScores || {})[abil] ?? 10;
+                        if (current < cap) {
+                            payload.abilityScoreImprovement = { [abil]: 1 };
+                        }
+                    }
                     // Add feat as a feature
                     const featFeature = {
                         name: selectedFeat.name,
@@ -455,8 +502,8 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                     if (!payload.newFeatures) payload.newFeatures = [];
                     payload.newFeatures.push(featFeature);
                     
-                    // If feat grants ability score increase, merge it with any existing ASI
-                    if (selectedFeat.abilityScoreIncrease) {
+                    // Pre-2024 feat data: fixed increase
+                    if (!selectedFeat.abilityScoreOptions && selectedFeat.abilityScoreIncrease) {
                         if (payload.abilityScoreImprovement) {
                             // Merge ability score increases
                             for (const [ability, increase] of Object.entries(selectedFeat.abilityScoreIncrease)) {
@@ -529,7 +576,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                 <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Level Up: {nextLevel}</h2>
 
                 {/* Class Selection Section - Show if character has multiple classes or can multiclass */}
-                {(Object.keys(effectiveClasses).length > 1 || (Object.keys(effectiveClasses).length === 1 && character.level >= 1)) && !levelUpMode && (
+                {(Object.keys(effectiveClasses).length > 1 || (Object.keys(effectiveClasses).length === 1 && character.level >= 1)) && (
                     <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
                         <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
                             Choose Level Up Path
@@ -545,6 +592,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                 <input
                                     type="radio"
                                     name="levelUpMode"
+                                    data-testid="levelup-mode-existing"
                                     checked={levelUpMode === 'existing'}
                                     onChange={() => setLevelUpMode('existing')}
                                 />
@@ -562,6 +610,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                 <input
                                     type="radio"
                                     name="levelUpMode"
+                                    data-testid="levelup-mode-multiclass"
                                     checked={levelUpMode === 'multiclass'}
                                     onChange={() => setLevelUpMode('multiclass')}
                                 />
@@ -582,6 +631,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                 </label>
                                 <select
                                     className="input"
+                                    data-testid="levelup-class-select"
                                     value={selectedClassToLevel}
                                     onChange={(e) => setSelectedClassToLevel(e.target.value)}
                                     style={{ width: '100%' }}
@@ -628,6 +678,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                                         <input
                                                             type="radio"
                                                             name="multiclass"
+                                                            data-testid={`multiclass-${cls.id}`}
                                                             checked={selectedMulticlass === cls.id}
                                                             onChange={() => setSelectedMulticlass(cls.id)}
                                                             style={{ marginTop: '0.25rem' }}
@@ -666,7 +717,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                         </h3>
                         <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                             {allowedFightingStyleIds
-                                ? 'Choose one of the following (Soulknife): Dueling or Two-Weapon Fighting.'
+                                ? 'Choose one of the following (College of Swords): Dueling or Two-Weapon Fighting.'
                                 : 'You gain a Fighting Style at this level. Choose one.'}
                         </p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -675,6 +726,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                 .map(fs => (
                                     <div
                                         key={fs.id}
+                                        data-testid={`levelup-fs-${fs.id}`}
                                         onClick={() => setSelectedFightingStyle(selectedFightingStyle === fs.id ? null : fs.id)}
                                         style={{
                                             cursor: 'pointer',
@@ -703,6 +755,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                         </p>
                         <select
                             className="input"
+                            data-testid="scholar-skill"
                             value={selectedScholarSkill || ''}
                             onChange={(e) => setSelectedScholarSkill(e.target.value || null)}
                             style={{ width: '100%', maxWidth: '20rem' }}
@@ -729,6 +782,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                 <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Spell {idx + 1}</label>
                                 <select
                                     className="input"
+                                    data-testid={`wizard-spell-${idx}`}
                                     value={wizardSpellbookChoices[idx] || ''}
                                     onChange={(e) => {
                                         const val = e.target.value || '';
@@ -881,6 +935,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                 <input
                                     type="radio"
                                     name="asiOrFeat"
+                                    data-testid="asi-or-feat-asi"
                                     checked={asiOrFeat === 'asi'}
                                     onChange={() => setAsiOrFeat('asi')}
                                 />
@@ -890,6 +945,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                 <input
                                     type="radio"
                                     name="asiOrFeat"
+                                    data-testid="asi-or-feat-feat"
                                     checked={asiOrFeat === 'feat'}
                                     onChange={() => setAsiOrFeat('feat')}
                                 />
@@ -914,6 +970,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                         <input
                                             type="radio"
                                             name="asiMode"
+                                            data-testid="asi-mode-dual"
                                             checked={asiMode === 'dual'}
                                             onChange={() => setAsiMode('dual')}
                                         />
@@ -928,17 +985,17 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                         </label>
                                         <select
                                             className="input"
+                                            data-testid="asi-single"
                                             value={asiSingle}
                                             onChange={(e) => setAsiSingle(e.target.value)}
                                             style={{ width: '100%' }}
                                         >
                                             <option value="">Choose...</option>
-                                            <option value="str">Strength</option>
-                                            <option value="dex">Dexterity</option>
-                                            <option value="con">Constitution</option>
-                                            <option value="int">Intelligence</option>
-                                            <option value="wis">Wisdom</option>
-                                            <option value="cha">Charisma</option>
+                                            {['str', 'dex', 'con', 'int', 'wis', 'cha'].map(a => (
+                                                <option key={a} value={a} disabled={((character.data.abilityScores || {})[a] ?? 10) > 18}>
+                                                    {ABILITY_LABELS[a]} ({(character.data.abilityScores || {})[a] ?? 10})
+                                                </option>
+                                            ))}
                                         </select>
                                     </div>
                                 )}
@@ -951,17 +1008,17 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                             </label>
                                             <select
                                                 className="input"
+                                                data-testid="asi-dual-1"
                                                 value={asiDual1}
                                                 onChange={(e) => setAsiDual1(e.target.value)}
                                                 style={{ width: '100%' }}
                                             >
                                                 <option value="">Choose...</option>
-                                                <option value="str">Strength</option>
-                                                <option value="dex">Dexterity</option>
-                                                <option value="con">Constitution</option>
-                                                <option value="int">Intelligence</option>
-                                                <option value="wis">Wisdom</option>
-                                                <option value="cha">Charisma</option>
+                                                {['str', 'dex', 'con', 'int', 'wis', 'cha'].map(a => (
+                                                    <option key={a} value={a} disabled={((character.data.abilityScores || {})[a] ?? 10) > 19}>
+                                                        {ABILITY_LABELS[a]} ({(character.data.abilityScores || {})[a] ?? 10})
+                                                    </option>
+                                                ))}
                                             </select>
                                         </div>
                                         <div>
@@ -970,6 +1027,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                             </label>
                                             <select
                                                 className="input"
+                                                data-testid="asi-dual-2"
                                                 value={asiDual2}
                                                 onChange={(e) => setAsiDual2(e.target.value)}
                                                 style={{ width: '100%' }}
@@ -979,7 +1037,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                                 {['str', 'dex', 'con', 'int', 'wis', 'cha']
                                                     .filter(ability => ability !== asiDual1)
                                                     .map(ability => (
-                                                        <option key={ability} value={ability}>
+                                                        <option key={ability} value={ability} disabled={((character.data.abilityScores || {})[ability] ?? 10) > 19}>
                                                             {ability === 'str' ? 'Strength' : 
                                                              ability === 'dex' ? 'Dexterity' :
                                                              ability === 'con' ? 'Constitution' :
@@ -1020,23 +1078,41 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                                     type="radio"
                                                     name="feat"
                                                     checked={selectedFeat?.id === feat.id}
-                                                    onChange={() => setSelectedFeat(feat)}
+                                                    data-testid={`feat-${feat.id}`}
+                                                    onChange={() => { setSelectedFeat(feat); setFeatAbility(feat.abilityScoreOptions?.length === 1 ? feat.abilityScoreOptions[0] : ''); }}
                                                     style={{ marginTop: '0.25rem' }}
                                                 />
                                                 <div style={{ flex: 1 }}>
-                                                    <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>{feat.name}</div>
+                                                    <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>
+                                                        {feat.name}
+                                                        {feat.category && (
+                                                            <span style={{ fontWeight: 'normal', fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
+                                                                {feat.category === 'epic-boon' ? 'Epic Boon' : feat.category === 'fighting-style' ? 'Fighting Style' : feat.category === 'origin' ? 'Origin' : 'General'}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <div style={{ fontSize: '0.875rem', whiteSpace: 'pre-wrap', color: 'var(--text-muted)' }}>
                                                         {feat.description}
                                                     </div>
-                                                    {feat.abilityScoreIncrease && (
-                                                        <div style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.25rem' }}>
-                                                            Also increases {Object.keys(feat.abilityScoreIncrease).map(a => 
-                                                                a === 'str' ? 'Strength' :
-                                                                a === 'dex' ? 'Dexterity' :
-                                                                a === 'con' ? 'Constitution' :
-                                                                a === 'int' ? 'Intelligence' :
-                                                                a === 'wis' ? 'Wisdom' : 'Charisma'
-                                                            ).join(' or ')} by 1
+                                                    {feat.abilityScoreOptions && feat.abilityScoreOptions.length > 0 && selectedFeat?.id === feat.id && (
+                                                        <div style={{ marginTop: '0.5rem' }} onClick={e => e.stopPropagation()}>
+                                                            <label style={{ fontSize: '0.75rem', color: 'var(--primary)', marginRight: '0.5rem' }}>
+                                                                +1 to (max {feat.abilityScoreMax ?? 20}):
+                                                            </label>
+                                                            <select
+                                                                className="input"
+                                                                data-testid="feat-ability"
+                                                                value={featAbility}
+                                                                onChange={e => setFeatAbility(e.target.value)}
+                                                                style={{ width: 'auto', display: 'inline-block' }}
+                                                            >
+                                                                <option value="">Choose...</option>
+                                                                {feat.abilityScoreOptions.map(a => (
+                                                                    <option key={a} value={a} disabled={((character.data.abilityScores || {})[a] ?? 10) >= (feat.abilityScoreMax ?? 20)}>
+                                                                        {ABILITY_LABELS[a]} ({(character.data.abilityScores || {})[a] ?? 10})
+                                                                    </option>
+                                                                ))}
+                                                            </select>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1056,25 +1132,30 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                 {needsSubclass && (
                     <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
                         <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>Select Subclass</h3>
-                        <p style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>
+                        <p style={{ marginBottom: '0.5rem', fontSize: '0.875rem' }}>
                             At level {subclassLevel}, you choose a specialized path for your class.
                         </p>
+                        <label style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '1rem' }}>
+                            <input type="checkbox" checked={showLegacySubclasses} onChange={e => setShowLegacySubclasses(e.target.checked)} />
+                            Show legacy (pre-2024) subclasses
+                        </label>
 
                         {loadingSubclasses ? (
                             <p>Loading subclasses...</p>
                         ) : (
                             <div style={{ display: 'grid', gap: '1rem' }}>
-                                {subclasses.map(sub => (
-                                    <label key={sub.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', cursor: 'pointer', padding: '0.5rem', backgroundColor: selectedSubclass?.id === sub.id ? 'var(--surface-highlight)' : 'transparent', borderRadius: '4px' }}>
+                                {subclasses.filter(sub => !sub.legacy || showLegacySubclasses || selectedSubclass?.id === sub.id).map(sub => (
+                                    <label key={sub.id} data-testid={`subclass-${sub.id}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', cursor: 'pointer', padding: '0.5rem', backgroundColor: selectedSubclass?.id === sub.id ? 'var(--surface-highlight)' : 'transparent', borderRadius: '4px' }}>
                                         <input
                                             type="radio"
                                             name="subclass"
+                                            data-testid={`subclass-radio-${sub.id}`}
                                             checked={selectedSubclass?.id === sub.id}
                                             onChange={() => setSelectedSubclass(sub)}
                                             style={{ marginTop: '0.25rem' }}
                                         />
                                         <div>
-                                            <div style={{ fontWeight: 'bold' }}>{sub.name}</div>
+                                            <div style={{ fontWeight: 'bold' }}>{sub.name}{sub.legacy ? <span style={{ fontWeight: 'normal', fontSize: '0.75rem', color: 'var(--text-muted)' }}> (legacy)</span> : null}</div>
                                             <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{sub.description}</div>
                                             {selectedSubclass?.id === sub.id && (
                                                 <div style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
@@ -1098,6 +1179,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                     <button className="button secondary" onClick={onCancel}>Cancel</button>
                     <button
                         className="button primary"
+                        data-testid="levelup-confirm"
                         onClick={handleSubmit}
                         disabled={
                             isSubmitting || 
@@ -1112,7 +1194,8 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                 (asiMode === 'single' && !asiSingle) ||
                                 (asiMode === 'dual' && (!asiDual1 || !asiDual2))
                             )) ||
-                            (needsASI && asiOrFeat === 'feat' && !selectedFeat)
+                            (needsASI && asiOrFeat === 'feat' && !selectedFeat) ||
+                            (needsASI && asiOrFeat === 'feat' && !!selectedFeat?.abilityScoreOptions?.length && !featAbility && !selectedFeat.abilityScoreOptions.every(a => ((character.data.abilityScores || {})[a] ?? 10) >= (selectedFeat.abilityScoreMax ?? 20)))
                         }
                     >
                         {isSubmitting ? 'Leveling Up...' : 'Confirm Level Up'}

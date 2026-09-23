@@ -15,7 +15,7 @@ export const MASTERY_INFO: Record<string, MasteryInfo> = {
     cleave: {
         id: 'cleave',
         name: 'Cleave',
-        description: 'When you hit a creature with a melee attack, you can make another melee attack roll against a second creature within 5 feet of the first that\'s also within your reach. The second attack deals only the weapon\'s damage, not your ability modifier.',
+        description: 'When you hit a creature with a melee attack, you can make another melee attack roll against a second creature within 5 feet of the first that\'s also within your reach. On a hit, the second target takes the weapon\'s damage, but don\'t add your ability modifier unless it\'s negative. You can make this extra attack only once per turn.',
         type: 'other',
     },
     graze: {
@@ -62,27 +62,51 @@ export const MASTERY_INFO: Record<string, MasteryInfo> = {
     },
 };
 
-/** Weapon name (exact, as in base items) → mastery id. PHB 2024. */
+/** Weapon name (exact, as in base items) → mastery id. PHB 2024 (plus legacy firearms). */
 const WEAPON_MASTERY: Record<string, string> = {
-    'dagger': 'nick',
-    'shortsword': 'vex',
-    'rapier': 'vex',
-    'longsword': 'sap',
-    'greatsword': 'graze',
-    'warhammer': 'push',
-    'battleaxe': 'topple',
-    'shortbow': 'vex',
-    'longbow': 'slow',
-    'crossbow, light': 'slow',
-    'crossbow, heavy': 'push',
-    'quarterstaff': 'topple',
-    'palm pistol': 'nick',
-    'pistol': 'vex',
-    'pepperbox': 'vex',
-    'musket': 'slow',
-    'blunderbuss': 'push',
-    'hand mortar': 'push',
     'bad news': 'graze',
+    'battleaxe': 'topple',
+    'blowgun': 'vex',
+    'blunderbuss': 'push',
+    'club': 'slow',
+    'crossbow, heavy': 'push',
+    'crossbow, light': 'slow',
+    'dagger': 'nick',
+    'dart': 'vex',
+    'flail': 'sap',
+    'glaive': 'graze',
+    'greataxe': 'cleave',
+    'greatclub': 'push',
+    'greatsword': 'graze',
+    'halberd': 'cleave',
+    'hand crossbow': 'vex',
+    'hand mortar': 'push',
+    'handaxe': 'vex',
+    'javelin': 'slow',
+    'lance': 'topple',
+    'light hammer': 'nick',
+    'longbow': 'slow',
+    'longsword': 'sap',
+    'mace': 'sap',
+    'maul': 'topple',
+    'morningstar': 'sap',
+    'musket': 'slow',
+    'palm pistol': 'nick',
+    'pepperbox': 'vex',
+    'pike': 'push',
+    'pistol': 'vex',
+    'quarterstaff': 'topple',
+    'rapier': 'vex',
+    'scimitar': 'nick',
+    'shortbow': 'vex',
+    'shortsword': 'vex',
+    'sickle': 'nick',
+    'sling': 'slow',
+    'spear': 'sap',
+    'trident': 'topple',
+    'war pick': 'sap',
+    'warhammer': 'push',
+    'whip': 'slow',
 };
 
 function normalizeWeaponName(name: string): string {
@@ -92,7 +116,8 @@ function normalizeWeaponName(name: string): string {
 /**
  * Get the mastery id for a weapon, if any.
  */
-export function getMasteryForWeapon(weaponName: string): string | undefined {
+export function getMasteryForWeapon(weaponName: string, itemMastery?: string): string | undefined {
+    if (itemMastery && MASTERY_INFO[itemMastery.toLowerCase()]) return itemMastery.toLowerCase();
     const key = normalizeWeaponName(weaponName);
     return WEAPON_MASTERY[key];
 }
