@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { ClassResources, ClassResource } from '@/lib/types';
-import { describeError, useToast } from '@/app/components/ui';
+import { describeError, SectionHeader, useToast } from '@/app/components/ui';
 
 /** Psi Warrior ability that expends 1 Psionic Energy die */
 const PSI_WARRIOR_ABILITIES = [
@@ -16,8 +16,6 @@ interface ClassResourcesManagerProps {
     characterId: string;
     initialResources: ClassResources | undefined;
     onUpdate: (newResources: ClassResources) => void;
-    onShortRest?: () => void;
-    onLongRest?: () => void;
     /** When true, Psionic Energy Dice shows nested use buttons; Telekinetic Movement is hidden. */
     psiWarrior?: boolean;
 }
@@ -26,8 +24,6 @@ export default function ClassResourcesManager({
     characterId, 
     initialResources, 
     onUpdate,
-    onShortRest,
-    onLongRest,
     psiWarrior = false
 }: ClassResourcesManagerProps) {
     const toast = useToast();
@@ -101,72 +97,6 @@ export default function ClassResourcesManager({
         }
     };
 
-    const handleShortRest = async () => {
-        const updated = { ...resources };
-        let changed = false;
-
-        for (const [name, resource] of Object.entries(updated)) {
-            if (resource.resetType === 'short') {
-                const regain = (resource as any).shortRestRegain;
-                const newCurrent = regain != null
-                    ? Math.min(resource.current + regain, resource.max)
-                    : resource.max;
-                updated[name] = {
-                    ...resource,
-                    current: newCurrent
-                };
-                changed = true;
-            }
-        }
-
-        if (changed) {
-            try {
-                await api.patch(`/characters/${characterId}/class-resources`, {
-                    resetType: 'short'
-                });
-                setResources(updated);
-                onUpdate(updated);
-                if (onShortRest) onShortRest();
-            } catch (err) {
-                console.error('Failed to reset resources on short rest', err);
-                toast.error(describeError("Couldn't reset resources", err));
-            }
-        } else {
-            if (onShortRest) onShortRest();
-        }
-    };
-
-    const handleLongRest = async () => {
-        const updated = { ...resources };
-        let changed = false;
-
-        for (const [name, resource] of Object.entries(updated)) {
-            if (resource.resetType === 'long' || resource.resetType === 'short') {
-                updated[name] = {
-                    ...resource,
-                    current: resource.max
-                };
-                changed = true;
-            }
-        }
-
-        if (changed) {
-            try {
-                await api.patch(`/characters/${characterId}/class-resources`, {
-                    resetType: 'long'
-                });
-                setResources(updated);
-                onUpdate(updated);
-                if (onLongRest) onLongRest();
-            } catch (err) {
-                console.error('Failed to reset resources on long rest', err);
-                toast.error(describeError("Couldn't reset resources", err));
-            }
-        } else {
-            if (onLongRest) onLongRest();
-        }
-    };
-
     const resourceEntries = Object.entries(resources).filter(
         ([name]) => !(psiWarrior && name === 'Telekinetic Movement')
     );
@@ -177,27 +107,7 @@ export default function ClassResourcesManager({
 
     return (
         <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', margin: 0 }}>
-                    Class Resources
-                </h3>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={handleShortRest}
-                        title="Reset resources that recover on short rest"
-                    >
-                        Short Rest
-                    </button>
-                    <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={handleLongRest}
-                        title="Reset all resources"
-                    >
-                        Long Rest
-                    </button>
-                </div>
-            </div>
+            <SectionHeader title="Class Resources" />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {resourceEntries.map(([name, resource]) => (
@@ -289,26 +199,18 @@ export default function ClassResourcesManager({
 
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                             <button
-                                className="button"
+                                className="btn btn-secondary btn-sm"
                                 onClick={() => handleResourceChange(name, resource.current - 1)}
                                 disabled={resource.current <= 0}
-                                style={{ 
-                                    padding: '0.25rem 0.5rem', 
-                                    fontSize: '0.875rem',
-                                    opacity: resource.current <= 0 ? 0.5 : 1
-                                }}
+                                aria-label={`Use one ${resource.name}`}
                             >
                                 -1
                             </button>
                             <button
-                                className="button"
+                                className="btn btn-secondary btn-sm"
                                 onClick={() => handleResourceChange(name, resource.current + 1)}
                                 disabled={resource.current >= resource.max}
-                                style={{ 
-                                    padding: '0.25rem 0.5rem', 
-                                    fontSize: '0.875rem',
-                                    opacity: resource.current >= resource.max ? 0.5 : 1
-                                }}
+                                aria-label={`Regain one ${resource.name}`}
                             >
                                 +1
                             </button>

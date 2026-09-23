@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo, useId, useRef } from 'react';
 import { api } from '@/lib/api';
 import { HP } from '@/lib/types';
-import { describeError, useToast } from '@/app/components/ui';
+import { applyDamage, applyHealing, applyTempHp, getHpStatus, HpStatus } from '@/lib/hp';
+import { Button, SectionHeader, TextField, useOptimisticSave, useToast } from '@/app/components/ui';
 
 interface HPManagerProps {
     characterId: string;
@@ -11,261 +12,254 @@ interface HPManagerProps {
     onUpdate: (newHP: HP) => void;
 }
 
+const STATUS_LABELS: Partial<Record<HpStatus, string>> = {
+    bloodied: 'Bloodied',
+    critical: 'Critical',
+    down: 'Unconscious',
+    dead: 'Dead',
+};
+
+function toNumber(value: string): number {
+    const n = parseInt(value, 10);
+    return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+
 function HPManager({ characterId, initialHP, onUpdate }: HPManagerProps) {
     const toast = useToast();
+    const save = useOptimisticSave();
+    const amountId = useId();
     const [hp, setHp] = useState<HP>(initialHP || { current: 0, max: 0, temp: 0 });
+    const [amount, setAmount] = useState('');
+    const [critical, setCritical] = useState(false);
+    const [lastChange, setLastChange] = useState('');
     const [isEditing, setIsEditing] = useState(false);
-    const [editValues, setEditValues] = useState<{ current: number | string; max: number | string; temp: number | string }>({
-        current: hp.current,
-        max: hp.max,
-        temp: hp.temp
-    });
+    const [editValues, setEditValues] = useState({ current: '', max: '', temp: '' });
+
+    const hpRef = useRef(hp);
+    hpRef.current = hp;
 
     useEffect(() => {
-        if (initialHP) {
-            setHp(initialHP);
-            setEditValues({
-                current: initialHP.current,
-                max: initialHP.max,
-                temp: initialHP.temp
-            });
+        if (!initialHP) return;
+        const local = hpRef.current;
+        // Changed elsewhere (a rest, level up, reload): the last-change note no longer applies
+        if (local.current !== initialHP.current || local.max !== initialHP.max || local.temp !== initialHP.temp) {
+            setLastChange('');
         }
-    }, [initialHP?.current, initialHP?.max, initialHP?.temp]);
+        setHp(initialHP);
+        // Sync when the stored values change (rests, level-ups, reloads)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialHP?.current, initialHP?.max, initialHP?.temp, initialHP?.deathSaves?.successes, initialHP?.deathSaves?.failures]);
 
-    const handleSave = async () => {
-        try {
-            // Validate and ensure no empty values - convert to proper HP type (all numbers)
-            const validatedValues: HP = {
-                current: typeof editValues.current === 'number' ? editValues.current : (editValues.current === '' ? 0 : Number(editValues.current) || 0),
-                max: typeof editValues.max === 'number' ? editValues.max : (editValues.max === '' ? 0 : Number(editValues.max) || 0),
-                temp: typeof editValues.temp === 'number' ? editValues.temp : (editValues.temp === '' ? 0 : Number(editValues.temp) || 0)
-            };
-            await api.patch(`/characters/${characterId}/hp`, {
-                current: validatedValues.current,
-                max: validatedValues.max,
-                temp: validatedValues.temp
-            });
-            const updated = { ...hp, ...validatedValues };
-            setHp(updated);
-            onUpdate(updated);
-            setIsEditing(false);
-        } catch (err) {
-            console.error('Failed to update HP', err);
-            toast.error(describeError("Couldn't update HP", err));
-        }
+    /** Show the new HP right away, save it, and put the old HP back if saving fails. */
+    const commit = (next: HP, message: string) => {
+        const previous = hp;
+        setLastChange(message);
+        return save({
+            apply: () => {
+                setHp(next);
+                onUpdate(next);
+            },
+            rollback: () => {
+                setHp(previous);
+                onUpdate(previous);
+                setLastChange('');
+            },
+            request: () => api.patch(`/characters/${characterId}/hp`, {
+                current: next.current,
+                max: next.max,
+                temp: next.temp,
+                deathSaves: next.deathSaves ?? { successes: 0, failures: 0 },
+            }),
+            errorMessage: "Couldn't update HP",
+        });
     };
 
-    const handleQuickChange = async (amount: number) => {
-        const newCurrent = Math.min(Math.max(0, hp.current + amount), hp.max);
-        if (newCurrent === hp.current) return;
-
-        const updates: Partial<HP> = { current: newCurrent };
-        if (newCurrent > 0) {
-            updates.deathSaves = { successes: 0, failures: 0 };
-        }
-        try {
-            await api.patch(`/characters/${characterId}/hp`, updates);
-            const newHP = { ...hp, ...updates };
-            setHp(newHP);
-            onUpdate(newHP);
-        } catch (err) {
-            console.error('Failed to update HP', err);
-        }
-    };
-
+    const value = toNumber(amount);
+    const status = getHpStatus(hp);
+    const isDown = hp.current <= 0;
     const deathSaves = hp.deathSaves ?? { successes: 0, failures: 0 };
+    const stable = isDown && deathSaves.successes >= 3;
+    const percent = hp.max > 0 ? Math.round((Math.max(0, hp.current) / hp.max) * 100) : 0;
 
-    const handleDeathSaveClick = async (type: 'successes' | 'failures', value: number) => {
-        const current = type === 'successes' ? deathSaves.successes : deathSaves.failures;
-        const next = current === value ? value - 1 : value;
-        const clamped = Math.max(0, Math.min(3, next));
-        const updated = { ...deathSaves, [type]: clamped };
-        const newHP = { ...hp, deathSaves: updated };
-        try {
-            await api.patch(`/characters/${characterId}/hp`, { deathSaves: updated });
-            setHp(newHP);
-            onUpdate(newHP);
-        } catch (err) {
-            console.error('Failed to update death saves', err);
+    const handleDamage = () => {
+        if (value <= 0) return;
+        const result = applyDamage(hp, value, { critical: isDown && critical });
+        const parts = [`Took ${value} damage`];
+        if (result.absorbedByTemp > 0) parts.push(`${result.absorbedByTemp} absorbed by temp HP`);
+        if (result.deathSaveFailuresAdded > 0) {
+            parts.push(`${result.deathSaveFailuresAdded} death save ${result.deathSaveFailuresAdded === 1 ? 'failure' : 'failures'}`);
         }
+        commit(result.hp, parts.join(' · '));
+        if (result.instantDeath) {
+            toast.error('Massive damage: the damage left after dropping to 0 HP equals or exceeds max HP, so the character dies outright.');
+        }
+        setAmount('');
+        setCritical(false);
     };
 
-    const handleResetDeathSaves = async () => {
-        const updated = { successes: 0, failures: 0 };
-        const newHP = { ...hp, deathSaves: updated };
-        try {
-            await api.patch(`/characters/${characterId}/hp`, { deathSaves: updated });
-            setHp(newHP);
-            onUpdate(newHP);
-        } catch (err) {
-            console.error('Failed to reset death saves', err);
+    const handleHeal = () => {
+        if (value <= 0) return;
+        const result = applyHealing(hp, value);
+        if (result.healed === 0) {
+            setLastChange('Already at full HP');
+            return;
         }
+        commit(result.hp, `Healed ${result.healed} HP`);
+        setAmount('');
     };
+
+    const handleTempHp = () => {
+        if (value <= 0) return;
+        const result = applyTempHp(hp, value);
+        if (!result.gained) {
+            setLastChange(`Kept ${hp.temp} temp HP (temporary HP doesn't stack)`);
+            return;
+        }
+        commit(result.hp, `Temp HP set to ${value}`);
+        setAmount('');
+    };
+
+    const handleDeathSave = (type: 'successes' | 'failures', index: number) => {
+        const currentCount = deathSaves[type];
+        const nextCount = Math.max(0, Math.min(3, currentCount === index ? index - 1 : index));
+        const next = { ...hp, deathSaves: { ...deathSaves, [type]: nextCount } };
+        commit(next, `Death save ${type === 'successes' ? 'successes' : 'failures'}: ${nextCount}`);
+    };
+
+    const startEditing = () => {
+        setEditValues({ current: String(hp.current), max: String(hp.max), temp: String(hp.temp || 0) });
+        setIsEditing(true);
+    };
+
+    const saveEdit = async () => {
+        const max = toNumber(editValues.max);
+        const next: HP = {
+            ...hp,
+            max,
+            current: Math.min(toNumber(editValues.current), max),
+            temp: toNumber(editValues.temp),
+        };
+        setIsEditing(false);
+        await commit(next, 'HP updated');
+    };
+
+    const numericOnly = (value: string) => value === '' || /^\d+$/.test(value);
 
     if (isEditing) {
         return (
-            <div className="card" style={{ padding: '1rem', border: '1px solid var(--primary)' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '0.5rem', marginBottom: '1rem' }}>
-                    <div>
-                        <label style={{ fontSize: '0.75rem', textTransform: 'uppercase' }}>Current</label>
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            className="input"
-                            value={typeof editValues.current === 'string' ? editValues.current : (editValues.current === 0 ? '' : editValues.current.toString())}
-                            onChange={e => {
-                                const val = e.target.value;
-                                if (val === '' || /^\d+$/.test(val)) {
-                                    setEditValues({ ...editValues, current: val === '' ? '' : Number(val) });
-                                }
-                            }}
-                            onBlur={(e) => {
-                                if (e.target.value === '') {
-                                    setEditValues({ ...editValues, current: 0 });
-                                }
-                            }}
-                        />
+            <div className="card">
+                <SectionHeader title="Edit Hit Points" />
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        saveEdit();
+                    }}
+                >
+                    <div className="hp-edit-grid">
+                        {(['current', 'max', 'temp'] as const).map((field) => (
+                            <TextField
+                                key={field}
+                                label={field === 'current' ? 'Current' : field === 'max' ? 'Max' : 'Temp'}
+                                inputMode="numeric"
+                                value={editValues[field]}
+                                onChange={(e) => {
+                                    if (numericOnly(e.target.value)) setEditValues({ ...editValues, [field]: e.target.value });
+                                }}
+                                autoFocus={field === 'current'}
+                            />
+                        ))}
                     </div>
-                    <div>
-                        <label style={{ fontSize: '0.75rem', textTransform: 'uppercase' }}>Max</label>
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            className="input"
-                            value={typeof editValues.max === 'string' ? editValues.max : (editValues.max === 0 ? '' : editValues.max.toString())}
-                            onChange={e => {
-                                const val = e.target.value;
-                                if (val === '' || /^\d+$/.test(val)) {
-                                    setEditValues({ ...editValues, max: val === '' ? '' : Number(val) });
-                                }
-                            }}
-                            onBlur={(e) => {
-                                if (e.target.value === '') {
-                                    setEditValues({ ...editValues, max: 0 });
-                                }
-                            }}
-                        />
+                    <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
+                        <Button variant="secondary" onClick={() => setIsEditing(false)}>Cancel</Button>
+                        <Button type="submit">Save</Button>
                     </div>
-                    <div>
-                        <label style={{ fontSize: '0.75rem', textTransform: 'uppercase' }}>Temp</label>
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            className="input"
-                            value={typeof editValues.temp === 'string' ? editValues.temp : (editValues.temp === 0 ? '' : editValues.temp.toString())}
-                            onChange={e => {
-                                const val = e.target.value;
-                                if (val === '' || /^\d+$/.test(val)) {
-                                    setEditValues({ ...editValues, temp: val === '' ? '' : Number(val) });
-                                }
-                            }}
-                            onBlur={(e) => {
-                                if (e.target.value === '') {
-                                    setEditValues({ ...editValues, temp: 0 });
-                                }
-                            }}
-                        />
-                    </div>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                    <button className="btn btn-secondary" onClick={() => setIsEditing(false)}>Cancel</button>
-                    <button className="btn" onClick={handleSave}>Save</button>
-                </div>
+                </form>
             </div>
         );
     }
 
     return (
-        <div className="card" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <div className="health-box" style={{ cursor: 'pointer', flex: '1 1 auto', minWidth: 0 }} onClick={() => { 
-                setEditValues({ current: hp.current, max: hp.max, temp: hp.temp }); 
-                setIsEditing(true); 
-            }}>
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Current HP</div>
-                <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: 'var(--success)', wordBreak: 'break-word' }}>
-                    {hp.current} <span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/ {hp.max}</span>
+        <div className={`card hp-card hp-${status}`}>
+            <SectionHeader
+                title="Hit Points"
+                actions={
+                    <Button variant="ghost" size="sm" onClick={startEditing} aria-label="Edit hit points">
+                        ✎ Edit
+                    </Button>
+                }
+            />
+
+            <div className="hp-summary">
+                <div className="hp-numbers">
+                    <span className="hp-current">{hp.current}</span>
+                    <span className="hp-max">/ {hp.max}</span>
+                    {hp.temp > 0 && <span className="hp-temp">+{hp.temp} temp</span>}
                 </div>
-                {hp.temp > 0 && (
-                    <div style={{ color: 'var(--act)', fontSize: '0.875rem', fontWeight: 'bold' }}>+{hp.temp} Temp HP</div>
+                {STATUS_LABELS[status] && (
+                    <span className={`hp-status hp-status-${status}`}>{stable ? 'Stable' : STATUS_LABELS[status]}</span>
                 )}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: '0 0 auto' }}>
-                <button
-                    className="button"
-                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
-                    onClick={() => handleQuickChange(1)}
-                >
-                    +1
-                </button>
-                <button
-                    className="button"
-                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
-                    onClick={() => handleQuickChange(-1)}
-                >
-                    -1
-                </button>
+            <div
+                className="hp-bar"
+                role="progressbar"
+                aria-label="Hit points"
+                aria-valuemin={0}
+                aria-valuemax={hp.max}
+                aria-valuenow={Math.max(0, hp.current)}
+                aria-valuetext={`${hp.current} of ${hp.max} hit points${hp.temp > 0 ? `, plus ${hp.temp} temporary` : ''}`}
+            >
+                <div className="hp-bar-fill" style={{ width: `${percent}%` }} />
             </div>
 
-            <div style={{ flex: '0 0 auto', paddingLeft: '1rem', borderLeft: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.35rem' }}>Death Saves</div>
-                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.2rem', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--success)', marginRight: '0.25rem' }}>✓</span>
-                        {[1, 2, 3].map((k) => (
-                            <button
-                                key={k}
-                                type="button"
-                                onClick={() => handleDeathSaveClick('successes', k)}
-                                title={`${deathSaves.successes === k ? 'Remove' : 'Add'} success`}
-                                style={{
-                                    width: 22,
-                                    height: 22,
-                                    borderRadius: 4,
-                                    border: `2px solid ${deathSaves.successes >= k ? 'var(--success)' : 'var(--border)'}`,
-                                    backgroundColor: deathSaves.successes >= k ? 'var(--success)' : 'transparent',
-                                    cursor: 'pointer',
-                                    padding: 0
-                                }}
-                            />
-                        ))}
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.2rem', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--error)', marginRight: '0.25rem' }}>✗</span>
-                        {[1, 2, 3].map((k) => (
-                            <button
-                                key={k}
-                                type="button"
-                                onClick={() => handleDeathSaveClick('failures', k)}
-                                title={`${deathSaves.failures === k ? 'Remove' : 'Add'} failure`}
-                                style={{
-                                    width: 22,
-                                    height: 22,
-                                    borderRadius: 4,
-                                    border: `2px solid ${deathSaves.failures >= k ? 'var(--error)' : 'var(--border)'}`,
-                                    backgroundColor: deathSaves.failures >= k ? 'var(--error)' : 'transparent',
-                                    cursor: 'pointer',
-                                    padding: 0
-                                }}
-                            />
-                        ))}
-                    </div>
-                    {(deathSaves.successes > 0 || deathSaves.failures > 0) && (
-                        <button
-                            type="button"
-                            className="btn btn-secondary"
-                            onClick={handleResetDeathSaves}
-                            style={{ fontSize: '0.65rem', padding: '0.15rem 0.35rem' }}
-                            title="Reset death saves"
-                        >
-                            Reset
-                        </button>
-                    )}
-                </div>
+            <div className="hp-controls no-print">
+                <label className="visually-hidden" htmlFor={amountId}>Amount</label>
+                <input
+                    id={amountId}
+                    className="input hp-amount"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Amount"
+                    value={amount}
+                    onChange={(e) => {
+                        if (numericOnly(e.target.value)) setAmount(e.target.value);
+                    }}
+                />
+                <Button variant="danger" onClick={handleDamage} disabled={value <= 0}>Damage</Button>
+                <Button variant="secondary" onClick={handleHeal} disabled={value <= 0}>Heal</Button>
+                <Button variant="ghost" onClick={handleTempHp} disabled={value <= 0} title="Set temporary hit points">
+                    Temp HP
+                </Button>
             </div>
+            {isDown && (
+                <label className="hp-critical-toggle no-print">
+                    <input type="checkbox" checked={critical} onChange={(e) => setCritical(e.target.checked)} />
+                    Critical hit (2 death save failures)
+                </label>
+            )}
+
+            <div className="hp-last-change" aria-live="polite">{lastChange}</div>
+
+            {(isDown || deathSaves.successes > 0 || deathSaves.failures > 0) && (
+                <div className="death-saves" role="group" aria-label="Death saves">
+                    <div className="section-title" style={{ fontSize: 'var(--font-size-xs)' }}>Death Saves</div>
+                    {(['successes', 'failures'] as const).map((type) => (
+                        <div key={type} className="death-save-row">
+                            <span className="death-save-label">{type === 'successes' ? 'Successes' : 'Failures'}</span>
+                            {[1, 2, 3].map((k) => (
+                                <button
+                                    key={k}
+                                    type="button"
+                                    className={`death-save-box death-save-${type}`}
+                                    aria-pressed={deathSaves[type] >= k}
+                                    aria-label={`${type === 'successes' ? 'Success' : 'Failure'} ${k}`}
+                                    onClick={() => handleDeathSave(type, k)}
+                                />
+                            ))}
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

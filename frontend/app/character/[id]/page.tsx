@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import Link from 'next/link';
@@ -16,6 +16,10 @@ import PortraitUpload from './components/PortraitUpload';
 import FeatureManager from './components/FeatureManager';
 import CurrencyManager from './components/CurrencyManager';
 import CharacterSheetSkeleton from './components/CharacterSheetSkeleton';
+import { LongRestDialog, ShortRestDialog } from './components/RestDialogs';
+import SheetTabs, { SheetTabId } from './components/SheetTabs';
+import { getHpStatus } from '@/lib/hp';
+import { planLongRest, planShortRest, RestContext } from '@/lib/rest';
 import { CharacterData, CharacterItem, CharacterFeature } from '@/lib/types';
 import { mergeHeroicInspiration, mergeBlessingOfTheRavenQueen, reconcileClassResources, RESOURCE_RULES_VERSION } from '@/lib/classResources';
 import { 
@@ -31,7 +35,9 @@ import { useCharacterSheetData } from './useCharacterSheetData';
 import { calculateAllClassResources, getCharacterSubclasses, getSubclassMap } from '@/lib/subclasses';
 import { SUBCLASS_BONUS_SPELLS } from '@/lib/wizardReference';
 import { getBonusCantrips, getChoiceResources, getChoiceSkillBonuses, getChoiceSpellIds, getWeaponMasteries } from '@/lib/classChoices';
-import { ConfirmDialog, describeError, EditableStat, SectionHeader, Stat, useToast } from '@/app/components/ui';
+import { Button, ConfirmDialog, describeError, EditableNumber, EditableStat, Menu, SectionHeader, Stat, useToast } from '@/app/components/ui';
+
+const ABILITY_NAMES: Record<string, string> = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' };
 
 export default function CharacterSheet() {
     const { id } = useParams();
@@ -50,9 +56,12 @@ export default function CharacterSheet() {
     const [showLevelUp, setShowLevelUp] = useState(false);
     const [showLevelDownConfirm, setShowLevelDownConfirm] = useState(false);
     const [isLevelingDown, setIsLevelingDown] = useState(false);
-    const [editingAbility, setEditingAbility] = useState<string | null>(null);
-    const [abilityEditValue, setAbilityEditValue] = useState<string>('');
     const [showNotepad, setShowNotepad] = useState(false);
+    const [restDialog, setRestDialog] = useState<'short' | 'long' | null>(null);
+    const [resting, setResting] = useState(false);
+    // Phone layout shows one section at a time (see SheetTabs)
+    const [mobileTab, setMobileTab] = useState<SheetTabId>('combat');
+    const sheetBodyRef = useRef<HTMLDivElement>(null);
     // Spell names for class-choice spells (Mystic Arcanum, Signature Spells), loaded only when needed
     const [choiceSpellNames, setChoiceSpellNames] = useState<Record<string, string> | null>(null);
     const choiceSpellIdsKey = getChoiceSpellIds(character?.data?.classChoices).join(',');
@@ -188,6 +197,12 @@ export default function CharacterSheet() {
     // Calculate AC (use manual override if set, otherwise calculate)
     const acCalculationMethod = getACCalculationFromFeatures(allFeatures, primaryClass);
     let calculatedAC = 10 + effectiveModifiers.dex;
+    // Human-readable AC breakdown, e.g. "Chain Mail 16 + Shield 2"
+    const acParts: string[] = [];
+    const dexPart = (cap?: number) => {
+        const dex = cap === undefined ? effectiveModifiers.dex : Math.min(effectiveModifiers.dex, cap);
+        return `DEX ${formatMod(dex)}${cap !== undefined && effectiveModifiers.dex > cap ? ` (max ${formatMod(cap)})` : ''}`;
+    };
 
     // Check equipped items
     const equipment: (string | CharacterItem)[] = Array.isArray(data.equipment) ? data.equipment : [];
@@ -203,13 +218,17 @@ export default function CharacterSheet() {
 
     if (armor) {
         const baseAC = armor.baseAC ?? 11;
+        const armorName = armor.name || 'Armor';
         if (armor.armorMethod === 'heavy') {
             calculatedAC = baseAC;
+            acParts.push(`${armorName} ${baseAC}`);
         } else if (armor.armorMethod === 'medium') {
             calculatedAC = baseAC + Math.min(effectiveModifiers.dex, 2);
+            acParts.push(`${armorName} ${baseAC}`, dexPart(2));
         } else {
             // Light or undefined -> Base + Dex
             calculatedAC = baseAC + effectiveModifiers.dex;
+            acParts.push(`${armorName} ${baseAC}`, dexPart());
         }
     } else {
         // Unarmored Defense calculations
@@ -218,34 +237,46 @@ export default function CharacterSheet() {
         if (unarmoredTraits.includes('Natural Armor (Shell)')) {
             // Tortle shell: base AC 17, Dexterity doesn't apply
             calculatedAC = 17;
+            acParts.push('Shell 17');
         } else if (acCalculationMethod === 'unarmored-monk' && isUnarmored && !shield) {
             calculatedAC = 10 + effectiveModifiers.dex + effectiveModifiers.wis;
+            acParts.push('Unarmored Defense 10', dexPart(), `WIS ${formatMod(effectiveModifiers.wis)}`);
         } else if (acCalculationMethod === 'unarmored-barbarian' && isUnarmored) {
             calculatedAC = 10 + effectiveModifiers.dex + effectiveModifiers.con;
+            acParts.push('Unarmored Defense 10', dexPart(), `CON ${formatMod(effectiveModifiers.con)}`);
         } else if (draconicResilience) {
             // Draconic Sorcery: 10 + Dex + Cha while not wearing armor
             calculatedAC = 10 + effectiveModifiers.dex + effectiveModifiers.cha;
+            acParts.push('Draconic Resilience 10', dexPart(), `CHA ${formatMod(effectiveModifiers.cha)}`);
         } else {
             // Standard unarmored: 10 + Dex
             calculatedAC = 10 + effectiveModifiers.dex;
+            acParts.push('Unarmored 10', dexPart());
         }
-        if (unarmoredTraits.includes('Natural Armor')) {
+        if (unarmoredTraits.includes('Natural Armor') && 13 + effectiveModifiers.dex > calculatedAC) {
             // Lizardfolk: base AC 13 + Dex if that's better
-            calculatedAC = Math.max(calculatedAC, 13 + effectiveModifiers.dex);
+            calculatedAC = 13 + effectiveModifiers.dex;
+            acParts.splice(0, acParts.length, 'Natural Armor 13', dexPart());
         }
     }
 
     if (shield) {
         calculatedAC += shield.baseAC ?? 2;
+        acParts.push(`${shield.name || 'Shield'} +${shield.baseAC ?? 2}`);
     }
 
     // Defense fighting style: +1 AC while wearing armor
     const fightingStyles = (data.fightingStyles as string[] | undefined) || [];
     if (armor && fightingStyles.includes('defense')) {
         calculatedAC += 1;
+        acParts.push('Defense +1');
     }
 
     const ac = data.ac !== undefined ? data.ac : calculatedAC;
+    const acFormula = `${acParts.join(' + ')} = ${calculatedAC}`;
+    const acDescription = data.ac !== undefined && data.ac !== calculatedAC
+        ? `Set manually. Calculated: ${acFormula}`
+        : `AC: ${acFormula}`;
     
     // Speed: calculate base speed, then add feature bonuses
     const baseSpeed = data.speed !== undefined ? data.speed : (race.speed || 30);
@@ -408,32 +439,8 @@ export default function CharacterSheet() {
             return;
         }
 
-        setEditingAbility(null);
         const updatedScores = { ...abilityScores, [stat]: newValue };
         await persistData({ abilityScores: updatedScores }, "Couldn't update ability score");
-    };
-
-    const startEditingAbility = (stat: string) => {
-        setEditingAbility(stat);
-        const val = abilityScores[stat as keyof typeof abilityScores];
-        setAbilityEditValue(String(val ?? 10));
-    };
-
-    const cancelEditingAbility = () => {
-        setEditingAbility(null);
-        setAbilityEditValue('');
-    };
-
-    const saveAbilityScore = (stat: string) => {
-        const value = parseInt(abilityEditValue);
-        if (!isNaN(value) && abilityEditValue.trim() !== '') {
-            handleAbilityScoreChange(stat, value);
-        } else {
-            // Restore original value if empty or invalid
-            const val = abilityScores[stat as keyof typeof abilityScores];
-            setAbilityEditValue(String(val ?? 10));
-            cancelEditingAbility();
-        }
     };
 
     const handleLevelUpComplete = (updatedChar: any) => {
@@ -460,6 +467,76 @@ export default function CharacterSheet() {
         }
     };
 
+    // Check if character has spellcasting from base class or subclass (Arcane Trickster, Eldritch Knight)
+    const hasBaseSpellcasting = characterClasses.some((c: any) => {
+        const clsInfo = (gameData.classes || []).find((gc: any) => (gc.id || '').toLowerCase() === (c.id || '').toLowerCase());
+        return clsInfo?.spellcaster;
+    });
+    // Eldritch Knight / Arcane Trickster: spellcasting from a subclass, keyed to that class's level
+    const casterSubclass = characterSubclasses.find(s =>
+        s.subclass.spellcasting && s.classLevel >= 3 && ['arcane_trickster', 'eldritch_knight'].includes(s.subclass.id));
+    const subclassGrantsSpellcasting = !!casterSubclass;
+    const speciesSpells = getSpeciesSpellEntries(character.race, data.speciesLineage || data.elvenLineage);
+    const hasElvenLineageSpells = speciesSpells.length > 0;
+    const hasMagicInitiateFeat = (data.features || []).some((f: any) => (f.name || '').toLowerCase() === 'magic initiate');
+    const hasSpellcasting = hasBaseSpellcasting || subclassGrantsSpellcasting || hasElvenLineageSpells || hasMagicInitiateFeat;
+
+    const hpForVitals = { current: 0, max: 0, temp: 0, ...(data.hp || {}) };
+    const sheetTabs: { id: SheetTabId; label: string }[] = [
+        { id: 'core', label: 'Core' },
+        { id: 'combat', label: 'Combat' },
+        ...(hasSpellcasting ? [{ id: 'spells' as const, label: 'Spells' }] : []),
+        { id: 'gear', label: 'Gear' },
+        { id: 'features', label: 'Features' },
+    ];
+
+    const exportJson = () => {
+        const blob = new Blob([JSON.stringify(character, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${(character.name || 'character').replace(/\s+/g, '_').toLowerCase()}.json`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+    };
+
+    // One rest flow for the whole sheet (HP, Hit Dice, spell slots, class resources)
+    const restContext: RestContext = {
+        warlockLevel: classLevels.warlock ?? 0,
+        multiclass: characterClasses.length > 1,
+        hasMagicInitiateSpell: !!data.magicInitiate?.spell1,
+    };
+
+    const handleRest = async (kind: 'short' | 'long', hitDiceRolls: number[] = []) => {
+        const plan = kind === 'long'
+            ? planLongRest(data, restContext)
+            : planShortRest(data, restContext, hitDiceRolls, effectiveModifiers.con);
+        const label = kind === 'long' ? 'Long Rest' : 'Short Rest';
+        setResting(true);
+        try {
+            let updated = character;
+            // Class resources reset on the server first; the data PATCH then merges on top of it
+            if (plan.resetsResources) {
+                updated = await api.patch(`/characters/${character.id}/class-resources`, { resetType: kind });
+            }
+            if (Object.keys(plan.updates).length > 0) {
+                updated = await api.patch(`/characters/${character.id}/data`, plan.updates);
+            }
+            setCharacter(updated);
+            setRestDialog(null);
+            toast.success(plan.summary.length > 0
+                ? `${label} finished. ${plan.summary.join('. ')}.`
+                : `${label} finished. Nothing needed recovering.`);
+        } catch (err) {
+            console.error(`Failed to take ${label}`, err);
+            toast.error(describeError(`Couldn't finish the ${label}`, err));
+            // Part of the rest may have been saved: resync with the server
+            reload();
+        } finally {
+            setResting(false);
+        }
+    };
+
     return (
         <div style={{ marginBottom: '2rem' }}>
             {/* Header */}
@@ -476,48 +553,26 @@ export default function CharacterSheet() {
                         <Link href="/dashboard" className="no-print" style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'inline-block' }}>&larr; My Characters</Link>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                             <h1 className="heading" style={{ marginBottom: '0.25rem', flex: '1 1 auto', minWidth: 0, wordBreak: 'break-word' }}>{characterName}</h1>
-                        <div className="no-print" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                            <button
-                                className="btn btn-sm"
-                                onClick={() => setShowLevelUp(true)}
-                            >
-                                Level Up
-                            </button>
-                            {character.level > 1 && (
-                                <button
-                                    className="btn btn-secondary btn-sm"
-                                    onClick={() => setShowLevelDownConfirm(true)}
-                                    disabled={isLevelingDown}
-                                >
-                                    {isLevelingDown ? 'Leveling Down...' : 'Level Down'}
-                                </button>
-                            )}
-                            <button
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => {
-                                    const blob = new Blob([JSON.stringify(character, null, 2)], { type: 'application/json' });
-                                    const url = URL.createObjectURL(blob);
-                                    const a = document.createElement('a');
-                                    a.href = url;
-                                    a.download = `${(character.name || 'character').replace(/\s+/g, '_').toLowerCase()}.json`;
-                                    a.click();
-                                }}
-                            >
-                                Export JSON
-                            </button>
-                            <button
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => window.print()}
-                            >
-                                Print / PDF
-                            </button>
-                            <button
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => setShowNotepad(true)}
-                                title="Notes and reminders"
-                            >
-                                Notepad
-                            </button>
+                        <div className="sheet-actions no-print">
+                            <Button variant="secondary" size="sm" onClick={() => setRestDialog('short')}>Short Rest</Button>
+                            <Button variant="secondary" size="sm" onClick={() => setRestDialog('long')}>Long Rest</Button>
+                            <Button size="sm" onClick={() => setShowLevelUp(true)}>Level Up</Button>
+                            <Menu
+                                label="⋯"
+                                ariaLabel="More actions"
+                                items={[
+                                    { label: 'Notepad', onSelect: () => setShowNotepad(true) },
+                                    { label: 'Export JSON', onSelect: exportJson },
+                                    { label: 'Print / PDF', onSelect: () => window.print() },
+                                    ...(character.level > 1 ? [{
+                                        label: isLevelingDown ? 'Leveling down…' : 'Level Down…',
+                                        onSelect: () => setShowLevelDownConfirm(true),
+                                        danger: true,
+                                        disabled: isLevelingDown,
+                                        separatorBefore: true,
+                                    }] : []),
+                                ]}
+                            />
                         </div>
                     </div>
                         <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', wordBreak: 'break-word', whiteSpace: 'normal', overflowWrap: 'break-word', lineHeight: '1.5' }}>
@@ -525,7 +580,16 @@ export default function CharacterSheet() {
                         </div>
                     </div>
                 </div>
-                <div className="sheet-stats-row" style={{ flex: '0 0 auto', width: '100%', marginTop: '1rem' }}>
+            </div>
+
+            <div className="sheet-vitals">
+                <div className="sheet-stats-row">
+                    <Stat
+                        label="HP"
+                        className={`mobile-only hp-${getHpStatus(hpForVitals)}`}
+                        value={`${hpForVitals.current}/${hpForVitals.max}`}
+                        sublabel={hpForVitals.temp > 0 ? `+${hpForVitals.temp} temp` : undefined}
+                    />
                     <Stat label="Prof Bonus" value={`+${pb}`} />
                     {/* Edits the base speed; feature bonuses are added on top */}
                     <EditableStat
@@ -541,6 +605,8 @@ export default function CharacterSheet() {
                     <EditableStat
                         label="AC"
                         value={ac}
+                        description={acDescription}
+                        sublabel={data.ac !== undefined && data.ac !== calculatedAC ? 'set manually' : undefined}
                         min={0}
                         max={50}
                         highlight
@@ -575,6 +641,27 @@ export default function CharacterSheet() {
                 />
             )}
 
+            {restDialog === 'short' && (
+                <ShortRestDialog
+                    data={data}
+                    context={restContext}
+                    conModifier={effectiveModifiers.con}
+                    busy={resting}
+                    onConfirm={(rolls) => handleRest('short', rolls)}
+                    onCancel={() => setRestDialog(null)}
+                />
+            )}
+
+            {restDialog === 'long' && (
+                <LongRestDialog
+                    data={data}
+                    context={restContext}
+                    busy={resting}
+                    onConfirm={() => handleRest('long')}
+                    onCancel={() => setRestDialog(null)}
+                />
+            )}
+
             {showLevelDownConfirm && (
                 <ConfirmDialog
                     title={`Level down: ${character.level} → ${character.level - 1}?`}
@@ -598,71 +685,26 @@ export default function CharacterSheet() {
                 </ConfirmDialog>
             )}
 
+            <div className="sheet-body" data-active-tab={mobileTab} ref={sheetBodyRef}>
             <div className="sheet-grid">
                 {/* Left Column: Core Stats */}
                 <div className="sheet-column">
                     {/* Ability Scores */}
-                    <div className="card">
+                    <div data-tab="core" className="card">
                         <SectionHeader title="Ability Scores" />
                         <div>
                             {['str', 'dex', 'con', 'int', 'wis', 'cha'].map(stat => (
                                 <div key={stat} className="ability-row">
                                     <div style={{ textAlign: 'center', width: '3rem' }}>
                                         <div style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.875rem', color: 'var(--text-muted)' }}>{stat}</div>
-                                        {editingAbility === stat ? (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center' }}>
-                                                <input
-                                                    type="text"
-                                                    inputMode="numeric"
-                                                    pattern="[0-9]*"
-                                                    value={abilityEditValue}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value;
-                                                        // Allow empty string or valid numbers
-                                                        if (val === '' || /^\d+$/.test(val)) {
-                                                            setAbilityEditValue(val);
-                                                        }
-                                                    }}
-                                                    onBlur={() => saveAbilityScore(stat)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            saveAbilityScore(stat);
-                                                        } else if (e.key === 'Escape') {
-                                                            cancelEditingAbility();
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        width: '2.5rem',
-                                                        textAlign: 'center',
-                                                        fontSize: '1.125rem',
-                                                        fontWeight: 'bold',
-                                                        padding: '0.125rem',
-                                                        border: '1px solid var(--primary)',
-                                                        borderRadius: '0.25rem',
-                                                        backgroundColor: 'var(--surface)',
-                                                        color: 'var(--text)'
-                                                    }}
-                                                    autoFocus
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div 
-                                                style={{ 
-                                                    fontWeight: 'bold', 
-                                                    fontSize: '1.125rem',
-                                                    cursor: 'pointer',
-                                                    padding: '0.25rem',
-                                                    borderRadius: '0.25rem',
-                                                    transition: 'background-color 0.2s'
-                                                }}
-                                                onClick={() => startEditingAbility(stat)}
-                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface)'}
-                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                                title="Click to edit"
-                                            >
-                                                {abilityScores[stat as keyof typeof abilityScores]}
-                                            </div>
-                                        )}
+                                        <EditableNumber
+                                            label={`${ABILITY_NAMES[stat]} score`}
+                                            value={abilityScores[stat as keyof typeof abilityScores]}
+                                            min={1}
+                                            max={30}
+                                            className="ability-score"
+                                            onSave={(value) => handleAbilityScoreChange(stat, value)}
+                                        />
                                     </div>
                                     <div style={{ fontWeight: 'bold', fontSize: '1.25rem', width: '3rem', textAlign: 'center', backgroundColor: 'var(--surface)', borderRadius: '0.25rem', padding: '0.25rem 0' }}>
                                         {formatMod(effectiveModifiers[stat])}
@@ -673,7 +715,7 @@ export default function CharacterSheet() {
                     </div>
 
                     {/* Saving Throws */}
-                    <div className="card">
+                    <div data-tab="core" className="card">
                         <SectionHeader title="Saving Throws" />
                         <div>
                             {saves.map(save => (
@@ -689,7 +731,7 @@ export default function CharacterSheet() {
                     </div>
 
                     {/* Skills */}
-                    <div className="card">
+                    <div data-tab="core" className="card">
                         <SectionHeader title="Skills" />
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', columnGap: '1rem', rowGap: '0.25rem' }}>
                             {skills.map(skill => (
@@ -739,7 +781,7 @@ export default function CharacterSheet() {
                 {/* Middle Column: Combat & Resources */}
                 <div className="sheet-column">
                     {/* Health */}
-                    <div>
+                    <div data-tab="combat">
                         <HPManager
                             characterId={character.id}
                             initialHP={data.hp || { current: 0, max: 0, temp: 0 }}
@@ -748,38 +790,10 @@ export default function CharacterSheet() {
                     </div>
 
                     {/* Hit Dice */}
-                    <div>
+                    <div data-tab="combat">
                         <HitDiceManager
-                            characterId={character.id}
-                            initialHitDice={data.hitDice}
-                            onUpdate={(newHitDice) => handleUpdateCharacter({ hitDice: newHitDice })}
-                            onHPUpdate={(newHP) => handleUpdateCharacter({ hp: newHP })}
-                            onLongRest={async () => {
-                                try {
-                                    await api.patch(`/characters/${character.id}/class-resources`, { resetType: 'long' });
-                                    const hp = data.hp || { current: 0, max: 0, temp: 0 };
-                                    const maxHp = hp.max ?? 0;
-                                    const updates: Partial<CharacterData> = {
-                                        hp: { ...hp, current: maxHp, max: maxHp, temp: 0 },
-                                        spellSlotsUsed: {},
-                                        pactSlotsUsed: 0
-                                    };
-                                    if (data.hitDice) {
-                                        updates.hitDice = { ...data.hitDice, spent: 0 };
-                                    }
-                                    if (data.magicInitiate?.spell1) {
-                                        updates.magicInitiateSpell1Used = 1;
-                                    }
-                                    handleUpdateCharacter(updates);
-                                    // Server merges onto current state (which already
-                                    // includes the class-resources reset above)
-                                    const updated = await api.patch(`/characters/${character.id}/data`, updates);
-                                    setCharacter(updated);
-                                } catch (err) {
-                                    console.error('Failed to persist long rest', err);
-                                }
-                            }}
-                            conModifier={effectiveModifiers.con}
+                            hitDice={data.hitDice}
+                            onShortRest={() => setRestDialog('short')}
                         />
                     </div>
 
@@ -838,59 +852,19 @@ export default function CharacterSheet() {
                         }
                         
                         return (
-                            <div>
+                            <div data-tab="combat">
                                 <ClassResourcesManager
                                     characterId={character.id}
                                     initialResources={resourcesToShow}
                                     psiWarrior={isPsiWarrior}
                                     onUpdate={(newResources) => handleUpdateCharacter({ classResources: newResources })}
-                                    onShortRest={() => {
-                                        // Short rest: hit dice can be spent; class resources already reset by ClassResourcesManager.
-                                        // Pact Magic slots come back on a Short Rest (kept apart from other slots when multiclassed).
-                                        if (!classLevels.warlock) return;
-                                        const updates: Partial<CharacterData> = characterClasses.length > 1
-                                            ? { pactSlotsUsed: 0 }
-                                            : { spellSlotsUsed: {} };
-                                        handleUpdateCharacter(updates);
-                                        api.patch(`/characters/${character.id}/data`, updates)
-                                            .catch((err) => {
-                                                console.error('Failed to reset Pact Magic slots', err);
-                                                toast.error(describeError("Couldn't save your Pact Magic slots", err));
-                                            });
-                                    }}
-                                    onLongRest={async () => {
-                                        const hp = data.hp || { current: 0, max: 0, temp: 0 };
-                                        const maxHp = hp.max ?? 0;
-                                        const updates: Partial<CharacterData> = {
-                                            hp: { ...hp, current: maxHp, max: maxHp, temp: 0 },
-                                            spellSlotsUsed: {},
-                                            pactSlotsUsed: 0
-                                        };
-                                        if (data.hitDice) {
-                                            updates.hitDice = { ...data.hitDice, spent: 0 };
-                                        }
-                                        if (data.magicInitiate?.spell1) {
-                                            updates.magicInitiateSpell1Used = 1;
-                                        }
-                                        handleUpdateCharacter(updates);
-                                        try {
-                                            // ClassResourcesManager already PATCH-reset class
-                                            // resources; merge only these fields on top server-side
-                                            // so that reset can't be clobbered by stale client state.
-                                            const updated = await api.patch(`/characters/${character.id}/data`, updates);
-                                            setCharacter(updated);
-                                        } catch (err) {
-                                            console.error('Failed to persist long rest (HP, spell slots, hit dice)', err);
-                                            toast.error(describeError("Couldn't save your long rest (HP, spell slots, hit dice)", err));
-                                        }
-                                    }}
                                 />
                             </div>
                         );
                     })()}
 
                     {/* Attacks */}
-                    <div>
+                    <div data-tab="combat">
                         <CombatManager
                             equipment={equipment}
                             strMod={effectiveModifiers.str}
@@ -902,7 +876,7 @@ export default function CharacterSheet() {
                     </div>
 
                     {/* Actions & Bonus Actions */}
-                    <div className="sheet-column-fill">
+                    <div data-tab="combat" className="sheet-column-fill">
                         <ActionManager
                             characterId={character.id}
                             initialActions={Array.isArray(data.actions) ? data.actions : []}
@@ -915,7 +889,7 @@ export default function CharacterSheet() {
                 {/* Right Column: Equipment & Features */}
                 <div className="sheet-column">
                     {/* Equipment */}
-                    <div>
+                    <div data-tab="gear">
                         <EquipmentManager
                             characterId={character.id}
                             masteryWeapons={masteryWeapons}
@@ -954,7 +928,7 @@ export default function CharacterSheet() {
                     </div>
 
                     {/* Currency */}
-                    <div>
+                    <div data-tab="gear">
                         <CurrencyManager
                             characterId={character.id}
                             initialCurrency={data.currency}
@@ -963,7 +937,7 @@ export default function CharacterSheet() {
                     </div>
 
                     {/* Features & Traits */}
-                    <div className="sheet-column-fill">
+                    <div data-tab="features" className="sheet-column-fill">
                         <FeatureManager
                             characterId={character.id}
                             initialFeatures={filteredDynamicFeatures}
@@ -973,7 +947,7 @@ export default function CharacterSheet() {
                     </div>
 
                     {/* Languages */}
-                    <div className="card">
+                    <div data-tab="features" className="card">
                         <SectionHeader title="Languages" />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             {(data.languages || []).length > 0 ? (
@@ -1069,20 +1043,6 @@ export default function CharacterSheet() {
             </div>
             {/* Spells Section (Full Width) */}
             {(() => {
-                // Check if character has spellcasting from base class or subclass (Arcane Trickster, Eldritch Knight)
-                const hasBaseSpellcasting = characterClasses.some((c: any) => {
-                    const clsInfo = (gameData.classes || []).find((gc: any) => (gc.id || '').toLowerCase() === (c.id || '').toLowerCase());
-                    return clsInfo?.spellcaster;
-                });
-                // Eldritch Knight / Arcane Trickster: spellcasting from a subclass, keyed to that class's level
-                const casterSubclass = characterSubclasses.find(s =>
-                    s.subclass.spellcasting && s.classLevel >= 3 && ['arcane_trickster', 'eldritch_knight'].includes(s.subclass.id));
-                const subclassGrantsSpellcasting = !!casterSubclass;
-                const speciesSpells = getSpeciesSpellEntries(character.race, data.speciesLineage || data.elvenLineage);
-                const hasElvenLineageSpells = speciesSpells.length > 0;
-                const hasMagicInitiateFeat = (data.features || []).some((f: any) => (f.name || '').toLowerCase() === 'magic initiate');
-                const hasSpellcasting = hasBaseSpellcasting || subclassGrantsSpellcasting || hasElvenLineageSpells || hasMagicInitiateFeat;
-
                 if (!hasSpellcasting) return null;
 
                 // Get primary spellcasting class, or virtual entry for subclass spellcasting, elven lineage, or Magic Initiate
@@ -1145,7 +1105,7 @@ export default function CharacterSheet() {
                 });
                 
                 return (
-                    <div style={{ marginTop: '1rem' }}>
+                    <div data-tab="spells" style={{ marginTop: '1rem' }}>
                         <div className="card">
                             <div className="spellcasting-header">
                                 <h2 className="heading" style={{ margin: 0, fontSize: '1.5rem' }}>Spellcasting</h2>
@@ -1267,6 +1227,18 @@ export default function CharacterSheet() {
                     </div>
                 );
             })()}
+            </div>
+
+            <SheetTabs
+                tabs={sheetTabs}
+                active={mobileTab}
+                onChange={(tab) => {
+                    setMobileTab(tab);
+                    // Start the new section at the top, just below the pinned vitals
+                    const body = sheetBodyRef.current;
+                    if (body && body.getBoundingClientRect().top < 0) body.scrollIntoView({ block: 'start' });
+                }}
+            />
         </div>
     );
 }

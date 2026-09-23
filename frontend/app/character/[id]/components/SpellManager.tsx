@@ -420,15 +420,6 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         onUpdate({ pactSlotsUsed: used });
     };
 
-    /** Rest: 'short' recovers Pact Magic slots only; 'long' recovers every slot. */
-    const handleRest = (kind: 'short' | 'long') => {
-        if (kind === 'long') {
-            setSlotsUsed({});
-            updateParent(mySpells, {});
-        }
-        if (pact) handlePactSlotChange(0);
-    };
-
     // Calculate spell slots - handle multiclassing and subclass spellcasting (Arcane Trickster, Eldritch Knight)
     const hasMultipleClasses = classesData && Object.keys(classesData).length > 1;
     const isSubclassSpellcasting = !!subclassSpellcasting;
@@ -886,14 +877,6 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     )}
                 </h3>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', justifyContent: 'flex-end' }}>
-                    {!isInnateOnly && (
-                    <>
-                    {pact && (
-                        <button className="btn btn-secondary" onClick={() => handleRest('short')} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }} data-testid="pact-short-rest">Short Rest (Pact Slots)</button>
-                    )}
-                    <button className="btn btn-secondary" onClick={() => handleRest('long')} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>Rest (Reset Slots)</button>
-                    </>
-                    )}
                     {!preparedCaster && !isInnateOnly && (
                         <button
                             className="btn"
