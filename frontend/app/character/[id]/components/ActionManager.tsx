@@ -3,6 +3,7 @@
 import { useState, useEffect, memo } from 'react';
 import { api } from '@/lib/api';
 import { CharacterAction, CharacterData } from '@/lib/types';
+import { liveSpellAction, SpellActionSource } from '@/lib/spellActions';
 
 interface ActionManagerProps {
     characterId: string;
@@ -20,6 +21,14 @@ function ActionManager({ characterId, initialActions, onUpdate, featureActions =
     useEffect(() => {
         setActions(Array.isArray(initialActions) ? initialActions : []);
     }, [initialActions]);
+
+    // Spell actions show the current spell text (reference data is cached by the api client)
+    const [spells, setSpells] = useState<SpellActionSource[]>([]);
+    useEffect(() => {
+        api.get('/reference/spells')
+            .then((list: SpellActionSource[]) => setSpells(Array.isArray(list) ? list : []))
+            .catch(() => setSpells([]));
+    }, []);
 
     // Weapon attacks live only in the Attacks section (CombatManager). Never show them here.
     const filteredActions = (actions || []).filter(action => !action.name?.endsWith?.(' Attack'));
@@ -93,9 +102,10 @@ function ActionManager({ characterId, initialActions, onUpdate, featureActions =
             <div style={{ marginBottom: '1rem' }}>
                 <h4 style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>{title}</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {allItems.map((action, i) => {
+                    {allItems.map((savedAction, i) => {
                         const isFeature = i < featureItems.length;
-                        const originalIndex = !isFeature ? actions.findIndex(a => a.name === action.name && a.description === action.description) : -1;
+                        const originalIndex = !isFeature ? actions.findIndex(a => a.name === savedAction.name && a.description === savedAction.description) : -1;
+                        const action = isFeature ? savedAction : liveSpellAction(savedAction, spells);
                         return (
                             <div key={i} style={{ backgroundColor: 'var(--surface)', padding: '0.5rem', borderRadius: '4px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>

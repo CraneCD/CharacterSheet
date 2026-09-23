@@ -7,6 +7,7 @@ import { calculateMulticlassSpellcasterLevel, getSpellcastingClasses, calculateP
 import { ELVEN_LINEAGE_SPELLS, SUBCLASS_BONUS_SPELLS, MAGIC_INITIATE_CLASSES } from '@/lib/wizardReference';
 import { getSlotsForClass, getPactMagic, THIRD_CASTER_SPELLS_KNOWN, getThirdCasterCantrips } from '@/lib/spellSlots';
 import SpellDetailsModal from './SpellDetailsModal';
+import { isActionForSpell, spellActionDescription, spellActionName } from '@/lib/spellActions';
 import MagicInitiateConfigModal from './MagicInitiateConfigModal';
 
 /** Subclass spellcasting (Arcane Trickster, Eldritch Knight). */
@@ -134,19 +135,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     };
 
     // Helper function to get action name for a spell
-    const getActionName = (spellName: string, type: 'action' | 'bonus' | 'reaction' | 'other') => {
-        switch (type) {
-            case 'bonus':
-                return `Cast ${spellName} (Bonus)`;
-            case 'reaction':
-                return `Cast ${spellName} (Reaction)`;
-            case 'other':
-                return `Cast ${spellName}`;
-            case 'action':
-            default:
-                return `Cast ${spellName}`;
-        }
-    };
+    const getActionName = (spellName: string, type: 'action' | 'bonus' | 'reaction' | 'other') => spellActionName(spellName, type);
 
     const safeExistingActions = Array.isArray(existingActions) ? existingActions : [];
     // Helper function to find action index by name
@@ -154,13 +143,21 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         return safeExistingActions.findIndex(a => a?.name === actionName);
     };
 
-    // Helper function to remove action by name
-    const removeActionByName = async (actionName: string) => {
+    // Index of the action that casts this spell with this action type. Matches by spellId
+    // too, so actions saved under an older spell name (e.g. before a rename) are found.
+    const findSpellActionIndex = (spell: { id: string; name: string }, type: 'action' | 'bonus' | 'reaction' | 'other'): number => {
+        const full = safeAllSpells.find(s => s.id === spell.id);
+        if (!full) return findActionIndex(getActionName(spell.name, type));
+        return safeExistingActions.findIndex(a => a && isActionForSpell(a, full, type, safeAllSpells));
+    };
+
+    // Remove the action that casts this spell with this action type (if there is one)
+    const removeSpellAction = async (spell: { id: string; name: string }, type: 'action' | 'bonus' | 'reaction' | 'other') => {
         if (!onDeleteAction) return;
-        const index = findActionIndex(actionName);
+        const index = findSpellActionIndex(spell, type);
         if (index !== -1) {
             try {
-                await onDeleteAction(index, actionName);
+                await onDeleteAction(index, safeExistingActions[index].name);
             } catch (err) {
                 console.error('Failed to remove action', err);
             }
@@ -179,17 +176,17 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         const actionName = getActionName(spell.name, actionType);
         
         // Check if action already exists
-        if (findActionIndex(actionName) !== -1) {
+        if (findSpellActionIndex(spell, actionType) !== -1) {
             return; // Action already exists
         }
 
-        const description = `**Casting Time:** ${spellData.castingTime}\n**Range:** ${spellData.range}\n**Components:** ${spellData.components}\n**Duration:** ${spellData.duration}\n\n${spellData.description}`;
-
         try {
+            // The saved text is a fallback; the Actions panel shows the current spell text via spellId
             await onCreateAction({
                 name: actionName,
-                description: description,
-                type: actionType
+                description: spellActionDescription(spellData),
+                type: actionType,
+                spellId: spell.id
             });
         } catch (err) {
             console.error('Failed to create spell action', err);
@@ -277,8 +274,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             updateParent(updated, slotsUsed);
             
             // Remove corresponding action and bonus action
-            await removeActionByName(getActionName(spellToRemove.name, 'action'));
-            await removeActionByName(getActionName(spellToRemove.name, 'bonus'));
+            await removeSpellAction(spellToRemove, 'action');
+            await removeSpellAction(spellToRemove, 'bonus');
             
             console.log('Spell removed successfully');
         } catch (err: any) {
@@ -318,7 +315,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 const fullSpell = safeAllSpells.find(s => s.id === spellId);
                 if (fullSpell) {
                     const actionType = getActionTypeFromCastingTime(fullSpell.castingTime);
-                    await removeActionByName(getActionName(spellToRemove.name, actionType));
+                    await removeSpellAction(spellToRemove, actionType);
                 }
             }
         } catch (err) {
@@ -400,17 +397,9 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                 const actionName = getActionName(spell.name, actionType);
                 
                 // Remove any existing action with different type (in case it was created incorrectly)
-                const allPossibleNames = [
-                    getActionName(spell.name, 'action'),
-                    getActionName(spell.name, 'bonus'),
-                    getActionName(spell.name, 'reaction'),
-                    getActionName(spell.name, 'other')
-                ];
-                
-                // Remove all existing actions for this spell
-                for (const name of allPossibleNames) {
-                    if (name !== actionName) {
-                        await removeActionByName(name);
+                for (const type of ['action', 'bonus', 'reaction', 'other'] as const) {
+                    if (getActionName(spell.name, type) !== actionName) {
+                        await removeSpellAction(spell, type);
                     }
                 }
                 
