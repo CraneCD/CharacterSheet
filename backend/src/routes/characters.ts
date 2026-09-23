@@ -5,7 +5,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import { getReferenceRows } from '../lib/referenceCache';
 import { withCanonicalId } from '../lib/referenceTypes';
-import { calculateClassResources } from '../lib/classResources';
+import { calculateAllClassResources, getSubclassMap, setSubclassMap } from '../lib/subclasses';
 
 // DB-backed equivalents of the old static data/*.ts imports, so admin edits
 // to classes/subclasses/class features are picked up on the next request
@@ -26,6 +26,16 @@ async function getClassFeaturesMap(): Promise<Record<string, any[]>> {
 }
 
 const router = express.Router();
+
+/** Highest-level class; on a tie the current primary class stays primary. */
+function pickPrimaryClass(classLevels: Record<string, number>, currentClass: string): string {
+    const current = (currentClass || '').toLowerCase();
+    const entries = Object.entries(classLevels);
+    if (entries.length === 0) return current;
+    return entries.reduce((a, b) =>
+        (b[1] > a[1] || (b[1] === a[1] && b[0] === current)) ? b : a
+    )[0];
+}
 
 /**
  * Load a character and verify the requester owns it. Sends a 403 and returns
@@ -153,7 +163,10 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         // (2024 tables; the sheet re-derives them the same way).
         const resourcesWereEmpty = !data.classResources || Object.keys(data.classResources).length === 0;
         if (resourcesWereEmpty) {
-            const computed = calculateClassResources(character.class, character.level, data.abilityScores || {}, data.subclassId);
+            const primary = character.class.toLowerCase();
+            const classLevels = data.classes && Object.keys(data.classes).length > 0 ? data.classes : { [primary]: character.level };
+            const subclassMap = getSubclassMap(data, await getSubclasses(), primary);
+            const computed = calculateAllClassResources(classLevels, subclassMap, data.abilityScores || {});
             if (Object.keys(computed).length > 0) {
                 data.classResources = computed;
                 data.classResourcesRules = '2024';
@@ -521,10 +534,8 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
             data.hp = hp;
         }
 
-        // Determine primary class (highest level)
-        const primaryClassId = Object.entries(classesData).reduce((a, b) => 
-            (b[1] as number) > (a[1] as number) ? b : a
-        )[0];
+        // Determine primary class (highest level; a tie keeps the current primary class)
+        const primaryClassId = pickPrimaryClass(classesData, character.class);
         
         // Update Hit Dice - for multiclass, we need to track hit dice per class
         // For now, we'll use the class being leveled up's hit die
@@ -543,10 +554,20 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
             data.hitDice = hitDice;
         }
 
-        // Update Subclass
+        // Update Subclass (tracked per class; a subclass belongs to the class being leveled)
+        const subclassMap = getSubclassMap(data, subclassesList, character.class.toLowerCase());
+        const isNewSubclass = !!subclassId && !subclassMap[classId];
         if (subclassId) {
-            data.subclassId = subclassId;
+            const chosen = subclassesList.find(s => s.id === subclassId);
+            if (!chosen || chosen.classId !== classId) {
+                return res.status(400).json({ error: 'Subclass does not belong to the class being leveled' });
+            }
+            if (subclassMap[classId] && subclassMap[classId] !== subclassId) {
+                return res.status(400).json({ error: 'That class already has a subclass' });
+            }
+            subclassMap[classId] = subclassId;
         }
+        setSubclassMap(data, subclassMap, primaryClassId);
 
         // Get existing features to avoid duplicates
         const charFeatures = data.features || [];
@@ -574,17 +595,15 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
                 level: cf.level
             }));
 
-        // Automatically add subclass features for the new level
-        // Only if subclass was already set (not being set for the first time)
-        const currentSubclassId = subclassId || data.subclassId;
-        const isNewSubclass = subclassId && !data.subclassId;
+        // Automatically add subclass features for the new level of the leveled class.
+        // Only if its subclass was already set (the client sends the features when first choosing one)
+        const currentSubclassId = subclassMap[classId];
         let newSubclassFeatures: any[] = [];
         if (currentSubclassId && !isNewSubclass) {
-            // Only auto-add if subclass was already set (to avoid duplicates when first selecting)
             const subclass = subclassesList.find(s => s.id === currentSubclassId);
             // Subclass features key off the level of the subclass's own class (matters for multiclassing)
-            const subclassClassLevel = subclass ? (classesData[subclass.classId] ?? 0) : 0;
-            if (subclass && subclass.classId === classId) {
+            const subclassClassLevel = classesData[classId] ?? 0;
+            if (subclass) {
                 newSubclassFeatures = subclass.features
                     .filter((sf: any) => sf.level === subclassClassLevel)
                     .filter((sf: any) => {
@@ -692,7 +711,7 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
         } else {
             // Recalculate from the 2024 tables, keeping current values where still valid
             const existingResources = data.classResources || {};
-            const computed = calculateClassResources(classId, classesData[classId] || newLevel, data.abilityScores || {}, subclassId || data.subclassId);
+            const computed = calculateAllClassResources(classesData, subclassMap, data.abilityScores || {});
             for (const [name, res] of Object.entries(computed)) {
                 const prev = existingResources[name];
                 existingResources[name] = prev
@@ -710,6 +729,9 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
             // What was actually added to max HP (includes Dwarven Toughness / Tough), for level-down
             hpApplied,
             subclassId: subclassId || null,
+            // Which class gained the level (and whether it was a new multiclass), for level-down
+            classId,
+            multiclass: !!multiclass,
             newSpells: newSpells || [],
             newFeatures: allNewFeatures.map((f: any) => ({ name: f.name, level: f.level })),
             abilityScoreImprovement: abilityScoreImprovement || null,
@@ -784,18 +806,25 @@ router.post('/:id/level-down', authenticateToken, async (req: AuthRequest, res) 
             data.hitDice = hitDice;
         }
 
-        // Reverse subclass (only if it was set at this level)
-        // Note: We can't safely remove subclass if it was set earlier, so we only remove if it was set at this exact level
-        if (lastLevelUp.subclassId && data.subclassId === lastLevelUp.subclassId) {
-            // Check if subclass was set at this level by checking if there are features from this level
-            const subclassFeaturesAtThisLevel = (data.features || []).filter(
-                (f: any) => f.level === currentLevel && f.source?.includes('Subclass')
-            );
-            if (subclassFeaturesAtThisLevel.length > 0) {
-                // Only remove if this was the level where subclass was first set
-                // For now, we'll be conservative and not remove subclass
-                // This could be improved with better history tracking
+        // Reverse the class level gained (a class multiclassed into at this level is removed)
+        const classesData: Record<string, number> = { ...(data.classes || {}) };
+        const leveledClassId: string | undefined = lastLevelUp.classId
+            || (Object.keys(classesData).length === 1 ? Object.keys(classesData)[0] : undefined);
+        if (leveledClassId && classesData[leveledClassId]) {
+            classesData[leveledClassId] -= 1;
+            if (classesData[leveledClassId] <= 0) delete classesData[leveledClassId];
+            data.classes = classesData;
+        }
+
+        // Reverse the subclass chosen at this level
+        const primaryClassId = pickPrimaryClass(classesData, character.class);
+        if (lastLevelUp.subclassId) {
+            const subclassMap = getSubclassMap(data, await getSubclasses(), character.class.toLowerCase());
+            for (const [cid, sid] of Object.entries(subclassMap)) {
+                if (sid === lastLevelUp.subclassId) delete subclassMap[cid];
             }
+            if (data.subclassId === lastLevelUp.subclassId) delete data.subclassId;
+            setSubclassMap(data, subclassMap, primaryClassId);
         }
 
         // Remove features added at this level
@@ -865,6 +894,7 @@ router.post('/:id/level-down', authenticateToken, async (req: AuthRequest, res) 
             where: { id: characterId },
             data: {
                 level: newLevel,
+                class: primaryClassId.charAt(0).toUpperCase() + primaryClassId.slice(1),
                 data
             }
         });

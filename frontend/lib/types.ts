@@ -132,7 +132,10 @@ export interface CharacterData {
     spellbook?: string[];
     features: CharacterFeature[];
     actions?: CharacterAction[];
+    /** Subclass of the primary class; kept for older data. Use `subclasses` (see lib/subclasses.ts). */
     subclassId?: string;
+    /** Subclass chosen for each class: { fighter: 'champion', wizard: 'evocation' }. */
+    subclasses?: { [classId: string]: string };
     currency?: Currency;
     classes?: { [classId: string]: number }; // Multiclass support: { 'fighter': 5, 'wizard': 3 } means Fighter 5 / Wizard 3
     fightingStyles?: string[]; // e.g. ['archery', 'defense'] – IDs from fighting-styles reference

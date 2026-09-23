@@ -15,6 +15,8 @@ interface SubclassSpellcasting {
     spellListClass: string;
     spellcastingAbility: string;
     casterLevelDivisor: number;
+    /** Level in the class the subclass belongs to (defaults to the character level). */
+    classLevel?: number;
 }
 
 interface SpellManagerProps {
@@ -420,6 +422,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     // Calculate spell slots - handle multiclassing and subclass spellcasting (Arcane Trickster, Eldritch Knight)
     const hasMultipleClasses = classesData && Object.keys(classesData).length > 1;
     const isSubclassSpellcasting = !!subclassSpellcasting;
+    // Third casters scale with their own class's level, not the character level
+    const subclassCasterLevel = subclassSpellcasting?.classLevel ?? level;
     let maxSlots: number[];
     let effectiveCasterLevel = level;
 
@@ -428,8 +432,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         maxSlots = [];
         effectiveCasterLevel = level;
     } else if (isSubclassSpellcasting && subclassSpellcasting) {
-        effectiveCasterLevel = Math.floor(level / subclassSpellcasting.casterLevelDivisor);
-        maxSlots = getSlotsForClass(subclassSpellcasting.spellListClass, level, subclassSpellcasting.casterLevelDivisor);
+        effectiveCasterLevel = Math.floor(subclassCasterLevel / subclassSpellcasting.casterLevelDivisor);
+        maxSlots = getSlotsForClass(subclassSpellcasting.spellListClass, subclassCasterLevel, subclassSpellcasting.casterLevelDivisor);
     } else if (hasMultipleClasses && allClassesData) {
         effectiveCasterLevel = calculateMulticlassSpellcasterLevel(classesData, allClassesData);
         maxSlots = getSlotsForClass('wizard', effectiveCasterLevel);
@@ -479,7 +483,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
 
     // Get all spellcasting classes for multiclassed characters, or subclass spellcasting
     const spellcastingClasses = isSubclassSpellcasting && subclassSpellcasting
-        ? [{ classId: subclassSpellcasting.spellListClass, level, classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: subclassSpellcasting.spellcastingAbility } }]
+        ? [{ classId: subclassSpellcasting.spellListClass, level: subclassCasterLevel, classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: subclassSpellcasting.spellcastingAbility } }]
         : (hasMultipleClasses && allClassesData
             ? getSpellcastingClasses(classesData, allClassesData)
             : [{ classId, level, classInfo: { spellcaster: true, preparedCaster, spellcastingAbility } }]);
@@ -489,10 +493,10 @@ export default function SpellManager({ characterId, classId, level, initialSpell
 
     // Spells known limits for third casters (Arcane Trickster, Eldritch Knight)
     const spellsKnownLimit = isSubclassSpellcasting && subclassSpellcasting
-        ? THIRD_CASTER_SPELLS_KNOWN[Math.min(Math.max(0, level - 1), 19)] ?? 0
+        ? THIRD_CASTER_SPELLS_KNOWN[Math.min(Math.max(0, subclassCasterLevel - 1), 19)] ?? 0
         : 0;
     const cantripsKnownLimit = isSubclassSpellcasting && subclassSpellcasting
-        ? getThirdCasterCantrips(subclassSpellcasting.subclassId, level)
+        ? getThirdCasterCantrips(subclassSpellcasting.subclassId, subclassCasterLevel)
         : 0;
     
     // For prepared casters in cantrip mode: show only cantrips not yet learned

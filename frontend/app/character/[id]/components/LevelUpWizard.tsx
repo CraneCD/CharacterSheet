@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Subclass, Feat as FeatRecord } from '@/lib/types';
-import { updateClassResourcesForLevel } from '@/lib/classResources';
+import { getSubclassMap, updateAllClassResources } from '@/lib/subclasses';
 import { getAbilityScoreIncreasesFromFeatures } from '@/lib/featureStatModifiers';
 import { getBackgroundSkills } from '@/lib/wizardReference';
 import { getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
@@ -157,7 +157,8 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     const needsASI = getASILevels(classId).includes(newClassLevel);
     const classLevelsAfter: Record<string, number> = { ...effectiveClasses, [classId]: newClassLevel };
 
-    // Subclass State
+    // Subclass State (subclasses are tracked per class)
+    const [allSubclasses, setAllSubclasses] = useState<Subclass[]>([]);
     const [subclasses, setSubclasses] = useState<Subclass[]>([]);
     const [selectedSubclass, setSelectedSubclass] = useState<Subclass | null>(null);
     const [loadingSubclasses, setLoadingSubclasses] = useState(false);
@@ -222,10 +223,12 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
 
     const leveledClassInfo = allClassInfo.find((c: any) => c.id === classId) || character.classInfo;
     const subclassLevel = leveledClassInfo?.subclassLevel ?? 3;
-    // One subclass is tracked per character (for the class it was chosen for)
-    const needsSubclass = newClassLevel === subclassLevel && !character.data.subclassId;
+    const subclassMap = getSubclassMap(character.data, allSubclasses, (character.class || '').toLowerCase());
+    // Subclass the leveled class already has (each class picks its own)
+    const currentSubclassId: string | undefined = subclassMap[classId];
+    const needsSubclass = newClassLevel === subclassLevel && !currentSubclassId;
 
-    const effectiveSubclassIdForFS = (needsSubclass && selectedSubclass) ? selectedSubclass.id : character.data?.subclassId;
+    const effectiveSubclassIdForFS = (needsSubclass && selectedSubclass) ? selectedSubclass.id : currentSubclassId;
     const fightingStyleCheck = getFightingStyleForLevel(classId, newClassLevel, effectiveSubclassIdForFS);
     const needsFightingStyle = fightingStyleCheck.needed;
     const allowedFightingStyleIds = fightingStyleCheck.options; // undefined = all
@@ -237,17 +240,16 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     }, []);
 
     useEffect(() => {
-        if (needsSubclass) {
-            setLoadingSubclasses(true);
-            api.get('/reference/subclasses')
-                .then((data: Subclass[]) => {
-                    const available = data.filter(s => s.classId === classId);
-                    setSubclasses(available);
-                })
-                .catch(err => console.error('Failed to load subclasses', err))
-                .finally(() => setLoadingSubclasses(false));
-        }
-    }, [needsSubclass, classId]);
+        setLoadingSubclasses(true);
+        api.get('/reference/subclasses')
+            .then((data: Subclass[]) => setAllSubclasses(Array.isArray(data) ? data : []))
+            .catch(err => console.error('Failed to load subclasses', err))
+            .finally(() => setLoadingSubclasses(false));
+    }, []);
+
+    useEffect(() => {
+        setSubclasses(needsSubclass ? allSubclasses.filter(s => s.classId === classId) : []);
+    }, [needsSubclass, classId, allSubclasses]);
 
     // Load class and subclass features for the new level
     useEffect(() => {
@@ -267,30 +269,13 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
             });
         promises.push(classFeaturesPromise);
 
-        // Load subclass features if character has a subclass
-        if (character.data.subclassId && !needsSubclass) {
-            const subclassFeaturesPromise = api.get('/reference/subclasses')
-                .then((subclasses: Subclass[]) => {
-                    const subclass = subclasses.find(s => s.id === character.data.subclassId);
-                    if (subclass && subclass.classId === classId) {
-                        const featuresForLevel = subclass.features.filter(f => f.level === newClassLevel);
-                        setSubclassFeatures(featuresForLevel);
-                    } else {
-                        setSubclassFeatures([]);
-                    }
-                })
-                .catch(err => {
-                    console.error('Failed to load subclass features', err);
-                    setSubclassFeatures([]);
-                });
-            promises.push(subclassFeaturesPromise);
-        } else {
-            setSubclassFeatures([]);
-        }
+        // Subclass features the leveled class gains (if it already has a subclass)
+        const subclass = currentSubclassId && !needsSubclass ? allSubclasses.find(s => s.id === currentSubclassId) : undefined;
+        setSubclassFeatures(subclass ? subclass.features.filter(f => f.level === newClassLevel) : []);
 
         // Wait for all promises to complete
         Promise.all(promises).finally(() => setLoadingFeatures(false));
-    }, [newClassLevel, classId, character.data.subclassId, needsSubclass]);
+    }, [newClassLevel, classId, currentSubclassId, needsSubclass, allSubclasses]);
 
     // Load available classes for multiclassing
     useEffect(() => {
@@ -458,10 +443,10 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
 
             if (needsSubclass && selectedSubclass) {
                 payload.subclassId = selectedSubclass.id;
-                // When first selecting a subclass, add all features up to that level
+                // When first selecting a subclass, add its features up to the class's level
                 // The backend will handle filtering duplicates
                 const newFeatures = selectedSubclass.features
-                    .filter(f => f.level <= nextLevel)
+                    .filter(f => f.level <= newClassLevel)
                     .map(f => ({
                         name: f.name,
                         description: f.description,
@@ -518,14 +503,15 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
             // Note: Class and subclass features for the new level are automatically
             // added by the backend, so we don't need to send them here
 
-            // Update class resources for the new level (include subclass for Gunslinger Grit, etc.)
-            const effectiveSubclassId = (needsSubclass && selectedSubclass) ? selectedSubclass.id : character.data?.subclassId;
-            const updatedClassResources = updateClassResourcesForLevel(
-                classId,
-                nextLevel,
+            // Update class resources for every class at its new level, each with its own subclass
+            const subclassMapAfter = needsSubclass && selectedSubclass
+                ? { ...subclassMap, [classId]: selectedSubclass.id }
+                : subclassMap;
+            const updatedClassResources = updateAllClassResources(
+                classLevelsAfter,
+                subclassMapAfter,
                 character.data.classResources,
-                character.data.abilityScores,
-                effectiveSubclassId
+                character.data.abilityScores
             );
 
             // Calculate ability score increases from features (e.g., Primal Champion)
@@ -860,7 +846,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                 </div>
 
                 {/* Features Preview Section */}
-                {(classFeatures.length > 0 || subclassFeatures.length > 0 || (character.data.subclassId && !needsSubclass)) && (
+                {(classFeatures.length > 0 || subclassFeatures.length > 0 || (currentSubclassId && !needsSubclass)) && (
                     <div className="card" style={{ marginBottom: '1.5rem' }}>
                         <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>Features Gained at Level {nextLevel}</h3>
                         
@@ -890,7 +876,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                 )}
 
                                 {/* Subclass Features (if character already has a subclass) */}
-                                {character.data.subclassId && !needsSubclass && (
+                                {currentSubclassId && !needsSubclass && (
                                     <div>
                                         <div style={{ fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.25rem', color: 'var(--text-muted)' }}>
                                             Subclass Features:
@@ -1161,7 +1147,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                                 <div style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
                                                     <strong>Features Gained:</strong>
                                                     <ul style={{ paddingLeft: '1.25rem', marginTop: '0.25rem' }}>
-                                                        {sub.features.filter(f => f.level <= nextLevel).map((f, i) => (
+                                                        {sub.features.filter(f => f.level <= newClassLevel).map((f, i) => (
                                                             <li key={i}>{f.name}</li>
                                                         ))}
                                                     </ul>

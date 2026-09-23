@@ -201,6 +201,7 @@ export default function WizardContainer() {
 
             if (selectedSubclass) {
                 data.subclassId = selectedSubclass.id;
+                data.subclasses = { [formData.classId]: selectedSubclass.id };
             }
             if (selectedFightingStyle) {
                 data.fightingStyles = [selectedFightingStyle];
