@@ -1,4 +1,17 @@
-import { ClassResources, ClassResource } from './types';
+// 2024 (5.5e) class resource tables. Mirrors frontend/lib/classResources.ts
+// (calculateClassResources) so characters initialised or levelled up by the
+// API get the same resources the sheet would compute.
+
+export interface ClassResource {
+    name: string;
+    current: number;
+    max: number;
+    resetType: 'short' | 'long' | 'none';
+    shortRestRegain?: number;
+    description?: string;
+}
+
+export type ClassResources = Record<string, ClassResource>;
 
 /** Look up a 1-indexed per-level table (levels above 20 clamp to 20). */
 const atLevel = (table: number[], level: number): number => table[Math.min(Math.max(level, 1), 20) - 1] ?? 0;
@@ -281,139 +294,3 @@ export function calculateClassResources(
     return resources;
 }
 
-const HEROIC_INSPIRATION: ClassResource = {
-    name: 'Heroic Inspiration',
-    current: 1,
-    max: 1,
-    resetType: 'long',
-    description: 'You gain Heroic Inspiration whenever you finish a Long Rest. You can use it to grant yourself advantage on an attack roll, ability check, or saving throw, or to grant an ally advantage on one such roll.'
-};
-
-/**
- * Merge Heroic Inspiration into class resources when the character has Resourceful (e.g. Human).
- * Preserves existing current/max so using the resource (e.g. -1) persists.
- */
-export function mergeHeroicInspiration(
-    resources: ClassResources,
-    hasResourceful: boolean
-): ClassResources {
-    if (!hasResourceful) return resources;
-    const existing = resources['Heroic Inspiration'];
-    return {
-        ...resources,
-        'Heroic Inspiration': {
-            ...HEROIC_INSPIRATION,
-            ...(existing && { current: existing.current, max: existing.max })
-        }
-    };
-}
-
-/** Blessing of the Raven Queen (Shadar-Kai): uses = proficiency bonus, long rest. */
-function getBlessingOfTheRavenQueen(level: number): ClassResource {
-    const pb = Math.ceil(level / 4) + 1;
-    return {
-        name: 'Blessing of the Raven Queen',
-        current: pb,
-        max: pb,
-        resetType: 'long',
-        description: 'As a bonus action, you can magically teleport up to 30 feet to an unoccupied space you can see. You regain all expended uses when you finish a long rest.'
-    };
-}
-
-/**
- * Merge Blessing of the Raven Queen into class resources when the character has the trait (Shadar-Kai).
- */
-export function mergeBlessingOfTheRavenQueen(
-    resources: ClassResources,
-    hasTrait: boolean,
-    level: number
-): ClassResources {
-    if (!hasTrait) return resources;
-    const existing = resources['Blessing of the Raven Queen'];
-    const base = getBlessingOfTheRavenQueen(level);
-    const current = existing
-        ? Math.min(Math.max(0, existing.current), base.max)
-        : base.current;
-    return {
-        ...resources,
-        'Blessing of the Raven Queen': {
-            ...base,
-            current,
-            max: base.max
-        }
-    };
-}
-
-/**
- * Update class resources when leveling up
- */
-export function updateClassResourcesForLevel(
-    classId: string,
-    newLevel: number,
-    existingResources: ClassResources | undefined,
-    abilityScores?: { [key: string]: number },
-    subclassId?: string
-): ClassResources {
-    // Recalculate all resources for the new level (including subclass resources like Grit)
-    const newResources = calculateClassResources(classId, newLevel, abilityScores, subclassId);
-    
-    // Preserve current values where possible (don't reset to max automatically)
-    // Only update max values, keep current if it's still valid
-    for (const [key, resource] of Object.entries(newResources)) {
-        if (existingResources?.[key]) {
-            // If max increased, increase current proportionally or keep current if it's still valid
-            if (resource.max > existingResources[key].max) {
-                const increase = resource.max - existingResources[key].max;
-                resource.current = Math.min(resource.max, existingResources[key].current + increase);
-            } else if (resource.max < existingResources[key].max) {
-                // Max decreased (shouldn't happen, but handle it)
-                resource.current = Math.min(resource.current, resource.max);
-            } else {
-                // Max stayed same, keep current
-                resource.current = existingResources[key].current;
-            }
-        }
-    }
-    
-    return newResources;
-}
-
-
-/** Bumped whenever the resource tables change so stored resources get re-derived once. */
-export const RESOURCE_RULES_VERSION = '2024';
-
-/** Old (2014) resource names mapped to their 2024 equivalents. */
-const RENAMED_RESOURCES: Record<string, string> = { 'Ki Points': 'Focus Points' };
-
-/**
- * Bring stored class resources in line with freshly computed ones: rules-owned
- * resources take the computed max/reset behaviour (current is kept, clamped),
- * renamed resources carry their current value over, and anything not produced
- * by the class (Heroic Inspiration, racial uses, custom entries) is left alone.
- */
-export function reconcileClassResources(stored: ClassResources, computed: ClassResources): ClassResources {
-    const out: ClassResources = {};
-    for (const [name, res] of Object.entries(stored)) {
-        const renamed = RENAMED_RESOURCES[name];
-        if (renamed) {
-            if (computed[renamed] && !stored[renamed]) {
-                out[renamed] = { ...computed[renamed], current: Math.min(res.current, computed[renamed].max) };
-            }
-            continue;
-        }
-        out[name] = res;
-    }
-    for (const [name, res] of Object.entries(computed)) {
-        const prev = out[name];
-        out[name] = prev
-            ? { ...res, current: Math.max(0, Math.min(prev.current, res.max)) }
-            : res;
-    }
-    // Class resources the 2024 rules no longer grant at this level (e.g. Channel Divinity at cleric 1)
-    for (const name of Object.keys(out)) {
-        if (!computed[name] && ['Rage', 'Channel Divinity', 'Wild Shape', 'Sorcery Points', 'Action Surge'].includes(name)) {
-            delete out[name];
-        }
-    }
-    return out;
-}

@@ -118,6 +118,7 @@ export default function StepAbilities({ initialScores, onUpdate }: StepAbilities
                     Point Buy
                 </button>
                 <button
+                    data-testid="method-manual"
                     className={`button ${method === 'manual' ? 'primary' : 'plain'}`}
                     onClick={() => setMethod('manual')}
                 >
@@ -137,6 +138,7 @@ export default function StepAbilities({ initialScores, onUpdate }: StepAbilities
                                     <label style={{ fontWeight: 'bold', width: '3rem', textTransform: 'uppercase' }}>{ability}</label>
                                     <select
                                         className="input"
+                                        data-testid={`standard-${ability}`}
                                         value={assignedStandard[ability] || ''}
                                         onChange={(e) => handleStandardAssign(ability, e.target.value)}
                                         style={{ width: '100px' }}
@@ -194,6 +196,7 @@ export default function StepAbilities({ initialScores, onUpdate }: StepAbilities
                                     <label style={{ fontWeight: 'bold', width: '3rem', textTransform: 'uppercase' }}>{ability}</label>
                                     <input
                                         type="text"
+                                        data-testid={`manual-${ability}`}
                                         inputMode="numeric"
                                         pattern="[0-9]*"
                                         className="input"

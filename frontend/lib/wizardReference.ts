@@ -1,7 +1,8 @@
 /**
- * Canonical race traits and background ASI/skills for the create wizard.
- * Used as fallback when API data is missing or stale (e.g. old deployment).
- * Keep in sync with backend src/data/races.ts and backgrounds.ts.
+ * Rules tables for the create wizard, level-up, and sheet (2024 PHB).
+ * The API (/reference/*) is the source of truth for species, backgrounds and
+ * feats (admins can edit those); the maps below are fallbacks for when the API
+ * data isn't available and are generated from backend/src/data.
  */
 
 /** Elven lineage options (2024 PHB). */
@@ -11,8 +12,12 @@ export const ELVEN_LINEAGES = [
     { id: 'wood_elf', name: 'Wood Elf' }
 ] as const;
 
-/** Elven lineage spells by character level (2024 PHB). Level 1 = cantrip, level 3 = 1st-level spell, level 5 = 2nd-level spell. */
-export const ELVEN_LINEAGE_SPELLS: Record<string, { level: number; spellId: string }[]> = {
+/**
+ * Spells granted by a species or its lineage choice, by character level
+ * (level 1 = cantrip or always-prepared spell). Keys are lineage option ids,
+ * or species ids for spells every member of the species gets.
+ */
+export const SPECIES_LINEAGE_SPELLS: Record<string, { level: number; spellId: string }[]> = {
     drow: [
         { level: 1, spellId: 'dancing-lights' },
         { level: 3, spellId: 'faerie-fire' },
@@ -27,10 +32,49 @@ export const ELVEN_LINEAGE_SPELLS: Record<string, { level: number; spellId: stri
         { level: 1, spellId: 'druidcraft' },
         { level: 3, spellId: 'longstrider' },
         { level: 5, spellId: 'pass-without-trace' }
+    ],
+    forest_gnome: [
+        { level: 1, spellId: 'minor-illusion' },
+        { level: 1, spellId: 'speak-with-animals' }
+    ],
+    rock_gnome: [
+        { level: 1, spellId: 'mending' },
+        { level: 1, spellId: 'prestidigitation' }
+    ],
+    abyssal: [
+        { level: 1, spellId: 'poison-spray' },
+        { level: 3, spellId: 'ray-of-sickness' },
+        { level: 5, spellId: 'hold-person' }
+    ],
+    chthonic: [
+        { level: 1, spellId: 'chill-touch' },
+        { level: 3, spellId: 'false-life' },
+        { level: 5, spellId: 'ray-of-enfeeblement' }
+    ],
+    infernal: [
+        { level: 1, spellId: 'fire-bolt' },
+        { level: 3, spellId: 'hellish-rebuke' },
+        { level: 5, spellId: 'darkness' }
+    ],
+    aasimar: [
+        { level: 1, spellId: 'light' }
     ]
 };
 
-/** Subclass bonus spells that are always prepared (2024 PHB). Level = class level when spell is gained. */
+/** @deprecated use SPECIES_LINEAGE_SPELLS (kept for existing imports). */
+export const ELVEN_LINEAGE_SPELLS = SPECIES_LINEAGE_SPELLS;
+
+/** Spells a character gets from their species (and lineage choice) at a character level. */
+export function getSpeciesSpellEntries(raceId: string, lineageId?: string): { level: number; spellId: string }[] {
+    const out: { level: number; spellId: string }[] = [];
+    const r = (raceId || '').toLowerCase();
+    const l = (lineageId || '').toLowerCase().replace(/\s+/g, '_');
+    if (SPECIES_LINEAGE_SPELLS[r]) out.push(...SPECIES_LINEAGE_SPELLS[r]);
+    if (l && SPECIES_LINEAGE_SPELLS[l]) out.push(...SPECIES_LINEAGE_SPELLS[l]);
+    return out;
+}
+
+/** Fallback subclass spells when the subclass record has no `spells` list. Level = class level. */
 export const SUBCLASS_BONUS_SPELLS: Record<string, { level: number; spellId: string }[]> = {
     gloom_stalker: [
         { level: 3, spellId: 'disguise-self' },
@@ -48,133 +92,234 @@ export const ELF_TRAITS_BY_LINEAGE: Record<string, string[]> = {
     wood_elf: ['Darkvision', 'Elven Lineage (Wood Elf)', 'Fey Ancestry', 'Keen Senses', 'Trance', 'Fleet of Foot', 'Druidcraft']
 };
 
+/** 2024 PHB species traits (fallback when the API is unavailable). */
 export const RACE_TRAITS: Record<string, string[]> = {
-    human: ['Resourceful', 'Skillful', 'Versatile'],
-    elf: ['Darkvision', 'Elven Lineage', 'Fey Ancestry', 'Keen Senses', 'Trance'],
-    dwarf: ['Darkvision', 'Dwarven Resilience', 'Dwarven Toughness', 'Stonecunning'],
-    halfling: ['Brave', 'Halfling Nimbleness', 'Luck', 'Naturally Stealthy'],
-    dragonborn: ['Darkvision', 'Draconic Ancestry', 'Breath Weapon', 'Damage Resistance', 'Draconic Flight'],
-    gnome: ['Darkvision', 'Gnomish Cunning', 'Gnomish Lineage'],
-    'half-elf': ['Darkvision', 'Fey Ancestry', 'Skill Versatility'],
-    'half-orc': ['Darkvision', 'Menacing', 'Relentless Endurance', 'Savage Attacks'],
-    tiefling: ['Darkvision', 'Fiendish Legacy', 'Hellish Resistance', 'Otherworldly Presence'],
-    orc: ['Adrenaline Rush', 'Darkvision', 'Relentless Endurance'],
+    aasimar: ["Celestial Resistance", "Darkvision", "Healing Hands", "Light Bearer", "Celestial Revelation"],
+    dragonborn: ["Draconic Ancestry", "Breath Weapon", "Damage Resistance", "Darkvision", "Draconic Flight"],
+    dwarf: ["Darkvision (120 ft.)", "Dwarven Resilience", "Dwarven Toughness", "Stonecunning"],
+    elf: ["Darkvision", "Elven Lineage", "Fey Ancestry", "Keen Senses", "Trance"],
+    gnome: ["Darkvision", "Gnomish Cunning", "Gnomish Lineage"],
+    goliath: ["Giant Ancestry", "Large Form", "Powerful Build"],
+    halfling: ["Brave", "Halfling Nimbleness", "Luck", "Naturally Stealthy"],
+    human: ["Resourceful", "Skillful", "Versatile"],
+    orc: ["Adrenaline Rush", "Darkvision (120 ft.)", "Relentless Endurance"],
+    tiefling: ["Darkvision", "Fiendish Legacy", "Otherworldly Presence"],
 };
 
-export const BACKGROUND_ASI: Record<string, Record<string, number>> = {
-    acolyte: { wis: 2, int: 1 },
-    criminal: { dex: 2, cha: 1 },
-    'folk-hero': { con: 2, wis: 1 },
-    noble: { cha: 2, int: 1 },
-    sage: { int: 2, wis: 1 },
-    soldier: { str: 2, con: 1 },
-    anthropologist: { int: 2, wis: 1 },
-    archaeologist: { int: 2, str: 1 },
-    athlete: { str: 2, dex: 1 },
-    charlatan: { cha: 2, dex: 1 },
-    'city-watch': { str: 2, wis: 1 },
-    'clan-crafter': { con: 2, int: 1 },
-    'cloistered-scholar': { int: 2, wis: 1 },
-    courtier: { cha: 2, wis: 1 },
-    entertainer: { cha: 2, dex: 1 },
-    faceless: { dex: 2, int: 1 },
-    'faction-agent': { int: 2, wis: 1 },
-    'far-traveler': { wis: 2, dex: 1 },
-    feylost: { cha: 2, wis: 1 },
-    fisher: { con: 2, wis: 1 },
-    'giant-foundling': { str: 2, con: 1 },
-    gladiator: { str: 2, cha: 1 },
-    'guild-artisan': { int: 2, cha: 1 },
-    'guild-merchant': { cha: 2, wis: 1 },
-    'haunted-one': { wis: 2, int: 1 },
-    hermit: { wis: 2, int: 1 },
-    'house-agent': { int: 2, cha: 1 },
-    inheritor: { cha: 2, wis: 1 },
-    'investigator-scag': { int: 2, wis: 1 },
-    'investigator-vrgr': { int: 2, wis: 1 },
-    knight: { cha: 2, int: 1 },
-    'knight-of-the-order': { cha: 2, str: 1 },
-    marine: { str: 2, con: 1 },
-    'mercenary-veteran': { str: 2, cha: 1 },
-    outlander: { str: 2, wis: 1 },
-    pirate: { dex: 2, wis: 1 },
-    rewarded: { cha: 2, int: 1 },
-    ruined: { cha: 2, wis: 1 },
-    'rune-carver': { int: 2, wis: 1 },
-    sailor: { dex: 2, wis: 1 },
-    shipwright: { int: 2, str: 1 },
-    smuggler: { dex: 2, cha: 1 },
-    spy: { dex: 2, int: 1 },
-    wayfarer: { dex: 2, cha: 1 },
+/** 2024 background ability-score options (three abilities per background). */
+export const BACKGROUND_ABILITIES: Record<string, string[]> = {
+    acolyte: ["int", "wis", "cha"],
+    artisan: ["str", "dex", "int"],
+    charlatan: ["dex", "con", "cha"],
+    criminal: ["dex", "con", "int"],
+    entertainer: ["str", "dex", "cha"],
+    farmer: ["str", "con", "wis"],
+    guard: ["str", "int", "wis"],
+    guide: ["dex", "con", "wis"],
+    hermit: ["con", "wis", "cha"],
+    merchant: ["con", "int", "cha"],
+    noble: ["str", "int", "cha"],
+    sage: ["con", "int", "wis"],
+    sailor: ["str", "dex", "wis"],
+    scribe: ["dex", "int", "wis"],
+    soldier: ["str", "dex", "con"],
+    wayfarer: ["dex", "wis", "cha"],
+    "folk-hero": ["str", "con", "wis"],
+    anthropologist: ["int", "wis", "cha"],
+    archaeologist: ["str", "int", "wis"],
+    athlete: ["str", "dex", "con"],
+    "city-watch": ["str", "int", "wis"],
+    "clan-crafter": ["str", "con", "int"],
+    "cloistered-scholar": ["int", "wis", "cha"],
+    courtier: ["int", "wis", "cha"],
+    faceless: ["dex", "int", "cha"],
+    "faction-agent": ["int", "wis", "cha"],
+    "far-traveler": ["dex", "wis", "cha"],
+    feylost: ["dex", "wis", "cha"],
+    fisher: ["str", "con", "wis"],
+    "giant-foundling": ["str", "con", "wis"],
+    gladiator: ["str", "dex", "cha"],
+    "guild-artisan": ["dex", "int", "cha"],
+    "guild-merchant": ["con", "wis", "cha"],
+    "haunted-one": ["con", "int", "wis"],
+    "house-agent": ["dex", "int", "cha"],
+    inheritor: ["con", "wis", "cha"],
+    "investigator-scag": ["dex", "int", "wis"],
+    "investigator-vrgr": ["dex", "int", "wis"],
+    knight: ["str", "int", "cha"],
+    "knight-of-the-order": ["str", "wis", "cha"],
+    marine: ["str", "dex", "con"],
+    "mercenary-veteran": ["str", "dex", "cha"],
+    outlander: ["str", "con", "wis"],
+    pirate: ["str", "dex", "wis"],
+    rewarded: ["int", "wis", "cha"],
+    ruined: ["con", "wis", "cha"],
+    "rune-carver": ["str", "int", "wis"],
+    shipwright: ["str", "con", "int"],
+    smuggler: ["dex", "con", "cha"],
+    spy: ["dex", "int", "cha"],
 };
 
 export const BACKGROUND_SKILLS: Record<string, string[]> = {
-    acolyte: ['Insight', 'Religion'],
-    criminal: ['Deception', 'Stealth'],
-    'folk-hero': ['Animal Handling', 'Survival'],
-    noble: ['History', 'Persuasion'],
-    sage: ['Arcana', 'History'],
-    soldier: ['Athletics', 'Intimidation'],
-    anthropologist: ['Insight', 'Religion'],
-    archaeologist: ['History', 'Survival'],
-    athlete: ['Athletics', 'Acrobatics'],
-    charlatan: ['Deception', 'Sleight of Hand'],
-    'city-watch': ['Athletics', 'Insight'],
-    'clan-crafter': ['History', 'Insight'],
-    'cloistered-scholar': ['History', 'Investigation'],
-    courtier: ['Insight', 'Persuasion'],
-    entertainer: ['Acrobatics', 'Performance'],
-    faceless: ['Deception', 'Intimidation'],
-    'faction-agent': ['Insight', 'Investigation'],
-    'far-traveler': ['Insight', 'Perception'],
-    feylost: ['Deception', 'Survival'],
-    fisher: ['History', 'Survival'],
-    'giant-foundling': ['Athletics', 'Intimidation'],
-    gladiator: ['Athletics', 'Performance'],
-    'guild-artisan': ['Insight', 'Persuasion'],
-    'guild-merchant': ['Insight', 'Persuasion'],
-    'haunted-one': ['Investigation', 'Religion'],
-    hermit: ['Medicine', 'Religion'],
-    'house-agent': ['Investigation', 'Persuasion'],
-    inheritor: ['Survival', 'Investigation'],
-    'investigator-scag': ['Investigation', 'Insight'],
-    'investigator-vrgr': ['Investigation', 'Insight'],
-    knight: ['History', 'Persuasion'],
-    'knight-of-the-order': ['Persuasion', 'History'],
-    marine: ['Athletics', 'Survival'],
-    'mercenary-veteran': ['Athletics', 'Persuasion'],
-    outlander: ['Athletics', 'Survival'],
-    pirate: ['Athletics', 'Perception'],
-    rewarded: ['Investigation', 'Persuasion'],
-    ruined: ['Deception', 'Survival'],
-    'rune-carver': ['Arcana', 'History'],
-    sailor: ['Athletics', 'Perception'],
-    shipwright: ['History', 'Investigation'],
-    smuggler: ['Deception', 'Stealth'],
-    spy: ['Deception', 'Stealth'],
-    wayfarer: ['Insight', 'Stealth'],
+    acolyte: ["Insight", "Religion"],
+    artisan: ["Investigation", "Persuasion"],
+    charlatan: ["Deception", "Sleight of Hand"],
+    criminal: ["Sleight of Hand", "Stealth"],
+    entertainer: ["Acrobatics", "Performance"],
+    farmer: ["Animal Handling", "Nature"],
+    guard: ["Athletics", "Perception"],
+    guide: ["Stealth", "Survival"],
+    hermit: ["Medicine", "Religion"],
+    merchant: ["Animal Handling", "Persuasion"],
+    noble: ["History", "Persuasion"],
+    sage: ["Arcana", "History"],
+    sailor: ["Acrobatics", "Perception"],
+    scribe: ["Investigation", "Perception"],
+    soldier: ["Athletics", "Intimidation"],
+    wayfarer: ["Insight", "Stealth"],
+    "folk-hero": ["Animal Handling", "Survival"],
+    anthropologist: ["Insight", "Religion"],
+    archaeologist: ["History", "Survival"],
+    athlete: ["Athletics", "Acrobatics"],
+    "city-watch": ["Athletics", "Insight"],
+    "clan-crafter": ["History", "Insight"],
+    "cloistered-scholar": ["History", "Investigation"],
+    courtier: ["Insight", "Persuasion"],
+    faceless: ["Deception", "Intimidation"],
+    "faction-agent": ["Insight", "Investigation"],
+    "far-traveler": ["Insight", "Perception"],
+    feylost: ["Deception", "Survival"],
+    fisher: ["History", "Survival"],
+    "giant-foundling": ["Athletics", "Intimidation"],
+    gladiator: ["Athletics", "Performance"],
+    "guild-artisan": ["Insight", "Persuasion"],
+    "guild-merchant": ["Insight", "Persuasion"],
+    "haunted-one": ["Investigation", "Religion"],
+    "house-agent": ["Investigation", "Persuasion"],
+    inheritor: ["Survival", "Investigation"],
+    "investigator-scag": ["Investigation", "Insight"],
+    "investigator-vrgr": ["Investigation", "Insight"],
+    knight: ["History", "Persuasion"],
+    "knight-of-the-order": ["Persuasion", "History"],
+    marine: ["Athletics", "Survival"],
+    "mercenary-veteran": ["Athletics", "Persuasion"],
+    outlander: ["Athletics", "Survival"],
+    pirate: ["Athletics", "Perception"],
+    rewarded: ["Investigation", "Persuasion"],
+    ruined: ["Deception", "Survival"],
+    "rune-carver": ["Arcana", "History"],
+    shipwright: ["History", "Investigation"],
+    smuggler: ["Deception", "Stealth"],
+    spy: ["Deception", "Stealth"],
 };
 
-export function getRaceTraits(raceId: string, elvenLineage?: string): string[] {
+/** Origin feat granted by each background (feat id). */
+export const BACKGROUND_ORIGIN_FEATS: Record<string, string> = {
+    acolyte: "magic-initiate",
+    artisan: "crafter",
+    charlatan: "skilled",
+    criminal: "alert",
+    entertainer: "musician",
+    farmer: "tough",
+    guard: "alert",
+    guide: "magic-initiate",
+    hermit: "healer",
+    merchant: "lucky",
+    noble: "skilled",
+    sage: "magic-initiate",
+    sailor: "tavern-brawler",
+    scribe: "skilled",
+    soldier: "savage-attacker",
+    wayfarer: "lucky",
+    "folk-hero": "tough",
+    anthropologist: "skilled",
+    archaeologist: "skilled",
+    athlete: "tavern-brawler",
+    "city-watch": "alert",
+    "clan-crafter": "crafter",
+    "cloistered-scholar": "magic-initiate",
+    courtier: "skilled",
+    faceless: "skilled",
+    "faction-agent": "alert",
+    "far-traveler": "musician",
+    feylost: "magic-initiate",
+    fisher: "tough",
+    "giant-foundling": "tough",
+    gladiator: "savage-attacker",
+    "guild-artisan": "crafter",
+    "guild-merchant": "lucky",
+    "haunted-one": "alert",
+    "house-agent": "skilled",
+    inheritor: "lucky",
+    "investigator-scag": "alert",
+    "investigator-vrgr": "alert",
+    knight: "skilled",
+    "knight-of-the-order": "savage-attacker",
+    marine: "tough",
+    "mercenary-veteran": "savage-attacker",
+    outlander: "tough",
+    pirate: "tavern-brawler",
+    rewarded: "lucky",
+    ruined: "tough",
+    "rune-carver": "crafter",
+    shipwright: "crafter",
+    smuggler: "lucky",
+    spy: "alert",
+};
+
+/** Skills a species trait grants as a choice. */
+export const KEEN_SENSES_SKILLS = ['Insight', 'Perception', 'Survival'];
+
+/** Traits for a species, with the lineage option folded in (e.g. "Gnomish Lineage (Forest Gnome)"). */
+export function getRaceTraits(
+    raceId: string,
+    elvenLineage?: string,
+    race?: { traits?: string[]; lineageOptions?: { trait: string; options: { id: string; name: string }[] } } | null,
+    lineageId?: string
+): string[] {
     const k = (raceId || '').toLowerCase();
     if (k === 'elf' && elvenLineage) {
         const lineage = (elvenLineage || '').toLowerCase().replace(/\s+/g, '_');
         return ELF_TRAITS_BY_LINEAGE[lineage] ?? RACE_TRAITS.elf;
     }
-    return RACE_TRAITS[k] ?? [];
+    const base = race?.traits && race.traits.length > 0 ? [...race.traits] : [...(RACE_TRAITS[k] ?? [])];
+    const opt = lineageId && race?.lineageOptions?.options.find(o => o.id === lineageId);
+    if (opt && race?.lineageOptions) {
+        base.push(`${race.lineageOptions.trait} (${opt.name})`);
+    }
+    return base;
 }
 
-export function getBackgroundAsi(backgroundId: string): Record<string, number> {
-    const k = (backgroundId || '').toLowerCase();
-    return BACKGROUND_ASI[k] ?? {};
+/** Ability options for a background: the API record's `abilityScores`, else the fallback table. */
+export function getBackgroundAbilityOptions(backgroundId: string, bg?: { abilityScores?: string[] } | null): string[] {
+    if (bg?.abilityScores && bg.abilityScores.length > 0) return bg.abilityScores;
+    return BACKGROUND_ABILITIES[(backgroundId || '').toLowerCase()] ?? [];
 }
 
-export function getBackgroundSkills(backgroundId: string): string[] {
+/** @deprecated 2024 backgrounds let the player choose; kept for old callers. Returns {}. */
+export function getBackgroundAsi(_backgroundId: string): Record<string, number> {
+    return {};
+}
+
+/**
+ * Validate a 2024 background ability-score assignment: either +2/+1 to two
+ * different listed abilities or +1 to all three.
+ */
+export function isValidBackgroundAsi(asi: Record<string, number> | undefined, options: string[]): boolean {
+    if (!asi) return false;
+    const entries = Object.entries(asi).filter(([, v]) => v > 0);
+    if (entries.some(([k]) => !options.includes(k))) return false;
+    const vals = entries.map(([, v]) => v).sort();
+    return (vals.length === 2 && vals[0] === 1 && vals[1] === 2) || (vals.length === 3 && vals.every(v => v === 1));
+}
+
+export function getBackgroundSkills(backgroundId: string, bg?: { skillProficiencies?: string[] } | null): string[] {
+    if (bg?.skillProficiencies && bg.skillProficiencies.length > 0) return bg.skillProficiencies;
     const k = (backgroundId || '').toLowerCase();
     return BACKGROUND_SKILLS[k] ?? [];
 }
 
-/** Magic Initiate feat: allowed class lists (2024 PHB allows cleric, druid, wizard per user request). */
+/** Magic Initiate feat: allowed class lists (2024 PHB: Cleric, Druid, or Wizard). */
 export const MAGIC_INITIATE_CLASSES = [
     { id: 'cleric', name: 'Cleric' },
     { id: 'druid', name: 'Druid' },
@@ -188,9 +333,9 @@ export const MAGIC_INITIATE_ABILITIES = [
     { id: 'cha', name: 'Charisma' }
 ] as const;
 
-/** Origin feats (1st-level) for Versatile (2024 PHB). Only these appear for human feat pick. IDs from /reference/feats. */
+/** Origin feats (2024 PHB). Used for Human Versatile; the API's feat `category` is preferred when present. */
 export const ORIGIN_FEAT_IDS = [
-    'alert', 'healer', 'lucky', 'magic-initiate', 'savage-attacker', 'skilled',
+    'alert', 'crafter', 'healer', 'lucky', 'magic-initiate', 'musician', 'savage-attacker', 'skilled',
     'tavern-brawler', 'tough'
 ];
 
@@ -202,71 +347,50 @@ export const SKILLS_FOR_SKILLFUL = [
     'Sleight of Hand', 'Stealth', 'Survival'
 ];
 
-/** Standard D&D languages. */
-export const STANDARD_LANGUAGES = [
-    'Common',
+/** 2024 Standard Languages: a new character knows Common plus two of these. */
+export const STANDARD_LANGUAGES_2024 = [
+    'Common Sign Language',
+    'Draconic',
     'Dwarvish',
     'Elvish',
     'Giant',
     'Gnomish',
     'Goblin',
     'Halfling',
-    'Orc',
+    'Orc'
+];
+
+/** Every language a character can learn later (standard + rare). */
+export const STANDARD_LANGUAGES = [
+    'Common',
+    ...STANDARD_LANGUAGES_2024,
     'Abyssal',
     'Celestial',
     'Deep Speech',
-    'Draconic',
+    'Druidic',
     'Infernal',
     'Primordial',
     'Sylvan',
+    'Thieves\' Cant',
     'Undercommon',
     'Aarakocra',
     'Auran',
     'Aquan',
     'Ignan',
-    'Terran',
-    'Thieves\' Cant'
+    'Terran'
 ];
 
-/** Race languages (fixed languages from race, excluding "choice" entries). */
-export const RACE_LANGUAGES: Record<string, string[]> = {
-    human: ['Common'],
-    elf: ['Common', 'Elvish'],
-    dwarf: ['Common', 'Dwarvish'],
-    halfling: ['Common', 'Halfling'],
-    dragonborn: ['Common', 'Draconic'],
-    gnome: ['Common', 'Gnomish'],
-    'half-elf': ['Common', 'Elvish'],
-    'half-orc': ['Common', 'Orc'],
-    tiefling: ['Common', 'Infernal'],
-    orc: ['Common', 'Orc'],
-    aarakocra: ['Common', 'Aarakocra', 'Auran'],
-};
-
-/** Race language choices (number of "choose one" languages). */
-export const RACE_LANGUAGE_CHOICES: Record<string, number> = {
-    human: 1,
-    'half-elf': 1,
-};
-
-/** Background language choices (number of languages granted). */
-export const BACKGROUND_LANGUAGE_CHOICES: Record<string, number> = {
-    acolyte: 2,
-    sage: 2,
-    noble: 1,
-};
-
-export function getRaceLanguages(raceId: string): string[] {
-    const k = (raceId || '').toLowerCase();
-    return RACE_LANGUAGES[k] ?? [];
+/** 2024: every character knows Common (species no longer grant fixed languages). */
+export function getRaceLanguages(_raceId: string): string[] {
+    return ['Common'];
 }
 
-export function getRaceLanguageChoices(raceId: string): number {
-    const k = (raceId || '').toLowerCase();
-    return RACE_LANGUAGE_CHOICES[k] ?? 0;
+/** 2024: Common plus two languages of the player's choice, regardless of species. */
+export function getRaceLanguageChoices(_raceId: string): number {
+    return 2;
 }
 
-export function getBackgroundLanguageChoices(backgroundId: string): number {
-    const k = (backgroundId || '').toLowerCase();
-    return BACKGROUND_LANGUAGE_CHOICES[k] ?? 0;
+/** 2024 backgrounds don't grant languages. */
+export function getBackgroundLanguageChoices(_backgroundId: string): number {
+    return 0;
 }

@@ -5,6 +5,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import { getReferenceRows } from '../lib/referenceCache';
 import { withCanonicalId } from '../lib/referenceTypes';
+import { calculateClassResources } from '../lib/classResources';
 
 // DB-backed equivalents of the old static data/*.ts imports, so admin edits
 // to classes/subclasses/class features are picked up on the next request
@@ -149,163 +150,15 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         }
 
         // Initialize class resources for existing characters that don't have them
-        // Note: Full calculation should be done on frontend, but we can initialize basic ones here
+        // (2024 tables; the sheet re-derives them the same way).
         const resourcesWereEmpty = !data.classResources || Object.keys(data.classResources).length === 0;
         if (resourcesWereEmpty) {
-            const classId = character.class.toLowerCase();
-            const abilityScores = data.abilityScores || {};
-            
-            // Simple initialization for common resources
-            if (classId === 'sorcerer') {
-                data.classResources = {
-                    'Sorcery Points': {
-                        name: 'Sorcery Points',
-                        current: character.level,
-                        max: character.level,
-                        resetType: 'long',
-                        description: 'You can use sorcery points to create spell slots or use Metamagic.'
-                    }
-                };
-            } else if (classId === 'monk') {
-                data.classResources = {
-                    'Ki Points': {
-                        name: 'Ki Points',
-                        current: character.level,
-                        max: character.level,
-                        resetType: 'short',
-                        description: 'You can spend ki points to fuel various ki features.'
-                    }
-                };
-            } else if (classId === 'fighter') {
-                const fighterResources: Record<string, { name: string; current: number; max: number; resetType: string; description: string; shortRestRegain?: number }> = {
-                    'Action Surge': {
-                        name: 'Action Surge',
-                        current: character.level >= 17 ? 2 : 1,
-                        max: character.level >= 17 ? 2 : 1,
-                        resetType: 'short',
-                        description: 'On your turn, you can take one additional action.'
-                    },
-                    'Second Wind': {
-                        name: 'Second Wind',
-                        current: character.level >= 10 ? 4 : character.level >= 4 ? 3 : 2,
-                        max: character.level >= 10 ? 4 : character.level >= 4 ? 3 : 2,
-                        resetType: 'short',
-                        shortRestRegain: 1,
-                        description: 'Bonus action: regain 1d10 + fighter level HP. Regain 1 use on short rest, all on long rest.'
-                    }
-                };
-                // Gunslinger: Grit Points (Wis mod, min 1) at level 3+
-                const subclassId = (data.subclassId as string) || '';
-                if (subclassId === 'gunslinger' && character.level >= 3) {
-                    const wis = (data.abilityScores as Record<string, number>)?.wis;
-                    const gritMax = wis != null ? Math.max(1, Math.floor((wis - 10) / 2)) : 1;
-                    fighterResources['Grit Points'] = {
-                        name: 'Grit Points',
-                        current: gritMax,
-                        max: gritMax,
-                        resetType: 'short',
-                        description: 'You spend grit to perform trick shots with firearms. Regain grit on a short rest, when you score a critical hit with a firearm, or when you reduce a creature to 0 HP with a firearm attack.'
-                    };
-                }
-                data.classResources = fighterResources;
-            } else if (classId === 'barbarian') {
-                let rageUses = 2;
-                if (character.level >= 3) rageUses = 3;
-                if (character.level >= 6) rageUses = 4;
-                if (character.level >= 12) rageUses = 5;
-                if (character.level >= 17) rageUses = 6;
-                if (character.level >= 20) rageUses = 999;
-                
-                data.classResources = {
-                    'Rage': {
-                        name: 'Rage',
-                        current: rageUses === 999 ? 999 : rageUses,
-                        max: rageUses === 999 ? 999 : rageUses,
-                        resetType: 'long',
-                        description: 'Enter a rage as a bonus action. Gain advantage on Strength checks and saves, bonus damage, and resistance to bludgeoning, piercing, and slashing damage.'
-                    }
-                };
-            } else if (classId === 'cleric') {
-                let channelUses = 1;
-                if (character.level >= 6) channelUses = 2;
-                if (character.level >= 18) channelUses = 3;
-                
-                data.classResources = {
-                    'Channel Divinity': {
-                        name: 'Channel Divinity',
-                        current: channelUses,
-                        max: channelUses,
-                        resetType: 'short',
-                        description: 'Channel divine energy to fuel magical effects.'
-                    }
-                };
-            } else if (classId === 'paladin') {
-                const chaMod = abilityScores.cha ? Math.max(1, Math.floor((abilityScores.cha - 10) / 2)) : 1;
-                data.classResources = {
-                    'Channel Divinity': {
-                        name: 'Channel Divinity',
-                        current: character.level >= 6 ? 2 : 1,
-                        max: character.level >= 6 ? 2 : 1,
-                        resetType: 'short',
-                        description: 'Channel divine energy to fuel magical effects.'
-                    },
-                    'Lay on Hands': {
-                        name: 'Lay on Hands',
-                        current: character.level * 5,
-                        max: character.level * 5,
-                        resetType: 'long',
-                        description: `Pool of healing power. Restore a total of ${character.level * 5} hit points.`
-                    }
-                };
-            } else if (classId === 'bard') {
-                const chaMod = abilityScores.cha ? Math.max(1, Math.floor((abilityScores.cha - 10) / 2)) : 1;
-                data.classResources = {
-                    'Bardic Inspiration': {
-                        name: 'Bardic Inspiration',
-                        current: chaMod,
-                        max: chaMod,
-                        resetType: character.level >= 5 ? 'short' : 'long',
-                        description: 'Inspire others through stirring words or music.'
-                    }
-                };
-            } else if (classId === 'druid') {
-                data.classResources = {
-                    'Wild Shape': {
-                        name: 'Wild Shape',
-                        current: 2,
-                        max: 2,
-                        resetType: 'short',
-                        description: 'Use your action to magically assume the shape of a beast you have seen before.'
-                    }
-                };
+            const computed = calculateClassResources(character.class, character.level, data.abilityScores || {}, data.subclassId);
+            if (Object.keys(computed).length > 0) {
+                data.classResources = computed;
+                data.classResourcesRules = '2024';
+                dataChanged = true;
             }
-        }
-        if (resourcesWereEmpty && data.classResources && Object.keys(data.classResources).length > 0) {
-            dataChanged = true;
-        }
-
-        // Patch: add Grit Points for existing Fighter Gunslingers who have resources but no Grit
-        const classId = (character.class as string).toLowerCase();
-        const subclassId = (data.subclassId as string) || '';
-        if (
-            data.classResources &&
-            Object.keys(data.classResources).length > 0 &&
-            classId === 'fighter' &&
-            subclassId === 'gunslinger' &&
-            character.level >= 3 &&
-            !(data.classResources as Record<string, unknown>)['Grit Points']
-        ) {
-            const abilityScores = (data.abilityScores as Record<string, number>) || {};
-            const wis = abilityScores.wis;
-            const gritMax = wis != null ? Math.max(1, Math.floor((wis - 10) / 2)) : 1;
-            (data.classResources as Record<string, { name: string; current: number; max: number; resetType: string; description: string }>)['Grit Points'] = {
-                name: 'Grit Points',
-                current: gritMax,
-                max: gritMax,
-                resetType: 'short',
-                description: 'You spend grit to perform trick shots with firearms. Regain grit on a short rest, when you score a critical hit with a firearm, or when you reduce a creature to 0 HP with a firearm attack.'
-            };
-            dataChanged = true;
         }
 
         // Persist any back-filled defaults so this initialization runs once
@@ -647,17 +500,22 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
         data.classes = classesData;
 
         // Update HP
-        console.log('Level Up Request:', { hpIncrease, currentHp: data.hp });
+        let hpApplied: number | null = null;
         if (hpIncrease) {
             const hp = data.hp || { current: 0, max: 0, temp: 0 };
             let inc = Number(hpIncrease);
-            const dwarvenToughness = (character.race || '').toLowerCase() === 'dwarf';
+            const racialTraits: string[] = Array.isArray(data.racialTraits) ? data.racialTraits : [];
+            const dwarvenToughness = racialTraits.length > 0
+                ? racialTraits.includes('Dwarven Toughness')
+                : (character.race || '').toLowerCase() === 'dwarf';
             if (dwarvenToughness) inc += 1;
+            // Tough feat: +2 Hit Points per level
+            const hasTough = (data.features || []).some((f: any) => f.featId === 'tough' || (f.name || '').toLowerCase() === 'tough');
+            if (hasTough) inc += 2;
             const oldMax = Number(hp.max) || 0;
             const oldCurrent = Number(hp.current) || 0;
 
-            console.log(`Updating HP: Max ${oldMax} -> ${oldMax + inc}, Current ${oldCurrent} -> ${oldCurrent + inc}`);
-
+            hpApplied = inc;
             hp.max = oldMax + inc;
             hp.current = oldCurrent + inc;
             data.hp = hp;
@@ -724,9 +582,11 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
         if (currentSubclassId && !isNewSubclass) {
             // Only auto-add if subclass was already set (to avoid duplicates when first selecting)
             const subclass = subclassesList.find(s => s.id === currentSubclassId);
-            if (subclass) {
+            // Subclass features key off the level of the subclass's own class (matters for multiclassing)
+            const subclassClassLevel = subclass ? (classesData[subclass.classId] ?? 0) : 0;
+            if (subclass && subclass.classId === classId) {
                 newSubclassFeatures = subclass.features
-                    .filter((sf: any) => sf.level === newLevel)
+                    .filter((sf: any) => sf.level === subclassClassLevel)
                     .filter((sf: any) => {
                         const featureKey = `${sf.name.toLowerCase()}_subclass: ${subclass.name.toLowerCase()}`;
                         return !existingFeatureKeys.has(featureKey) && !existingFeatureNames.has(sf.name.toLowerCase());
@@ -830,42 +690,15 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
         if (req.body.classResources) {
             data.classResources = req.body.classResources;
         } else {
-            // Simple backend recalculation for common resources
-            // Full calculation should be done on frontend, but this handles basic cases
+            // Recalculate from the 2024 tables, keeping current values where still valid
             const existingResources = data.classResources || {};
-            const classId = character.class.toLowerCase();
-            
-            // Update resources that scale with level
-            if (classId === 'sorcerer' && existingResources['Sorcery Points']) {
-                existingResources['Sorcery Points'].max = newLevel;
-                existingResources['Sorcery Points'].current = Math.min(existingResources['Sorcery Points'].current + 1, newLevel);
+            const computed = calculateClassResources(classId, classesData[classId] || newLevel, data.abilityScores || {}, subclassId || data.subclassId);
+            for (const [name, res] of Object.entries(computed)) {
+                const prev = existingResources[name];
+                existingResources[name] = prev
+                    ? { ...res, current: Math.min(res.max, (prev.current ?? 0) + Math.max(0, res.max - (prev.max ?? 0))) }
+                    : res;
             }
-            if (classId === 'monk' && existingResources['Ki Points']) {
-                existingResources['Ki Points'].max = newLevel;
-                existingResources['Ki Points'].current = Math.min(existingResources['Ki Points'].current + 1, newLevel);
-            }
-            if (classId === 'fighter' && existingResources['Action Surge']) {
-                const newMax = newLevel >= 17 ? 2 : 1;
-                if (existingResources['Action Surge'].max < newMax) {
-                    existingResources['Action Surge'].max = newMax;
-                    existingResources['Action Surge'].current = newMax;
-                }
-            }
-            if (classId === 'fighter' && existingResources['Second Wind']) {
-                const newMax = newLevel >= 10 ? 4 : newLevel >= 4 ? 3 : 2;
-                if (existingResources['Second Wind'].max < newMax) {
-                    existingResources['Second Wind'].max = newMax;
-                    existingResources['Second Wind'].current = newMax;
-                }
-                if (existingResources['Second Wind'].shortRestRegain == null) {
-                    existingResources['Second Wind'].shortRestRegain = 1;
-                }
-            }
-            if (classId === 'paladin' && existingResources['Lay on Hands']) {
-                existingResources['Lay on Hands'].max = newLevel * 5;
-                existingResources['Lay on Hands'].current = newLevel * 5;
-            }
-            
             data.classResources = existingResources;
         }
 
@@ -874,6 +707,8 @@ router.post('/:id/level-up', authenticateToken, async (req: AuthRequest, res) =>
         levelHistory.push({
             level: newLevel,
             hpIncrease: hpIncrease ? Number(hpIncrease) : null,
+            // What was actually added to max HP (includes Dwarven Toughness / Tough), for level-down
+            hpApplied,
             subclassId: subclassId || null,
             newSpells: newSpells || [],
             newFeatures: allNewFeatures.map((f: any) => ({ name: f.name, level: f.level })),
@@ -934,7 +769,7 @@ router.post('/:id/level-down', authenticateToken, async (req: AuthRequest, res) 
         // Reverse HP changes
         if (lastLevelUp.hpIncrease) {
             const hp = data.hp || { current: 0, max: 0, temp: 0 };
-            const dec = Number(lastLevelUp.hpIncrease);
+            const dec = Number(lastLevelUp.hpApplied ?? lastLevelUp.hpIncrease);
             hp.max = Math.max(0, (Number(hp.max) || 0) - dec);
             hp.current = Math.max(0, Math.min(hp.current, hp.max)); // Ensure current doesn't exceed new max
             data.hp = hp;

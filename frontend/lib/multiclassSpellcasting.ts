@@ -2,9 +2,9 @@ import { ClassInfo } from '@/lib/types';
 
 /**
  * Calculate the effective spellcaster level for multiclassed characters
- * According to D&D 5e multiclassing rules:
+ * According to the 2024 multiclassing rules:
  * - Full casters (Bard, Cleric, Druid, Sorcerer, Wizard): Count all levels
- * - Half casters (Paladin, Ranger): Count half (rounded down)
+ * - Half casters (Paladin, Ranger): Count half (rounded up)
  * - Third casters (Eldritch Knight, Arcane Trickster): Count one-third (rounded down)
  * - Warlock: Uses Pact Magic, doesn't combine with Spellcasting
  */
@@ -27,7 +27,7 @@ export function calculateMulticlassSpellcasterLevel(
         }
         // Half casters
         else if (['paladin', 'ranger'].includes(classId.toLowerCase())) {
-            totalCasterLevel += Math.floor(level / 2);
+            totalCasterLevel += Math.ceil(level / 2);
         }
         // Third casters (Eldritch Knight, Arcane Trickster)
         // Note: This would require checking subclasses, which we'll handle separately
@@ -65,8 +65,55 @@ const CLERIC_DRUID_PREPARED_SPELLS_BY_LEVEL: number[] = [
 
 /** 2024 PHB: fixed prepared spells by level for Paladin and Ranger (does NOT depend on ability modifier). */
 const PALADIN_RANGER_PREPARED_SPELLS_BY_LEVEL: number[] = [
-    2, 3, 4, 5, 6, 6, 7, 7, 8, 8, 10, 10, 11, 11, 12, 12, 14, 14, 15, 15
+    2, 3, 4, 5, 6, 6, 7, 7, 9, 9, 10, 10, 11, 11, 12, 12, 14, 14, 15, 15
 ];
+
+/** 2024 PHB: Bard prepared spells by level (Bards change one spell when they gain a level). */
+const BARD_PREPARED_SPELLS_BY_LEVEL: number[] = [
+    4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 16, 16, 17, 17, 18, 18, 19, 20, 21, 22
+];
+
+/** 2024 PHB: Sorcerer prepared spells by level. */
+const SORCERER_PREPARED_SPELLS_BY_LEVEL: number[] = [
+    2, 4, 6, 7, 9, 10, 11, 12, 14, 15, 16, 16, 17, 17, 18, 18, 19, 20, 21, 22
+];
+
+/** 2024 PHB: Warlock prepared spells by level. */
+const WARLOCK_PREPARED_SPELLS_BY_LEVEL: number[] = [
+    2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15
+];
+
+/** 2024 PHB cantrips known by class level. */
+const CANTRIPS_BY_LEVEL: Record<string, number[]> = {
+    bard: [2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+    cleric: [3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    druid: [2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+    sorcerer: [4, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    warlock: [2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+    wizard: [3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+};
+
+/** Cantrips a class knows at a class level (0 for classes without cantrips). */
+export function getCantripsKnown(classId: string, classLevel: number): number {
+    const table = CANTRIPS_BY_LEVEL[classId.toLowerCase()];
+    if (!table) return 0;
+    return table[Math.min(Math.max(0, classLevel - 1), 19)] ?? 0;
+}
+
+/**
+ * Level 1+ spells a Bard, Sorcerer, or Warlock can have (they pick spells and
+ * swap one when they gain a level, so the limit applies to learned spells).
+ * Returns 0 for classes that aren't limited this way.
+ */
+export function getKnownSpellsLimit(classId: string, classLevel: number): number {
+    const idx = Math.min(Math.max(0, classLevel - 1), 19);
+    switch (classId.toLowerCase()) {
+        case 'bard': return BARD_PREPARED_SPELLS_BY_LEVEL[idx];
+        case 'sorcerer': return SORCERER_PREPARED_SPELLS_BY_LEVEL[idx];
+        case 'warlock': return WARLOCK_PREPARED_SPELLS_BY_LEVEL[idx];
+        default: return 0;
+    }
+}
 
 /** 2024 PHB: fixed prepared spells by level for Wizard (does NOT depend on ability modifier). */
 const WIZARD_PREPARED_SPELLS_BY_LEVEL: number[] = [
@@ -94,7 +141,9 @@ export function calculatePreparedSpellsLimitForClass(
     if (cid === 'wizard') {
         return WIZARD_PREPARED_SPELLS_BY_LEVEL[idx] ?? 4;
     }
-    // Fallback for other prepared casters: use level only (no ability modifier)
+    const known = getKnownSpellsLimit(cid, classLevel);
+    if (known > 0) return known;
+    // Fallback for unknown prepared casters: use level only (no ability modifier)
     return Math.max(1, classLevel);
 }
 

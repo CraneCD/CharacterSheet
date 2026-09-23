@@ -60,6 +60,7 @@ export default function StepClass({ selectedClassId, onSelect, selectedSubclassI
                     return (
                         <div
                             key={cls.id}
+                            data-testid={`class-${cls.id}`}
                             className={`card ${isSelected ? 'highlight' : ''}`}
                             style={{
                                 cursor: 'pointer',
@@ -87,6 +88,9 @@ export default function StepClass({ selectedClassId, onSelect, selectedSubclassI
                             </div>
                             <div style={{ fontSize: '0.875rem' }}>
                                 <strong>Saves:</strong> {cls.savingThrows.join(', ').toUpperCase()}
+                            </div>
+                            <div style={{ fontSize: '0.875rem', marginTop: '0.5rem', color: 'var(--text-muted)' }}>
+                                Subclass at level {cls.subclassLevel ?? 3}{cls.spellcaster ? ' · Spellcaster' : ''}
                             </div>
                         </div>
                     );
@@ -134,6 +138,7 @@ export default function StepClass({ selectedClassId, onSelect, selectedSubclassI
                         {fightingStyles.map(fs => (
                             <div
                                 key={fs.id}
+                                data-testid={`fighting-style-${fs.id}`}
                                 onClick={() => onSelectFightingStyle(selectedFightingStyleId === fs.id ? null : fs.id)}
                                 style={{
                                     cursor: 'pointer',

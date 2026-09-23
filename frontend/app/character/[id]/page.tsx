@@ -16,7 +16,7 @@ import PortraitUpload from './components/PortraitUpload';
 import FeatureManager from './components/FeatureManager';
 import CurrencyManager from './components/CurrencyManager';
 import { CharacterData, CharacterItem, CharacterFeature } from '@/lib/types';
-import { calculateClassResources, mergeHeroicInspiration, mergeBlessingOfTheRavenQueen } from '@/lib/classResources';
+import { calculateClassResources, mergeHeroicInspiration, mergeBlessingOfTheRavenQueen, reconcileClassResources, RESOURCE_RULES_VERSION } from '@/lib/classResources';
 import { 
     calculateSpeedBonusFromFeatures, 
     getACCalculationFromFeatures,
@@ -25,7 +25,7 @@ import {
 } from '@/lib/featureStatModifiers';
 import { isMasteryActionForWeapon } from '@/lib/weaponMastery';
 import { getSkillProficienciesFromTraits, hasResourceful, hasBlessingOfTheRavenQueen } from '@/lib/racialTraitBonuses';
-import { getRaceTraits, getBackgroundSkills, STANDARD_LANGUAGES } from '@/lib/wizardReference';
+import { getRaceTraits, getBackgroundSkills, getSpeciesSpellEntries, STANDARD_LANGUAGES } from '@/lib/wizardReference';
 import { useCharacterSheetData } from './useCharacterSheetData';
 
 export default function CharacterSheet() {
@@ -126,8 +126,13 @@ export default function CharacterSheet() {
     };
     // Note: modifiers will be calculated after feature ability increases are applied
 
-    // Get all features
-    const allFeatures = data.features || [];
+    // Features that affect stats: those stored on the character (feats, level-up features) plus the
+    // class/subclass features for the current level, which aren't stored for level-1 characters.
+    const allFeatures = [
+        ...(Array.isArray(data.features) ? data.features : []),
+        ...(classFeaturesList || []).map(f => ({ name: f.name, source: 'Class' })),
+        ...(subclassFeaturesList || []).map(f => ({ name: f.name, source: 'Subclass' })),
+    ];
     
     // Get ability score increases from features
     const featureAbilityIncreases = getAbilityScoreIncreasesFromFeatures(allFeatures);
@@ -176,13 +181,25 @@ export default function CharacterSheet() {
         }
     } else {
         // Unarmored Defense calculations
-        if (acCalculationMethod === 'unarmored-monk' && isUnarmored && !shield) {
+        const unarmoredTraits: string[] = (data.racialTraits && data.racialTraits.length > 0) ? data.racialTraits : (race?.traits || []);
+        const draconicResilience = (data.subclassId === 'draconic') && characterClasses.some((c: any) => c.id === 'sorcerer' && c.level >= 3);
+        if (unarmoredTraits.includes('Natural Armor (Shell)')) {
+            // Tortle shell: base AC 17, Dexterity doesn't apply
+            calculatedAC = 17;
+        } else if (acCalculationMethod === 'unarmored-monk' && isUnarmored && !shield) {
             calculatedAC = 10 + effectiveModifiers.dex + effectiveModifiers.wis;
         } else if (acCalculationMethod === 'unarmored-barbarian' && isUnarmored) {
             calculatedAC = 10 + effectiveModifiers.dex + effectiveModifiers.con;
+        } else if (draconicResilience) {
+            // Draconic Sorcery: 10 + Dex + Cha while not wearing armor
+            calculatedAC = 10 + effectiveModifiers.dex + effectiveModifiers.cha;
         } else {
             // Standard unarmored: 10 + Dex
             calculatedAC = 10 + effectiveModifiers.dex;
+        }
+        if (unarmoredTraits.includes('Natural Armor')) {
+            // Lizardfolk: base AC 13 + Dex if that's better
+            calculatedAC = Math.max(calculatedAC, 13 + effectiveModifiers.dex);
         }
     }
 
@@ -239,13 +256,13 @@ export default function CharacterSheet() {
         { name: 'Survival', stat: 'wis' },
     ];
 
-    const canonTraits = getRaceTraits(character.race);
+    const canonTraits = getRaceTraits(character.race, data.elvenLineage, race, data.speciesLineage);
     const racialTraits = (data.racialTraits && data.racialTraits.length > 0)
         ? data.racialTraits
         : (canonTraits.length > 0 ? canonTraits : (race?.traits || []));
-    const canonSkills = getBackgroundSkills(data.backgroundId);
-    const bgSkills = canonSkills.length > 0 ? canonSkills : (Array.isArray(background?.skillProficiencies) ? background.skillProficiencies : []);
-    const traitSkills = getSkillProficienciesFromTraits(racialTraits);
+    const bgSkills = data.backgroundId ? getBackgroundSkills(data.backgroundId, background) : [];
+    // Characters made before the 2024 update got Perception from Keen Senses automatically.
+    const traitSkills = getSkillProficienciesFromTraits(racialTraits, { legacyKeenSenses: !data.keenSensesChoice });
     const baseSkills = [...bgSkills];
     for (const s of traitSkills) {
         if (!baseSkills.includes(s)) baseSkills.push(s);
@@ -277,6 +294,10 @@ export default function CharacterSheet() {
             };
         })),
         ...(background?.feature ? [{ name: background.feature.name, source: 'Background Feature', description: background.feature.description }] : []),
+        // 2024 backgrounds grant an Origin feat (stored in data.features at creation); show it for older characters too.
+        ...(background?.originFeat && !(data.features || []).some((f: any) => f.featId === background.originFeat)
+            ? [{ name: `Origin Feat: ${String(background.originFeat).split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`, source: 'Background Feature', description: `Your ${background.name} background grants this Origin feat${background.originFeatNote ? ` (${background.originFeatNote})` : ''}.` }]
+            : []),
         ...(classFeaturesList || []).map(f => ({
             name: f.name,
             source: `Class: ${charClass.name}`,
@@ -946,27 +967,11 @@ export default function CharacterSheet() {
                         if (!resources || Object.keys(resources).length === 0) {
                             resources = calculateClassResources(primaryClass, level, abilityScores, data.subclassId);
                             if (Object.keys(resources).length > 0) didChange = true;
-                        } else if (
-                            primaryClass === 'fighter' &&
-                            data.subclassId === 'gunslinger' &&
-                            level >= 3 &&
-                            !resources['Grit Points']
-                        ) {
-                            const withGrit = calculateClassResources(primaryClass, level, abilityScores, data.subclassId);
-                            if (withGrit['Grit Points']) {
-                                resources = { ...resources, 'Grit Points': withGrit['Grit Points'] };
-                                didChange = true;
-                            }
-                        } else if (
-                            primaryClass === 'fighter' &&
-                            (data.subclassId === 'psi_warrior' || data.subclassId === 'psi warrior') &&
-                            level >= 3
-                        ) {
-                            const withPsi = calculateClassResources(primaryClass, level, abilityScores, data.subclassId);
-                            if (withPsi['Psionic Energy Dice'] && !resources['Psionic Energy Dice']) {
-                                resources = { ...resources, 'Psionic Energy Dice': withPsi['Psionic Energy Dice'] };
-                                didChange = true;
-                            }
+                        } else if (data.classResourcesRules !== RESOURCE_RULES_VERSION) {
+                            // One-time migration of resources stored under the 2014 rules
+                            // (e.g. unlimited Rage at 20, Ki Points) to the 2024 tables.
+                            resources = reconcileClassResources(resources, calculateClassResources(primaryClass, level, abilityScores, data.subclassId));
+                            didChange = true;
                         }
                         const needHeroic = hasResourceful(racialTraits);
                         const hadHeroic = !!(resources && (resources as Record<string, unknown>)['Heroic Inspiration']);
@@ -989,8 +994,8 @@ export default function CharacterSheet() {
                         if (didChange && Object.keys(resources).length > 0) {
                             const toPersist = resourcesToShow;
                             setTimeout(() => {
-                                handleUpdateCharacter({ classResources: toPersist });
-                                api.patch(`/characters/${character.id}/data`, { classResources: toPersist })
+                                handleUpdateCharacter({ classResources: toPersist, classResourcesRules: RESOURCE_RULES_VERSION });
+                                api.patch(`/characters/${character.id}/data`, { classResources: toPersist, classResourcesRules: RESOURCE_RULES_VERSION })
                                     .catch((err) => console.error('Failed to persist class resources', err));
                             }, 0);
                         }
@@ -1224,7 +1229,8 @@ export default function CharacterSheet() {
                 const primaryLevel = characterClasses[0]?.level ?? level;
                 const subclassGrantsSpellcasting = subclass?.spellcasting && primaryLevel >= 3
                     && ['arcane_trickster', 'eldritch_knight'].includes(subclassId);
-                const hasElvenLineageSpells = (character.race || '').toLowerCase() === 'elf' && !!data.elvenLineage;
+                const speciesSpells = getSpeciesSpellEntries(character.race, data.speciesLineage || data.elvenLineage);
+                const hasElvenLineageSpells = speciesSpells.length > 0;
                 const hasMagicInitiateFeat = (data.features || []).some((f: any) => (f.name || '').toLowerCase() === 'magic initiate');
                 const hasSpellcasting = hasBaseSpellcasting || subclassGrantsSpellcasting || hasElvenLineageSpells || hasMagicInitiateFeat;
 
@@ -1236,7 +1242,8 @@ export default function CharacterSheet() {
                         ...c,
                         classInfo: (gameData.classes || []).find((gc: any) => (gc.id || '').toLowerCase() === (c.id || '').toLowerCase())
                     }))
-                    .filter(c => c.classInfo?.spellcaster && c.id.toLowerCase() !== 'warlock')
+                    // Warlock Pact Magic doesn't combine with other classes' slots; a single-class Warlock casts normally.
+                    .filter(c => c.classInfo?.spellcaster && (c.id.toLowerCase() !== 'warlock' || characterClasses.length === 1))
                     .sort((a, b) => b.level - a.level);
 
                 let primarySpellcastingClass = spellcastingClasses[0];
@@ -1311,6 +1318,8 @@ export default function CharacterSheet() {
                                 level={level}
                                 subclassSpellcasting={subclassSpellcasting}
                                 elvenLineage={(character.race || '').toLowerCase() === 'elf' ? data.elvenLineage : undefined}
+                                speciesSpells={speciesSpells}
+                                subclassSpells={subclass?.spells}
                                 subclassId={primarySpellcastingClass.id !== 'innate' && primarySpellcastingClass.id !== 'magic_initiate' ? (data.subclassId || '').toLowerCase().replace(/\s+/g, '_') : undefined}
                                 subclassClassLevel={primarySpellcastingClass?.level ?? level}
                                 magicInitiate={hasMagicInitiateFeat ? data.magicInitiate : undefined}

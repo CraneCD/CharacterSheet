@@ -7,11 +7,24 @@ import StepAbilities from './StepAbilities';
 import StepDetails from './StepDetails';
 import StepStartingEquipment from './StepStartingEquipment';
 import StepReview from './StepReview';
-import { Race, ClassInfo, Subclass, CharacterItem } from '@/lib/types';
-import { calculateClassResources, mergeHeroicInspiration } from '@/lib/classResources';
-import { hasDwarvenToughness, hasResourceful, hasSkillful, hasVersatile, getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
-import { getRaceTraits, getBackgroundAsi, getBackgroundSkills, getRaceLanguages, getRaceLanguageChoices, getBackgroundLanguageChoices } from '@/lib/wizardReference';
-import { splitEquipmentChoice, itemNameToCharacterItem } from '@/lib/equipmentMapping';
+import { Race, ClassInfo, Subclass, CharacterItem, Background } from '@/lib/types';
+import { calculateClassResources, mergeHeroicInspiration, RESOURCE_RULES_VERSION } from '@/lib/classResources';
+import { hasDwarvenToughness, hasResourceful, hasSkillful, hasVersatile, hasKeenSensesChoice, getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
+import { getRaceTraits, getBackgroundSkills, getBackgroundAbilityOptions, isValidBackgroundAsi, getRaceLanguages, getRaceLanguageChoices } from '@/lib/wizardReference';
+import { splitEquipmentChoice, itemNameToCharacterItem, parseCurrency } from '@/lib/equipmentMapping';
+
+type Currency = { cp?: number; sp?: number; ep?: number; gp?: number; pp?: number };
+
+const ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const;
+
+/** Apply 2024 background increases (a score can't go above 20). */
+export function applyBackgroundAsi(scores: Record<string, number>, asi: Record<string, number>): Record<string, number> {
+    const out = { ...scores };
+    for (const [abil, inc] of Object.entries(asi || {})) {
+        out[abil] = Math.min(20, (out[abil] ?? 10) + (inc || 0));
+    }
+    return out;
+}
 
 export default function WizardContainer() {
     const router = useRouter();
@@ -24,20 +37,26 @@ export default function WizardContainer() {
         name: '',
         alignment: '',
         backgroundId: '',
+        backgroundAsi: {} as Record<string, number>,
         skillfulChoice: '' as string,
         versatileFeatId: '' as string,
         elvenLineageChoice: '' as string,
+        speciesLineageChoice: '' as string,
+        sizeChoice: '' as string,
+        keenSensesChoice: '' as string,
         startingEquipmentChoices: [] as string[],
+        backgroundEquipmentChoices: [] as string[],
         expertiseChoices: [] as string[],
         classSkillChoices: [] as string[],
         languageChoices: [] as string[]
     });
 
-    // We store full objects for race/class to display names in Review without refetching
+    // We store full objects for race/class/background to display names in Review without refetching
     const [selectedRace, setSelectedRace] = useState<Race | null>(null);
     const [selectedClass, setSelectedClass] = useState<ClassInfo | null>(null);
     const [selectedSubclass, setSelectedSubclass] = useState<Subclass | null>(null);
     const [selectedFightingStyle, setSelectedFightingStyle] = useState<string | null>(null);
+    const [selectedBackground, setSelectedBackground] = useState<Background | null>(null);
 
     const handleNext = () => setStep(step + 1);
     const handleBack = () => setStep(step - 1);
@@ -47,132 +66,137 @@ export default function WizardContainer() {
         }
     };
 
+    const lineageId = formData.raceId === 'elf' ? formData.elvenLineageChoice : formData.speciesLineageChoice;
+    const currentRaceTraits = () => getRaceTraits(formData.raceId, formData.elvenLineageChoice, selectedRace, formData.speciesLineageChoice);
+    const finalScores = applyBackgroundAsi(formData.abilityScores, formData.backgroundAsi);
+
     const handleCreate = async () => {
         setLoading(true);
         try {
-            // 5.5e: backgrounds grant ASI, skills, etc.; races grant traits only (no ASI).
-            // Prefer wizard reference (canonical) over API so create is correct even if API is stale.
-            const baseScores = { ...formData.abilityScores };
-            let bgFromApi: { abilityScoreIncrease?: Record<string, number>; skillProficiencies?: string[]; equipment?: string[] } | null = null;
+            // 2024: backgrounds grant ability increases, skills, a tool, an Origin feat and equipment;
+            // species grant traits only. The API records are the source of truth.
             let baseItems: { name: string; category: string; type?: string; armorMethod?: string; baseAC?: number; damage?: string; damageType?: string; properties?: string[] }[] = [];
+            let feats: { id: string; name: string; description: string; category?: string }[] = [];
             try {
-                const [bgs, items] = await Promise.all([
-                    api.get('/reference/backgrounds') as Promise<any[]>,
-                    api.get('/reference/base-items') as Promise<any[]>
+                const [items, featList] = await Promise.all([
+                    api.get('/reference/base-items') as Promise<any[]>,
+                    api.get('/reference/feats') as Promise<any[]>
                 ]);
-                const bid = (formData.backgroundId || '').toLowerCase();
-                const b = bgs.find((x: any) => (x.id || '').toLowerCase() === bid);
-                if (b) bgFromApi = b;
                 baseItems = items ?? [];
+                feats = featList ?? [];
             } catch (e) {
-                console.warn('Failed to fetch backgrounds/base-items', e);
+                console.warn('Failed to fetch base-items/feats', e);
             }
-            const asi = getBackgroundAsi(formData.backgroundId) || bgFromApi?.abilityScoreIncrease || {};
-            for (const [abil, inc] of Object.entries(asi)) {
-                const k = abil as keyof typeof baseScores;
-                baseScores[k] = (baseScores[k] ?? 10) + (inc as number);
-            }
-            const bgSkills = getBackgroundSkills(formData.backgroundId).length > 0
-                ? getBackgroundSkills(formData.backgroundId)
-                : (bgFromApi?.skillProficiencies ?? []);
-            const raceTraits = getRaceTraits(formData.raceId, formData.elvenLineageChoice).length > 0
-                ? getRaceTraits(formData.raceId, formData.elvenLineageChoice)
-                : (selectedRace?.traits ?? []);
+            const baseScores = applyBackgroundAsi(formData.abilityScores, formData.backgroundAsi);
+            const bgSkills = getBackgroundSkills(formData.backgroundId, selectedBackground);
+            const raceTraits = currentRaceTraits();
 
-            let classResources = selectedClass 
+            let classResources = selectedClass
                 ? calculateClassResources(selectedClass.id, 1, baseScores, selectedSubclass?.id)
                 : {};
             classResources = mergeHeroicInspiration(classResources, hasResourceful(raceTraits));
 
+            const features: { name: string; description: string; source: string; featId?: string; level?: number }[] = [];
+            const featById = (id: string) => feats.find((f: any) => (f.id || '').toLowerCase() === (id || '').toLowerCase());
+            const originFeatId = selectedBackground?.originFeat;
+            if (originFeatId) {
+                const feat = featById(originFeatId);
+                features.push({
+                    name: feat?.name ?? originFeatId,
+                    description: feat?.description ?? '',
+                    source: `Background: ${selectedBackground?.name ?? formData.backgroundId} (Origin Feat)`,
+                    featId: originFeatId,
+                    level: 1
+                });
+            }
+            if (hasVersatile(raceTraits) && formData.versatileFeatId) {
+                const feat = featById(formData.versatileFeatId);
+                if (feat) {
+                    features.push({
+                        name: feat.name,
+                        description: feat.description,
+                        source: 'Racial Trait (Versatile)',
+                        featId: feat.id,
+                        level: 1
+                    });
+                }
+            }
+            const featIds = features.map(f => f.featId);
+
+            // Level 1 HP: max hit die + Con modifier (+1 Dwarven Toughness, +2 Tough)
             const hitDie = selectedClass?.hitDie ?? 8;
-            const dwarvenToughness = selectedRace && hasDwarvenToughness(raceTraits);
-            const maxHp = hitDie + (dwarvenToughness ? 1 : 0);
+            const conMod = Math.floor(((baseScores.con ?? 10) - 10) / 2);
+            const maxHp = Math.max(1, hitDie + conMod + (hasDwarvenToughness(raceTraits) ? 1 : 0) + (featIds.includes('tough') ? 2 : 0));
 
             const skills = [...bgSkills];
-            for (const s of (formData.classSkillChoices || []).filter(Boolean)) {
-                if (!skills.includes(s)) skills.push(s);
-            }
-            if (hasSkillful(raceTraits) && formData.skillfulChoice) {
-                if (!skills.includes(formData.skillfulChoice)) skills.push(formData.skillfulChoice);
-            }
-
-            const features: { name: string; description: string; source: string }[] = [];
-            if (hasVersatile(raceTraits) && formData.versatileFeatId) {
-                try {
-                    const feats = await api.get('/reference/feats') as { id: string; name: string; description: string }[];
-                    const feat = feats.find((f: any) => (f.id || '').toLowerCase() === (formData.versatileFeatId || '').toLowerCase());
-                    if (feat) {
-                        features.push({
-                            name: feat.name,
-                            description: feat.description,
-                            source: 'Racial Trait (Versatile)'
-                        });
-                    }
-                } catch (e) {
-                    console.warn('Failed to fetch feat for Versatile', e);
-                }
-            }
+            const addSkill = (s?: string) => { if (s && !skills.includes(s)) skills.push(s); };
+            for (const s of (formData.classSkillChoices || []).filter(Boolean)) addSkill(s);
+            if (hasSkillful(raceTraits)) addSkill(formData.skillfulChoice);
+            if (hasKeenSensesChoice(raceTraits)) addSkill(formData.keenSensesChoice);
 
             const equipment: CharacterItem[] = [];
-            const currency: { cp?: number; sp?: number; ep?: number; gp?: number; pp?: number } = {};
-
-            const bgEquipment = bgFromApi?.equipment ?? [];
-            const currencyRe = /^\s*(\d+)\s*(gp|sp|cp|ep|pp)\s*$/i;
-            for (const entry of bgEquipment) {
-                const m = entry.match(currencyRe);
-                if (m) {
-                    const amt = parseInt(m[1], 10);
-                    const key = m[2].toLowerCase() as 'gp' | 'sp' | 'cp' | 'ep' | 'pp';
-                    currency[key] = (currency[key] ?? 0) + amt;
-                } else {
-                    equipment.push(itemNameToCharacterItem(entry, baseItems));
+            const currency: Currency = {};
+            const addChoice = (choice: string) => {
+                for (const part of splitEquipmentChoice(choice.trim())) {
+                    if (!part) continue;
+                    const money = parseCurrency(part);
+                    if (money) {
+                        currency[money.key] = (currency[money.key] ?? 0) + money.amount;
+                    } else {
+                        equipment.push(itemNameToCharacterItem(part, baseItems));
+                    }
                 }
-            }
-
-            for (const choice of formData.startingEquipmentChoices ?? []) {
-                if (!choice?.trim()) continue;
-                const parts = splitEquipmentChoice(choice.trim());
-                for (const part of parts) {
-                    if (part) equipment.push(itemNameToCharacterItem(part, baseItems));
-                }
+            };
+            for (const choice of [...(formData.startingEquipmentChoices ?? []), ...(formData.backgroundEquipmentChoices ?? [])]) {
+                if (choice?.trim()) addChoice(choice);
             }
 
             const expertise = (formData.expertiseChoices || []).filter((s: string) => s?.trim()) as string[];
-            
-            // Calculate languages: race languages + choices
-            const raceLangs = getRaceLanguages(formData.raceId);
-            const langChoices = (formData.languageChoices || []).filter((s: string) => s?.trim()) as string[];
-            const languages = [...raceLangs];
-            for (const lang of langChoices) {
+
+            // 2024: Common + two chosen languages
+            const languages = [...getRaceLanguages(formData.raceId)];
+            for (const lang of (formData.languageChoices || []).filter((s: string) => s?.trim())) {
                 if (!languages.includes(lang)) languages.push(lang);
             }
-            
+
+            const toolProficiencies = [
+                ...(selectedClass?.toolProficiencies ?? []),
+                ...(selectedBackground?.toolProficiencies ?? [])
+            ];
+
             const data: any = {
                 abilityScores: baseScores,
                 backgroundId: formData.backgroundId,
+                backgroundAsi: formData.backgroundAsi,
                 alignment: formData.alignment,
                 skills,
                 racialTraits: raceTraits,
-                ...(formData.elvenLineageChoice ? { elvenLineage: formData.elvenLineageChoice } : {}),
+                ...(formData.elvenLineageChoice && formData.raceId === 'elf' ? { elvenLineage: formData.elvenLineageChoice } : {}),
+                ...(lineageId ? { speciesLineage: lineageId } : {}),
+                ...(formData.sizeChoice ? { size: formData.sizeChoice } : {}),
+                ...(formData.keenSensesChoice && hasKeenSensesChoice(raceTraits) ? { keenSensesChoice: formData.keenSensesChoice } : {}),
                 ...(formData.elvenLineageChoice === 'wood_elf' ? { speed: 35 } : {}),
+                ...(toolProficiencies.length > 0 ? { toolProficiencies } : {}),
                 features,
                 hp: { current: maxHp, max: maxHp, temp: 0 },
-                hitDice: { 
-                    total: 1, 
-                    spent: 0, 
-                    dieType: hitDie 
+                hitDice: {
+                    total: 1,
+                    spent: 0,
+                    dieType: hitDie
                 },
                 classResources,
+                classResourcesRules: RESOURCE_RULES_VERSION,
                 equipment
             };
-            if (expertise.length > 0) {
-                data.expertise = expertise;
-            }
-            if (languages.length > 0) {
-                data.languages = languages;
-            }
-            if (Object.keys(currency).length > 0) {
-                data.currency = currency;
+            if (expertise.length > 0) data.expertise = expertise;
+            if (languages.length > 0) data.languages = languages;
+            if (Object.keys(currency).length > 0) data.currency = currency;
+            // Magic Initiate from a background (Acolyte, Sage, Guide) fixes its spell list; spells are picked on the sheet.
+            if (originFeatId === 'magic-initiate' && selectedBackground?.originFeatNote) {
+                const miClass = selectedBackground.originFeatNote.toLowerCase();
+                if (['cleric', 'druid', 'wizard'].includes(miClass)) {
+                    data.magicInitiate = { class: miClass, ability: miClass === 'wizard' ? 'int' : 'wis', cantrips: [], spell1: null };
+                }
             }
 
             if (selectedSubclass) {
@@ -210,19 +234,31 @@ export default function WizardContainer() {
                 if (selectedClass && selectedClass.subclassLevel === 1 && !selectedSubclass) return false;
                 if (formData.classId === 'fighter' && !selectedFightingStyle) return false;
                 return true;
-            case 3: return true; // Abilities always have defaults
-            case 4: return !!formData.name && !!formData.backgroundId && !!formData.alignment;
+            case 3: return ABILITIES.every(a => (formData.abilityScores[a] ?? 0) > 0);
+            case 4: {
+                if (!formData.name || !formData.backgroundId || !formData.alignment) return false;
+                const options = getBackgroundAbilityOptions(formData.backgroundId, selectedBackground);
+                return options.length !== 3 || isValidBackgroundAsi(formData.backgroundAsi, options);
+            }
             case 5: {
                 const lines = selectedClass?.startingEquipment ?? [];
                 const choices = formData.startingEquipmentChoices ?? [];
                 for (let i = 0; i < lines.length; i++) {
                     if (!(choices[i] ?? '').trim()) return false;
                 }
+                const bgLines = selectedBackground?.startingEquipment ?? [];
+                const bgChoices = formData.backgroundEquipmentChoices ?? [];
+                for (let i = 0; i < bgLines.length; i++) {
+                    if (!(bgChoices[i] ?? '').trim()) return false;
+                }
                 return true;
             }
             case 6: {
-                const rt = getRaceTraits(formData.raceId, formData.elvenLineageChoice).length > 0 ? getRaceTraits(formData.raceId, formData.elvenLineageChoice) : (selectedRace?.traits ?? []);
+                const rt = currentRaceTraits();
+                if (selectedRace?.lineageOptions && !lineageId) return false;
                 if (formData.raceId === 'elf' && !formData.elvenLineageChoice) return false;
+                if ((selectedRace?.size || '').toLowerCase().includes(' or ') && !formData.sizeChoice) return false;
+                if (hasKeenSensesChoice(rt) && !formData.keenSensesChoice) return false;
                 if (hasSkillful(rt) && !formData.skillfulChoice) return false;
                 if (hasVersatile(rt) && !formData.versatileFeatId) return false;
                 const classSkillCount = selectedClass?.skillChoices ?? 0;
@@ -234,9 +270,7 @@ export default function WizardContainer() {
                     const expertiseChoices = (formData.expertiseChoices || []) as string[];
                     if (expertiseChoices.filter((s: string) => s?.trim()).length !== 2) return false;
                 }
-                const raceLangChoices = getRaceLanguageChoices(formData.raceId);
-                const bgLangChoices = getBackgroundLanguageChoices(formData.backgroundId);
-                const totalLangChoices = raceLangChoices + bgLangChoices;
+                const totalLangChoices = getRaceLanguageChoices(formData.raceId);
                 if (totalLangChoices > 0) {
                     const languageChoices = (formData.languageChoices || []) as string[];
                     if (languageChoices.filter((s: string) => s?.trim()).length !== totalLangChoices) return false;
@@ -290,6 +324,9 @@ export default function WizardContainer() {
                                 ...formData,
                                 raceId: race.id,
                                 elvenLineageChoice: race.id === 'elf' ? formData.elvenLineageChoice : '',
+                                speciesLineageChoice: '',
+                                sizeChoice: (race.size || '').toLowerCase().includes(' or ') ? '' : race.size,
+                                keenSensesChoice: '',
                                 skillfulChoice: '',
                                 versatileFeatId: '',
                                 expertiseChoices: [],
@@ -330,12 +367,13 @@ export default function WizardContainer() {
                 )}
                 {step === 4 && (
                     <StepDetails
-                        data={{ name: formData.name, backgroundId: formData.backgroundId, alignment: formData.alignment }}
+                        data={{ name: formData.name, backgroundId: formData.backgroundId, alignment: formData.alignment, backgroundAsi: formData.backgroundAsi }}
+                        onBackgroundLoaded={setSelectedBackground}
                         onUpdate={(updates) => {
                             const newFormData = { ...formData, ...updates };
-                            // Reset language choices if background changed
-                            if (updates.backgroundId && updates.backgroundId !== formData.backgroundId) {
-                                newFormData.languageChoices = [];
+                            if (updates.backgroundId !== undefined && updates.backgroundId !== formData.backgroundId) {
+                                newFormData.backgroundEquipmentChoices = [];
+                                newFormData.versatileFeatId = '';
                             }
                             setFormData(newFormData);
                         }}
@@ -344,24 +382,23 @@ export default function WizardContainer() {
                 {step === 5 && (
                     <StepStartingEquipment
                         selectedClass={selectedClass}
+                        selectedBackground={selectedBackground}
                         choices={formData.startingEquipmentChoices ?? []}
                         onChange={(choices) => setFormData({ ...formData, startingEquipmentChoices: choices })}
+                        backgroundChoices={formData.backgroundEquipmentChoices ?? []}
+                        onBackgroundChange={(choices) => setFormData({ ...formData, backgroundEquipmentChoices: choices })}
                     />
                 )}
                 {step === 6 && (() => {
-                    const rt = getRaceTraits(formData.raceId, formData.elvenLineageChoice).length > 0 ? getRaceTraits(formData.raceId, formData.elvenLineageChoice) : (selectedRace?.traits ?? []);
-                    const bgSkills = getBackgroundSkills(formData.backgroundId);
+                    const rt = currentRaceTraits();
+                    const bgSkills = getBackgroundSkills(formData.backgroundId, selectedBackground);
                     const traitSkills = getSkillProficienciesFromTraits(rt);
                     const proficientSkills = [...bgSkills];
-                    for (const s of traitSkills) {
-                        if (!proficientSkills.includes(s)) proficientSkills.push(s);
-                    }
-                    for (const s of (formData.classSkillChoices || []).filter(Boolean)) {
-                        if (!proficientSkills.includes(s)) proficientSkills.push(s);
-                    }
-                    if (hasSkillful(rt) && formData.skillfulChoice && !proficientSkills.includes(formData.skillfulChoice)) {
-                        proficientSkills.push(formData.skillfulChoice);
-                    }
+                    const add = (s?: string) => { if (s && !proficientSkills.includes(s)) proficientSkills.push(s); };
+                    traitSkills.forEach(add);
+                    (formData.classSkillChoices || []).filter(Boolean).forEach(add);
+                    if (hasSkillful(rt)) add(formData.skillfulChoice);
+                    if (hasKeenSensesChoice(rt)) add(formData.keenSensesChoice);
                     return (
                         <StepReview
                             data={formData}
@@ -376,13 +413,16 @@ export default function WizardContainer() {
                             backgroundId={formData.backgroundId}
                             classSkillChoicesCount={selectedClass?.skillChoices ?? 0}
                             classSkillOptions={selectedClass?.skillOptions ?? []}
+                            race={selectedRace}
+                            background={selectedBackground}
+                            finalScores={finalScores}
                         />
                     );
                 })()}
             </div>
 
             {/* Navigation Actions - Fixed at Bottom */}
-            <div style={{ 
+            <div style={{
                 position: 'fixed',
                 bottom: 0,
                 left: 0,
@@ -395,10 +435,10 @@ export default function WizardContainer() {
                 zIndex: 1000,
                 boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.1)'
             }}>
-                <div style={{ 
-                    maxWidth: '800px', 
-                    width: '100%', 
-                    display: 'flex', 
+                <div style={{
+                    maxWidth: '800px',
+                    width: '100%',
+                    display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center'
                 }}>
@@ -406,7 +446,7 @@ export default function WizardContainer() {
                         className="button secondary"
                         onClick={handleBack}
                         disabled={step === 1 || loading}
-                        style={{ 
+                        style={{
                             visibility: step === 1 ? 'hidden' : 'visible',
                             padding: '0.75rem 1.5rem',
                             fontSize: '1rem'
@@ -418,6 +458,7 @@ export default function WizardContainer() {
                     {step < 6 ? (
                         <button
                             className="button primary"
+                            data-testid="wizard-next"
                             onClick={handleNext}
                             disabled={!isStepValid()}
                             style={{
@@ -430,8 +471,9 @@ export default function WizardContainer() {
                     ) : (
                         <button
                             className="button primary"
+                            data-testid="wizard-create"
                             onClick={handleCreate}
-                            disabled={loading}
+                            disabled={loading || !isStepValid()}
                             style={{
                                 padding: '0.75rem 1.5rem',
                                 fontSize: '1rem'

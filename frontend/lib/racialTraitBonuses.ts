@@ -5,7 +5,12 @@
 
 /** Trait name → fixed skill proficiencies granted. */
 const TRAIT_SKILLS: Record<string, string[]> = {
-    'Keen Senses': ['Perception'],
+    // 2024 Elf "Keen Senses" is a choice (Insight, Perception, or Survival) stored in the
+    // character's skills; the Monsters of the Multiverse elves keep a fixed Perception.
+    'Keen Senses (Perception)': ['Perception'],
+    'Leporine Senses': ['Perception'],
+    'Silent Feathers': ['Stealth'],
+    'Sneaky': ['Stealth'],
     'Menacing': ['Intimidation'],
     'Natural Athlete': ['Athletics'],
     'Reveler': ['Performance', 'Persuasion'],
@@ -19,12 +24,16 @@ const TRAIT_SKILLS: Record<string, string[]> = {
  * Return skill proficiencies granted by these trait names (fixed only).
  * Does not include "choose one" / "choose two" traits.
  */
-export function getSkillProficienciesFromTraits(traitNames: string[]): string[] {
+export function getSkillProficienciesFromTraits(traitNames: string[], opts?: { legacyKeenSenses?: boolean }): string[] {
     const out: string[] = [];
     const seen = new Set<string>();
     for (const t of traitNames) {
-        const key = t.split('(')[0].trim();
-        const skills = TRAIT_SKILLS[key];
+        // Characters created before the 2024 update got Perception from Keen Senses automatically.
+        if (t === 'Keen Senses' && opts?.legacyKeenSenses) {
+            if (!seen.has('Perception')) { seen.add('Perception'); out.push('Perception'); }
+            continue;
+        }
+        const skills = TRAIT_SKILLS[t.trim()] ?? TRAIT_SKILLS[t.split('(')[0].trim()];
         if (skills) {
             for (const s of skills) {
                 if (!seen.has(s)) {
@@ -59,4 +68,9 @@ export function hasSkillful(traitNames: string[]): boolean {
 
 export function hasVersatile(traitNames: string[]): boolean {
     return traitNames.some(t => t.split('(')[0].trim() === 'Versatile');
+}
+
+/** 2024 Elf Keen Senses: proficiency in Insight, Perception, or Survival (player's choice). */
+export function hasKeenSensesChoice(traitNames: string[]): boolean {
+    return traitNames.some(t => t.trim() === 'Keen Senses');
 }
