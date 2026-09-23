@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
+import { describeError, useToast } from '@/app/components/ui';
 
 const MAX_SIZE = 256;
 const MAX_FILE_MB = 5;
@@ -49,17 +50,18 @@ interface PortraitUploadProps {
 }
 
 export default function PortraitUpload({ portrait, onUpdate, disabled }: PortraitUploadProps) {
+    const toast = useToast();
     const inputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
         if (file.size > MAX_FILE_MB * 1024 * 1024) {
-            alert(`Image must be under ${MAX_FILE_MB} MB`);
+            toast.error(`Image must be under ${MAX_FILE_MB} MB`);
             return;
         }
         if (!file.type.startsWith('image/')) {
-            alert('Please upload an image (JPEG, PNG, etc.)');
+            toast.error('Please upload an image (JPEG, PNG, etc.)');
             return;
         }
         try {
@@ -67,7 +69,7 @@ export default function PortraitUpload({ portrait, onUpdate, disabled }: Portrai
             onUpdate(dataUrl);
         } catch (err) {
             console.error(err);
-            alert('Failed to process image');
+            toast.error(describeError("Couldn't process image", err));
         }
         e.target.value = '';
     };
@@ -119,7 +121,7 @@ export default function PortraitUpload({ portrait, onUpdate, disabled }: Portrai
             {portrait && !disabled && (
                 <button
                     type="button"
-                    className="button secondary"
+                    className="btn btn-secondary"
                     onClick={(e) => {
                         e.stopPropagation();
                         handleRemove();

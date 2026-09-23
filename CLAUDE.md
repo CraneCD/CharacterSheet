@@ -51,7 +51,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001/api
 
 **Full-stack D&D 5.5e (One D&D) character sheet and campaign manager.**
 
-- **Frontend:** Next.js 16 (App Router), React 18, TypeScript, CSS Modules. Deployed to Vercel.
+- **Frontend:** Next.js 16 (App Router), React 18, TypeScript, global CSS with design tokens (`app/globals.css`) plus inline styles (being migrated to shared components). Deployed to Vercel.
 - **Backend:** Express + TypeScript, Prisma ORM, PostgreSQL. Deployed to Render.
 - **Database:** PostgreSQL. Character data stored as a flexible JSON blob in `Character.data` — avoiding rigid schema migrations for MVP iteration.
 
@@ -63,9 +63,18 @@ JWT-based. The backend signs tokens (1-day expiry) with `JWT_SECRET`. The fronte
 
 All API calls go through the centralized client in `frontend/lib/api.ts` (methods: `get`, `post`, `put`, `patch`, `delete`). The base URL is resolved from `NEXT_PUBLIC_API_URL` or falls back to `http://localhost:3001/api`. There is no Redux or Zustand — state is managed with component-level React hooks.
 
+API errors are thrown as `ApiError` (`status` + the server's `error` text as `message`), readable enough to show to users.
+
+### UI Conventions
+
+- **Tokens:** colors, spacing, radius, type scale and shadows are CSS variables in `frontend/app/globals.css`. Use them (`var(--surface)`, `var(--space-4)`, ...) instead of literal values; colors are redefined for the light theme and for print, so hardcoded colors break those.
+- **Shared components** live in `frontend/app/components/ui` (import from `@/app/components/ui`): `Button`/`buttonClass` (the only button styles: `.btn` + `btn-secondary|ghost|danger`, `btn-sm|lg`), `Modal` (focus trap, Escape, labelled dialog — don't hand-roll `.modal-overlay`), `ConfirmDialog`, `Field`/`TextField`, `Stat`/`EditableStat`, `Skeleton`, `SectionHeader`.
+- **Feedback:** never use `alert()`/`confirm()`. Use `useToast()` for messages and `ConfirmDialog` for confirmations. Saves should be optimistic with rollback: `useOptimisticSave()`, or `persistData()` from `useCharacterSheetData` on the sheet. Failed saves must tell the user (`describeError(message, err)`), not just `console.error`.
+- **Theme:** dark by default, light follows the OS or the nav toggle (`data-theme` on `<html>`, see `frontend/lib/theme.ts`).
+
 ### Route Protection
 
-`frontend/app/layout.tsx` wraps the app in an `AuthGuard` component that checks the stored token and redirects unauthenticated users to `/login` for protected routes.
+`frontend/app/layout.tsx` wraps the app in `ToastProvider` → `AuthGuard` → `AppShell`. `AuthGuard` checks the stored token and redirects unauthenticated users to `/login` for protected routes; `AppShell` renders the main nav on those routes.
 
 ### Backend API Structure
 

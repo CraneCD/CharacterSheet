@@ -15,7 +15,7 @@ export default function Error({
     }, [error]);
 
     return (
-        <div className="container" style={{ padding: '2rem', textAlign: 'center' }}>
+        <div style={{ padding: '2rem 0', textAlign: 'center' }}>
             <h2 className="heading" style={{ marginBottom: '1rem' }}>Something went wrong</h2>
             <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>
                 An error occurred while loading the character sheet.
@@ -36,10 +36,10 @@ export default function Error({
                 </pre>
             )}
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button className="button primary" onClick={() => reset()}>
+                <button className="btn" onClick={() => reset()}>
                     Try again
                 </button>
-                <Link href="/dashboard" className="button secondary" style={{ textDecoration: 'none' }}>
+                <Link href="/dashboard" className="btn btn-secondary" style={{ textDecoration: 'none' }}>
                     Back to Dashboard
                 </Link>
             </div>

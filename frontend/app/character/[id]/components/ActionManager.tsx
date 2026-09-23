@@ -4,6 +4,7 @@ import { useState, useEffect, memo } from 'react';
 import { api } from '@/lib/api';
 import { CharacterAction, CharacterData } from '@/lib/types';
 import { liveSpellAction, SpellActionSource } from '@/lib/spellActions';
+import { describeError, useToast } from '@/app/components/ui';
 
 interface ActionManagerProps {
     characterId: string;
@@ -14,6 +15,7 @@ interface ActionManagerProps {
 }
 
 function ActionManager({ characterId, initialActions, onUpdate, featureActions = [] }: ActionManagerProps) {
+    const toast = useToast();
     const safeActions = Array.isArray(initialActions) ? initialActions : [];
     const safeFeatureActions = Array.isArray(featureActions) ? featureActions : [];
     const [actions, setActions] = useState<CharacterAction[]>(safeActions);
@@ -44,7 +46,7 @@ function ActionManager({ characterId, initialActions, onUpdate, featureActions =
         if (!newItem.name?.trim() || !newItem.description?.trim()) return;
         const newName = newItem.name.trim().toLowerCase();
         if ((actions || []).some(a => (a.name || '').trim().toLowerCase() === newName)) {
-            alert(`You already have an action named "${newItem.name.trim()}".`);
+            toast.error(`You already have an action named "${newItem.name.trim()}".`);
             return;
         }
 
@@ -67,7 +69,7 @@ function ActionManager({ characterId, initialActions, onUpdate, featureActions =
             setIsAdding(false);
         } catch (err) {
             console.error('Failed to add action', err);
-            alert('Failed to add action');
+            toast.error(describeError("Couldn't add action", err));
         }
     };
 
@@ -82,7 +84,7 @@ function ActionManager({ characterId, initialActions, onUpdate, featureActions =
             onUpdate({ actions: newActions });
         } catch (err) {
             console.error('Failed to remove action', err);
-            alert('Failed to remove action');
+            toast.error(describeError("Couldn't remove action", err));
         }
     };
 
@@ -112,7 +114,7 @@ function ActionManager({ characterId, initialActions, onUpdate, featureActions =
                                     <div style={{ fontWeight: 'bold' }}>{action.name}</div>
                                     {!isFeature && originalIndex >= 0 && (
                                         <button
-                                            className="button plain"
+                                            className="btn btn-ghost"
                                             style={{ color: 'var(--text-muted)', fontSize: '1.25rem', lineHeight: 1, padding: '0 0.25rem' }}
                                             onClick={() => handleRemove(originalIndex)}
                                             title="Remove"
@@ -137,7 +139,7 @@ function ActionManager({ characterId, initialActions, onUpdate, featureActions =
             <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                 Actions & Bonus Actions
                 <button
-                    className="button primary"
+                    className="btn"
                     style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
                     onClick={() => setIsAdding(true)}
                 >
@@ -176,8 +178,8 @@ function ActionManager({ characterId, initialActions, onUpdate, featureActions =
                         />
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="button primary" onClick={handleAdd}>Add</button>
-                        <button className="button secondary" onClick={() => setIsAdding(false)}>Cancel</button>
+                        <button className="btn" onClick={handleAdd}>Add</button>
+                        <button className="btn btn-secondary" onClick={() => setIsAdding(false)}>Cancel</button>
                     </div>
                 </div>
             )}
@@ -214,7 +216,7 @@ function ActionManager({ characterId, initialActions, onUpdate, featureActions =
                         flexShrink: 0
                     }}>
                         <button
-                            className="button secondary"
+                            className="btn btn-secondary"
                             onClick={() => setIsExpanded(!isExpanded)}
                             style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
                         >

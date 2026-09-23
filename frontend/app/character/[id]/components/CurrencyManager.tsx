@@ -21,11 +21,11 @@ function CurrencyManager({ characterId, initialCurrency, onUpdate }: CurrencyMan
     }, [initialCurrency]);
 
     const currencyTypes = [
-        { key: 'pp', label: 'Platinum', short: 'pp', color: '#E5E4E2' },
-        { key: 'gp', label: 'Gold', short: 'gp', color: '#FFD700' },
-        { key: 'ep', label: 'Electrum', short: 'ep', color: '#C9B037' },
-        { key: 'sp', label: 'Silver', short: 'sp', color: '#C0C0C0' },
-        { key: 'cp', label: 'Copper', short: 'cp', color: '#B87333' }
+        { key: 'pp', label: 'Platinum', short: 'pp', color: 'var(--coin-pp)' },
+        { key: 'gp', label: 'Gold', short: 'gp', color: 'var(--coin-gp)' },
+        { key: 'ep', label: 'Electrum', short: 'ep', color: 'var(--coin-ep)' },
+        { key: 'sp', label: 'Silver', short: 'sp', color: 'var(--coin-sp)' },
+        { key: 'cp', label: 'Copper', short: 'cp', color: 'var(--coin-cp)' }
     ];
 
     const handleCurrencyChange = async (type: keyof Currency, value: number) => {

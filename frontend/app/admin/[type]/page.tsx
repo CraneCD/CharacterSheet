@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { REFERENCE_TYPES, TYPE_LABELS, ReferenceType } from '@/lib/adminReference';
+import { ConfirmDialog, describeError, useToast } from '@/app/components/ui';
 
 interface Row {
     key: string;
@@ -31,6 +32,8 @@ export default function ReferenceTypeList() {
     const [error, setError] = useState('');
     const [search, setSearch] = useState('');
     const [rowToDelete, setRowToDelete] = useState<Row | null>(null);
+    const [deleting, setDeleting] = useState(false);
+    const toast = useToast();
 
     useEffect(() => {
         if (!isValidType(type)) return;
@@ -49,13 +52,17 @@ export default function ReferenceTypeList() {
 
     const handleDelete = async () => {
         if (!rowToDelete || !isValidType(type)) return;
+        setDeleting(true);
         try {
             await api.delete(`/admin/reference/${type}/${encodeURIComponent(rowToDelete.key)}`);
             setRows(rows.filter(r => r.key !== rowToDelete.key));
+            toast.success(`Deleted ${rowLabel(type, rowToDelete)}.`);
             setRowToDelete(null);
         } catch (err) {
             console.error('Failed to delete', err);
-            alert('Failed to delete');
+            toast.error(describeError(`Couldn't delete ${rowLabel(type, rowToDelete)}`, err));
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -71,13 +78,14 @@ export default function ReferenceTypeList() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <h1 className="heading" style={{ marginBottom: 0 }}>{TYPE_LABELS[type]}</h1>
-                <Link href={`/admin/${type}/new`} className="button primary">+ New</Link>
+                <Link href={`/admin/${type}/new`} className="btn">+ New</Link>
             </div>
 
             <input
                 type="text"
                 className="input"
                 placeholder={`Search ${TYPE_LABELS[type].toLowerCase()}...`}
+                aria-label={`Search ${TYPE_LABELS[type].toLowerCase()}`}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 style={{ width: '100%', marginBottom: '1rem' }}
@@ -101,10 +109,11 @@ export default function ReferenceTypeList() {
                                     </Link>
                                     <button
                                         type="button"
-                                        className="button plain"
+                                        className="btn btn-ghost"
                                         style={{ color: 'var(--error)' }}
                                         onClick={() => setRowToDelete(row)}
                                         title="Delete"
+                                        aria-label={`Delete ${rowLabel(type, row)}`}
                                     >
                                         Delete
                                     </button>
@@ -119,18 +128,16 @@ export default function ReferenceTypeList() {
             )}
 
             {rowToDelete && (
-                <div className="modal-overlay" onClick={() => setRowToDelete(null)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <h3>Delete {rowLabel(type, rowToDelete)}?</h3>
-                        <p style={{ color: 'var(--text-muted)' }}>
-                            Characters that already reference this entry keep their stored copy; only future lookups and edits are affected.
-                        </p>
-                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                            <button className="button primary" style={{ backgroundColor: 'var(--error)' }} onClick={handleDelete}>Delete</button>
-                            <button className="button secondary" onClick={() => setRowToDelete(null)}>Cancel</button>
-                        </div>
-                    </div>
-                </div>
+                <ConfirmDialog
+                    title={`Delete ${rowLabel(type, rowToDelete)}?`}
+                    confirmLabel="Delete"
+                    danger
+                    busy={deleting}
+                    onConfirm={handleDelete}
+                    onCancel={() => setRowToDelete(null)}
+                >
+                    Characters that already reference this entry keep their stored copy; only future lookups and edits are affected.
+                </ConfirmDialog>
             )}
         </div>
     );

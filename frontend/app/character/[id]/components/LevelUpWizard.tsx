@@ -9,6 +9,7 @@ import { getBackgroundSkills, STANDARD_LANGUAGES } from '@/lib/wizardReference';
 import { buildChoicePayload, getClassChoices } from '@/lib/classChoices';
 import ClassChoicesPicker, { ChoiceSpell, choicesComplete } from './ClassChoicesPicker';
 import { getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
+import { describeError, Modal, useToast } from '@/app/components/ui';
 
 interface LevelUpWizardProps {
     character: any;
@@ -115,6 +116,7 @@ const getASILevels = (classId: string): number[] => {
 };
 
 export default function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizardProps) {
+    const toast = useToast();
     const [step, setStep] = useState(1);
     const [hpMode, setHpMode] = useState<'average' | 'roll'>('average');
     const [rolledHp, setRolledHp] = useState<number>(0);
@@ -453,27 +455,27 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
         try {
             // Validate multiclass selection
             if (levelUpMode === 'multiclass' && !selectedMulticlass) {
-                alert('Please select a class to multiclass into');
+                toast.error('Please select a class to multiclass into');
                 setIsSubmitting(false);
                 return;
             }
             if (levelUpMode === 'existing' && Object.keys(effectiveClasses).length > 1 && !selectedClassToLevel) {
-                alert('Please select which class to level up');
+                toast.error('Please select which class to level up');
                 setIsSubmitting(false);
                 return;
             }
             if (!choicesComplete(levelChoices, choicePicks, choiceContext)) {
-                alert(`Please make your ${levelChoices.map(c => c.title).join(', ')} choices.`);
+                toast.error(`Please make your ${levelChoices.map(c => c.title).join(', ')} choices.`);
                 setIsSubmitting(false);
                 return;
             }
             if (needsScholar && !selectedScholarSkill) {
-                alert('Please choose a skill for your Scholar feature (proficiency and expertise).');
+                toast.error('Please choose a skill for your Scholar feature (proficiency and expertise).');
                 setIsSubmitting(false);
                 return;
             }
             if (needsWizardSpellbook && wizardSpellbookChoices.filter(Boolean).length < 2) {
-                alert('As a wizard, you must add 2 spells to your spellbook when you gain a level.');
+                toast.error('As a wizard, you must add 2 spells to your spellbook when you gain a level.');
                 setIsSubmitting(false);
                 return;
             }
@@ -600,7 +602,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
             onComplete(res);
         } catch (err) {
             console.error('Failed to level up', err);
-            alert('Failed to level up');
+            toast.error(describeError("Couldn't level up", err));
             setIsSubmitting(false);
         }
     };
@@ -613,326 +615,347 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
     // Current code was single step. Let's keep it simple. If needs subclass, show that UI before submit.
 
     return (
-        <div className="modal-overlay">
-            <div className="modal-content">
-                <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Level Up: {nextLevel}</h2>
+        <Modal onClose={onCancel} ariaLabel={`Level Up: ${nextLevel}`} dismissible={false}>
+            <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Level Up: {nextLevel}</h2>
 
-                {/* Class Selection Section - Show if character has multiple classes or can multiclass */}
-                {(Object.keys(effectiveClasses).length > 1 || (Object.keys(effectiveClasses).length === 1 && character.level >= 1)) && (
-                    <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
-                        <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                            Choose Level Up Path
-                        </h3>
-                        <p style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>
-                            {Object.keys(effectiveClasses).length > 1 
-                                ? 'You have multiple classes. Choose which class to level up, or multiclass into a new class.'
-                                : 'You can level up your current class or multiclass into a new class.'}
-                        </p>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.75rem', backgroundColor: levelUpMode === 'existing' ? 'var(--surface-highlight)' : 'var(--surface)', borderRadius: '4px', border: levelUpMode === 'existing' ? '2px solid var(--primary)' : '1px solid var(--border)' }}>
-                                <input
-                                    type="radio"
-                                    name="levelUpMode"
-                                    data-testid="levelup-mode-existing"
-                                    checked={levelUpMode === 'existing'}
-                                    onChange={() => setLevelUpMode('existing')}
-                                />
-                                <div style={{ flex: 1 }}>
-                                    <strong>Level Up Existing Class</strong>
-                                    <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                                        {Object.keys(effectiveClasses).length > 1
-                                            ? 'Choose which of your current classes to level up'
-                                            : 'Continue leveling your current class'}
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.75rem', backgroundColor: levelUpMode === 'multiclass' ? 'var(--surface-highlight)' : 'var(--surface)', borderRadius: '4px', border: levelUpMode === 'multiclass' ? '2px solid var(--primary)' : '1px solid var(--border)' }}>
-                                <input
-                                    type="radio"
-                                    name="levelUpMode"
-                                    data-testid="levelup-mode-multiclass"
-                                    checked={levelUpMode === 'multiclass'}
-                                    onChange={() => setLevelUpMode('multiclass')}
-                                />
-                                <div style={{ flex: 1 }}>
-                                    <strong>Multiclass into New Class</strong>
-                                    <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                                        Add a level in a new class (must meet prerequisites)
-                                    </div>
-                                </div>
-                            </label>
-                        </div>
-
-                        {/* Show class selection if leveling up existing class */}
-                        {levelUpMode === 'existing' && Object.keys(effectiveClasses).length > 1 && (
-                            <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--surface)', borderRadius: '4px' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                                    Select Class to Level Up:
-                                </label>
-                                <select
-                                    className="input"
-                                    data-testid="levelup-class-select"
-                                    value={selectedClassToLevel}
-                                    onChange={(e) => setSelectedClassToLevel(e.target.value)}
-                                    style={{ width: '100%' }}
-                                >
-                                    <option value="">Choose a class...</option>
-                                    {Object.entries(effectiveClasses).map(([clsId, level]: [string, any]) => {
-                                        const clsName = clsId.charAt(0).toUpperCase() + clsId.slice(1);
-                                        return (
-                                            <option key={clsId} value={clsId}>
-                                                {clsName} (Level {level})
-                                            </option>
-                                        );
-                                    })}
-                                </select>
-                            </div>
-                        )}
-
-                        {/* Show class selection if multiclassing */}
-                        {levelUpMode === 'multiclass' && (
-                            <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--surface)', borderRadius: '4px' }}>
-                                {loadingClasses ? (
-                                    <p>Loading available classes...</p>
-                                ) : (
-                                    <>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                                            Select Class to Multiclass Into:
-                                        </label>
-                                        {availableClasses.length > 0 ? (
-                                            <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                                {availableClasses.map((cls: any) => (
-                                                    <label
-                                                        key={cls.id}
-                                                        style={{
-                                                            display: 'flex',
-                                                            alignItems: 'flex-start',
-                                                            gap: '0.5rem',
-                                                            cursor: 'pointer',
-                                                            padding: '0.75rem',
-                                                            backgroundColor: selectedMulticlass === cls.id ? 'var(--surface-highlight)' : 'transparent',
-                                                            borderRadius: '4px',
-                                                            border: selectedMulticlass === cls.id ? '2px solid var(--primary)' : '1px solid var(--border)'
-                                                        }}
-                                                    >
-                                                        <input
-                                                            type="radio"
-                                                            name="multiclass"
-                                                            data-testid={`multiclass-${cls.id}`}
-                                                            checked={selectedMulticlass === cls.id}
-                                                            onChange={() => setSelectedMulticlass(cls.id)}
-                                                            style={{ marginTop: '0.25rem' }}
-                                                        />
-                                                        <div style={{ flex: 1 }}>
-                                                            <div style={{ fontWeight: 'bold' }}>{cls.name}</div>
-                                                            <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{cls.description}</div>
-                                                            {cls.multiclassPrerequisites && (
-                                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                                                                    Prerequisites: {Object.entries(cls.multiclassPrerequisites).map(([ability, score]: [string, any]) => 
-                                                                        `${ability.toUpperCase()} ${score}+`
-                                                                    ).join(', ')}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                                No classes available for multiclassing (check prerequisites)
-                                            </p>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Fighting Style (level-up) */}
-                {needsFightingStyle && (
-                    <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
-                        <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                            Fighting Style
-                        </h3>
-                        <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                            {allowedFightingStyleIds
-                                ? 'Choose one of the following (College of Swords): Dueling or Two-Weapon Fighting.'
-                                : 'You gain a Fighting Style at this level. Choose one.'}
-                        </p>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            {fightingStylesList
-                                .filter(fs => !allowedFightingStyleIds || allowedFightingStyleIds.includes(fs.id))
-                                .map(fs => (
-                                    <div
-                                        key={fs.id}
-                                        data-testid={`levelup-fs-${fs.id}`}
-                                        onClick={() => setSelectedFightingStyle(selectedFightingStyle === fs.id ? null : fs.id)}
-                                        style={{
-                                            cursor: 'pointer',
-                                            padding: '1rem',
-                                            borderRadius: '8px',
-                                            border: selectedFightingStyle === fs.id ? '2px solid var(--primary)' : '1px solid var(--border)',
-                                            backgroundColor: selectedFightingStyle === fs.id ? 'var(--surface-highlight)' : 'var(--surface)'
-                                        }}
-                                    >
-                                        <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>{fs.name}</div>
-                                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{fs.description}</div>
-                                    </div>
-                                ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Scholar (Wizard level 2) */}
-                {needsScholar && (
-                    <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
-                        <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                            Scholar
-                        </h3>
-                        <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                            Choose one of the following skills. You gain proficiency (if you don&apos;t have it) and Expertise in the chosen skill.
-                        </p>
-                        <select
-                            className="input"
-                            data-testid="scholar-skill"
-                            value={selectedScholarSkill || ''}
-                            onChange={(e) => setSelectedScholarSkill(e.target.value || null)}
-                            style={{ width: '100%', maxWidth: '20rem' }}
-                        >
-                            <option value="">Select a skill...</option>
-                            {scholarSkillOptions.map(skill => (
-                                <option key={skill} value={skill}>{skill}</option>
-                            ))}
-                        </select>
-                    </div>
-                )}
-
-                {/* 2024 class feature choices */}
-                {levelChoices.length > 0 && (
-                    <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }} data-testid="levelup-class-choices">
-                        <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                            Class Choices
-                        </h3>
-                        <ClassChoicesPicker
-                            choices={levelChoices}
-                            value={choicePicks}
-                            onChange={setChoicePicks}
-                            {...choiceContext}
-                        />
-                    </div>
-                )}
-
-                {/* Wizard: Add 2 spells to spellbook */}
-                {needsWizardSpellbook && (
-                    <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
-                        <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                            Add to Spellbook
-                        </h3>
-                        <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                            When you gain a wizard level, you add two wizard spells of your choice to your spellbook. Choose 2 spells.
-                        </p>
-                        {[0, 1].map(idx => (
-                            <div key={idx} style={{ marginBottom: '0.75rem' }}>
-                                <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Spell {idx + 1}</label>
-                                <select
-                                    className="input"
-                                    data-testid={`wizard-spell-${idx}`}
-                                    value={wizardSpellbookChoices[idx] || ''}
-                                    onChange={(e) => {
-                                        const val = e.target.value || '';
-                                        const next = [...wizardSpellbookChoices];
-                                        next[idx] = val;
-                                        setWizardSpellbookChoices(next);
-                                    }}
-                                    style={{ width: '100%', maxWidth: '24rem' }}
-                                >
-                                    <option value="">Select a spell...</option>
-                                    {wizardSpellsList
-                                        .filter(s => {
-                                            const alreadyChosen = wizardSpellbookChoices.includes(s.id) && wizardSpellbookChoices[idx] !== s.id;
-                                            const inSpellbook = (character.data?.spellbook || []).includes(s.id);
-                                            return !alreadyChosen && !inSpellbook;
-                                        })
-                                        .map(s => (
-                                            <option key={s.id} value={s.id}>{s.name} (Level {s.level})</option>
-                                        ))}
-                                </select>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {/* HP Section */}
-                <div className="card" style={{ marginBottom: '1.5rem' }}>
-                    <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>Hit Points</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-                        Class Hit Die: <strong>d{hitDie}</strong> | CON Modifier: <strong>{conMod >= 0 ? `+${conMod}` : conMod}</strong>
+            {/* Class Selection Section - Show if character has multiple classes or can multiclass */}
+            {(Object.keys(effectiveClasses).length > 1 || (Object.keys(effectiveClasses).length === 1 && character.level >= 1)) && (
+                <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
+                    <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                        Choose Level Up Path
+                    </h3>
+                    <p style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>
+                        {Object.keys(effectiveClasses).length > 1 
+                            ? 'You have multiple classes. Choose which class to level up, or multiclass into a new class.'
+                            : 'You can level up your current class or multiclass into a new class.'}
                     </p>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.75rem', backgroundColor: levelUpMode === 'existing' ? 'var(--surface-highlight)' : 'var(--surface)', borderRadius: '4px', border: levelUpMode === 'existing' ? '2px solid var(--primary)' : '1px solid var(--border)' }}>
                             <input
                                 type="radio"
-                                name="hpMode"
-                                checked={hpMode === 'average'}
-                                onChange={() => setHpMode('average')}
+                                name="levelUpMode"
+                                data-testid="levelup-mode-existing"
+                                checked={levelUpMode === 'existing'}
+                                onChange={() => setLevelUpMode('existing')}
                             />
-                            <div>
-                                <strong>Take Average: {hpGainAvg} HP</strong>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                    ({averageHp} + {conMod})
+                            <div style={{ flex: 1 }}>
+                                <strong>Level Up Existing Class</strong>
+                                <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                    {Object.keys(effectiveClasses).length > 1
+                                        ? 'Choose which of your current classes to level up'
+                                        : 'Continue leveling your current class'}
                                 </div>
                             </div>
                         </label>
 
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.75rem', backgroundColor: levelUpMode === 'multiclass' ? 'var(--surface-highlight)' : 'var(--surface)', borderRadius: '4px', border: levelUpMode === 'multiclass' ? '2px solid var(--primary)' : '1px solid var(--border)' }}>
                             <input
                                 type="radio"
-                                name="hpMode"
-                                checked={hpMode === 'roll'}
-                                onChange={() => setHpMode('roll')}
+                                name="levelUpMode"
+                                data-testid="levelup-mode-multiclass"
+                                checked={levelUpMode === 'multiclass'}
+                                onChange={() => setLevelUpMode('multiclass')}
                             />
                             <div style={{ flex: 1 }}>
-                                <strong>Roll Hit Die</strong>
-                                {hpMode === 'roll' && (
-                                    <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                        <button
-                                            className="button secondary"
-                                            onClick={(e) => { e.preventDefault(); handleRoll(); }}
-                                            disabled={rolledHp > 0}
-                                        >
-                                            {rolledHp > 0 ? `Rolled: ${rolledHp}` : 'Roll Die'}
-                                        </button>
-                                        {rolledHp > 0 && (
-                                            <span>Total: <strong>{hpGainRoll} HP</strong></span>
-                                        )}
-                                    </div>
-                                )}
+                                <strong>Multiclass into New Class</strong>
+                                <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                    Add a level in a new class (must meet prerequisites)
+                                </div>
                             </div>
                         </label>
                     </div>
-                </div>
 
-                {/* Features Preview Section */}
-                {(classFeatures.length > 0 || subclassFeatures.length > 0 || (currentSubclassId && !needsSubclass)) && (
-                    <div className="card" style={{ marginBottom: '1.5rem' }}>
-                        <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>Features Gained at Level {nextLevel}</h3>
-                        
-                        {loadingFeatures ? (
-                            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Loading features...</p>
-                        ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                {/* Class Features */}
-                                {classFeatures.length > 0 && (
-                                    <div>
-                                        <div style={{ fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.25rem', color: 'var(--text-muted)' }}>
-                                            Class Features:
+                    {/* Show class selection if leveling up existing class */}
+                    {levelUpMode === 'existing' && Object.keys(effectiveClasses).length > 1 && (
+                        <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--surface)', borderRadius: '4px' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                                Select Class to Level Up:
+                            </label>
+                            <select
+                                className="input"
+                                data-testid="levelup-class-select"
+                                value={selectedClassToLevel}
+                                onChange={(e) => setSelectedClassToLevel(e.target.value)}
+                                style={{ width: '100%' }}
+                            >
+                                <option value="">Choose a class...</option>
+                                {Object.entries(effectiveClasses).map(([clsId, level]: [string, any]) => {
+                                    const clsName = clsId.charAt(0).toUpperCase() + clsId.slice(1);
+                                    return (
+                                        <option key={clsId} value={clsId}>
+                                            {clsName} (Level {level})
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        </div>
+                    )}
+
+                    {/* Show class selection if multiclassing */}
+                    {levelUpMode === 'multiclass' && (
+                        <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--surface)', borderRadius: '4px' }}>
+                            {loadingClasses ? (
+                                <p>Loading available classes...</p>
+                            ) : (
+                                <>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                                        Select Class to Multiclass Into:
+                                    </label>
+                                    {availableClasses.length > 0 ? (
+                                        <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            {availableClasses.map((cls: any) => (
+                                                <label
+                                                    key={cls.id}
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'flex-start',
+                                                        gap: '0.5rem',
+                                                        cursor: 'pointer',
+                                                        padding: '0.75rem',
+                                                        backgroundColor: selectedMulticlass === cls.id ? 'var(--surface-highlight)' : 'transparent',
+                                                        borderRadius: '4px',
+                                                        border: selectedMulticlass === cls.id ? '2px solid var(--primary)' : '1px solid var(--border)'
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name="multiclass"
+                                                        data-testid={`multiclass-${cls.id}`}
+                                                        checked={selectedMulticlass === cls.id}
+                                                        onChange={() => setSelectedMulticlass(cls.id)}
+                                                        style={{ marginTop: '0.25rem' }}
+                                                    />
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ fontWeight: 'bold' }}>{cls.name}</div>
+                                                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{cls.description}</div>
+                                                        {cls.multiclassPrerequisites && (
+                                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                                                Prerequisites: {Object.entries(cls.multiclassPrerequisites).map(([ability, score]: [string, any]) => 
+                                                                    `${ability.toUpperCase()} ${score}+`
+                                                                ).join(', ')}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </label>
+                                            ))}
                                         </div>
+                                    ) : (
+                                        <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                            No classes available for multiclassing (check prerequisites)
+                                        </p>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Fighting Style (level-up) */}
+            {needsFightingStyle && (
+                <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
+                    <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                        Fighting Style
+                    </h3>
+                    <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                        {allowedFightingStyleIds
+                            ? 'Choose one of the following (College of Swords): Dueling or Two-Weapon Fighting.'
+                            : 'You gain a Fighting Style at this level. Choose one.'}
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {fightingStylesList
+                            .filter(fs => !allowedFightingStyleIds || allowedFightingStyleIds.includes(fs.id))
+                            .map(fs => (
+                                <div
+                                    key={fs.id}
+                                    data-testid={`levelup-fs-${fs.id}`}
+                                    onClick={() => setSelectedFightingStyle(selectedFightingStyle === fs.id ? null : fs.id)}
+                                    style={{
+                                        cursor: 'pointer',
+                                        padding: '1rem',
+                                        borderRadius: '8px',
+                                        border: selectedFightingStyle === fs.id ? '2px solid var(--primary)' : '1px solid var(--border)',
+                                        backgroundColor: selectedFightingStyle === fs.id ? 'var(--surface-highlight)' : 'var(--surface)'
+                                    }}
+                                >
+                                    <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>{fs.name}</div>
+                                    <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{fs.description}</div>
+                                </div>
+                            ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Scholar (Wizard level 2) */}
+            {needsScholar && (
+                <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
+                    <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                        Scholar
+                    </h3>
+                    <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                        Choose one of the following skills. You gain proficiency (if you don&apos;t have it) and Expertise in the chosen skill.
+                    </p>
+                    <select
+                        className="input"
+                        data-testid="scholar-skill"
+                        value={selectedScholarSkill || ''}
+                        onChange={(e) => setSelectedScholarSkill(e.target.value || null)}
+                        style={{ width: '100%', maxWidth: '20rem' }}
+                    >
+                        <option value="">Select a skill...</option>
+                        {scholarSkillOptions.map(skill => (
+                            <option key={skill} value={skill}>{skill}</option>
+                        ))}
+                    </select>
+                </div>
+            )}
+
+            {/* 2024 class feature choices */}
+            {levelChoices.length > 0 && (
+                <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }} data-testid="levelup-class-choices">
+                    <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                        Class Choices
+                    </h3>
+                    <ClassChoicesPicker
+                        choices={levelChoices}
+                        value={choicePicks}
+                        onChange={setChoicePicks}
+                        {...choiceContext}
+                    />
+                </div>
+            )}
+
+            {/* Wizard: Add 2 spells to spellbook */}
+            {needsWizardSpellbook && (
+                <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
+                    <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                        Add to Spellbook
+                    </h3>
+                    <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                        When you gain a wizard level, you add two wizard spells of your choice to your spellbook. Choose 2 spells.
+                    </p>
+                    {[0, 1].map(idx => (
+                        <div key={idx} style={{ marginBottom: '0.75rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Spell {idx + 1}</label>
+                            <select
+                                className="input"
+                                data-testid={`wizard-spell-${idx}`}
+                                value={wizardSpellbookChoices[idx] || ''}
+                                onChange={(e) => {
+                                    const val = e.target.value || '';
+                                    const next = [...wizardSpellbookChoices];
+                                    next[idx] = val;
+                                    setWizardSpellbookChoices(next);
+                                }}
+                                style={{ width: '100%', maxWidth: '24rem' }}
+                            >
+                                <option value="">Select a spell...</option>
+                                {wizardSpellsList
+                                    .filter(s => {
+                                        const alreadyChosen = wizardSpellbookChoices.includes(s.id) && wizardSpellbookChoices[idx] !== s.id;
+                                        const inSpellbook = (character.data?.spellbook || []).includes(s.id);
+                                        return !alreadyChosen && !inSpellbook;
+                                    })
+                                    .map(s => (
+                                        <option key={s.id} value={s.id}>{s.name} (Level {s.level})</option>
+                                    ))}
+                            </select>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* HP Section */}
+            <div className="card" style={{ marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>Hit Points</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                    Class Hit Die: <strong>d{hitDie}</strong> | CON Modifier: <strong>{conMod >= 0 ? `+${conMod}` : conMod}</strong>
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                        <input
+                            type="radio"
+                            name="hpMode"
+                            checked={hpMode === 'average'}
+                            onChange={() => setHpMode('average')}
+                        />
+                        <div>
+                            <strong>Take Average: {hpGainAvg} HP</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                ({averageHp} + {conMod})
+                            </div>
+                        </div>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                        <input
+                            type="radio"
+                            name="hpMode"
+                            checked={hpMode === 'roll'}
+                            onChange={() => setHpMode('roll')}
+                        />
+                        <div style={{ flex: 1 }}>
+                            <strong>Roll Hit Die</strong>
+                            {hpMode === 'roll' && (
+                                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={(e) => { e.preventDefault(); handleRoll(); }}
+                                        disabled={rolledHp > 0}
+                                    >
+                                        {rolledHp > 0 ? `Rolled: ${rolledHp}` : 'Roll Die'}
+                                    </button>
+                                    {rolledHp > 0 && (
+                                        <span>Total: <strong>{hpGainRoll} HP</strong></span>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            {/* Features Preview Section */}
+            {(classFeatures.length > 0 || subclassFeatures.length > 0 || (currentSubclassId && !needsSubclass)) && (
+                <div className="card" style={{ marginBottom: '1.5rem' }}>
+                    <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>Features Gained at Level {nextLevel}</h3>
+                    
+                    {loadingFeatures ? (
+                        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Loading features...</p>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {/* Class Features */}
+                            {classFeatures.length > 0 && (
+                                <div>
+                                    <div style={{ fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.25rem', color: 'var(--text-muted)' }}>
+                                        Class Features:
+                                    </div>
+                                    <ul style={{ paddingLeft: '1.25rem', margin: 0 }}>
+                                        {classFeatures.map((f, i) => (
+                                            <li key={i} style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+                                                <strong>{f.name}</strong>
+                                                {f.description && (
+                                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
+                                                        {f.description}
+                                                    </div>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {/* Subclass Features (if character already has a subclass) */}
+                            {currentSubclassId && !needsSubclass && (
+                                <div>
+                                    <div style={{ fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.25rem', color: 'var(--text-muted)' }}>
+                                        Subclass Features:
+                                    </div>
+                                    {subclassFeatures.length > 0 ? (
                                         <ul style={{ paddingLeft: '1.25rem', margin: 0 }}>
-                                            {classFeatures.map((f, i) => (
+                                            {subclassFeatures.map((f, i) => (
                                                 <li key={i} style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>
                                                     <strong>{f.name}</strong>
                                                     {f.description && (
@@ -943,322 +966,299 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                                 </li>
                                             ))}
                                         </ul>
-                                    </div>
-                                )}
-
-                                {/* Subclass Features (if character already has a subclass) */}
-                                {currentSubclassId && !needsSubclass && (
-                                    <div>
-                                        <div style={{ fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.25rem', color: 'var(--text-muted)' }}>
-                                            Subclass Features:
+                                    ) : (
+                                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                            No subclass features at this level.
                                         </div>
-                                        {subclassFeatures.length > 0 ? (
-                                            <ul style={{ paddingLeft: '1.25rem', margin: 0 }}>
-                                                {subclassFeatures.map((f, i) => (
-                                                    <li key={i} style={{ fontSize: '0.875rem', marginBottom: '0.25rem' }}>
-                                                        <strong>{f.name}</strong>
-                                                        {f.description && (
-                                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                                                                {f.description}
-                                                            </div>
-                                                        )}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : (
-                                            <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                                No subclass features at this level.
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* ASI/Feat Section */}
-                {needsASI && (
-                    <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
-                        <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                            Ability Score Improvement or Feat
-                        </h3>
-                        <p style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>
-                            At level {nextLevel}, you can increase your ability scores or take a feat.
-                        </p>
-
-                        <div style={{ marginBottom: '1rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginBottom: '0.5rem' }}>
-                                <input
-                                    type="radio"
-                                    name="asiOrFeat"
-                                    data-testid="asi-or-feat-asi"
-                                    checked={asiOrFeat === 'asi'}
-                                    onChange={() => setAsiOrFeat('asi')}
-                                />
-                                <strong>Ability Score Improvement</strong>
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                <input
-                                    type="radio"
-                                    name="asiOrFeat"
-                                    data-testid="asi-or-feat-feat"
-                                    checked={asiOrFeat === 'feat'}
-                                    onChange={() => setAsiOrFeat('feat')}
-                                />
-                                <strong>Feat</strong>
-                            </label>
-                        </div>
-
-                        {/* ASI Selection */}
-                        {asiOrFeat === 'asi' && (
-                            <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--surface)', borderRadius: '4px' }}>
-                                <div style={{ marginBottom: '1rem' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginBottom: '0.5rem' }}>
-                                        <input
-                                            type="radio"
-                                            name="asiMode"
-                                            checked={asiMode === 'single'}
-                                            onChange={() => setAsiMode('single')}
-                                        />
-                                        <strong>+2 to one ability score</strong>
-                                    </label>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                        <input
-                                            type="radio"
-                                            name="asiMode"
-                                            data-testid="asi-mode-dual"
-                                            checked={asiMode === 'dual'}
-                                            onChange={() => setAsiMode('dual')}
-                                        />
-                                        <strong>+1 to two ability scores</strong>
-                                    </label>
+                                    )}
                                 </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
 
-                                {asiMode === 'single' && (
+            {/* ASI/Feat Section */}
+            {needsASI && (
+                <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
+                    <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                        Ability Score Improvement or Feat
+                    </h3>
+                    <p style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>
+                        At level {nextLevel}, you can increase your ability scores or take a feat.
+                    </p>
+
+                    <div style={{ marginBottom: '1rem' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginBottom: '0.5rem' }}>
+                            <input
+                                type="radio"
+                                name="asiOrFeat"
+                                data-testid="asi-or-feat-asi"
+                                checked={asiOrFeat === 'asi'}
+                                onChange={() => setAsiOrFeat('asi')}
+                            />
+                            <strong>Ability Score Improvement</strong>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                            <input
+                                type="radio"
+                                name="asiOrFeat"
+                                data-testid="asi-or-feat-feat"
+                                checked={asiOrFeat === 'feat'}
+                                onChange={() => setAsiOrFeat('feat')}
+                            />
+                            <strong>Feat</strong>
+                        </label>
+                    </div>
+
+                    {/* ASI Selection */}
+                    {asiOrFeat === 'asi' && (
+                        <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--surface)', borderRadius: '4px' }}>
+                            <div style={{ marginBottom: '1rem' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginBottom: '0.5rem' }}>
+                                    <input
+                                        type="radio"
+                                        name="asiMode"
+                                        checked={asiMode === 'single'}
+                                        onChange={() => setAsiMode('single')}
+                                    />
+                                    <strong>+2 to one ability score</strong>
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                    <input
+                                        type="radio"
+                                        name="asiMode"
+                                        data-testid="asi-mode-dual"
+                                        checked={asiMode === 'dual'}
+                                        onChange={() => setAsiMode('dual')}
+                                    />
+                                    <strong>+1 to two ability scores</strong>
+                                </label>
+                            </div>
+
+                            {asiMode === 'single' && (
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                                        Select Ability Score:
+                                    </label>
+                                    <select
+                                        className="input"
+                                        data-testid="asi-single"
+                                        value={asiSingle}
+                                        onChange={(e) => setAsiSingle(e.target.value)}
+                                        style={{ width: '100%' }}
+                                    >
+                                        <option value="">Choose...</option>
+                                        {['str', 'dex', 'con', 'int', 'wis', 'cha'].map(a => (
+                                            <option key={a} value={a} disabled={((character.data.abilityScores || {})[a] ?? 10) > 18}>
+                                                {ABILITY_LABELS[a]} ({(character.data.abilityScores || {})[a] ?? 10})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {asiMode === 'dual' && (
+                                <div style={{ display: 'grid', gap: '1rem' }}>
                                     <div>
                                         <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                                            Select Ability Score:
+                                            First Ability Score:
                                         </label>
                                         <select
                                             className="input"
-                                            data-testid="asi-single"
-                                            value={asiSingle}
-                                            onChange={(e) => setAsiSingle(e.target.value)}
+                                            data-testid="asi-dual-1"
+                                            value={asiDual1}
+                                            onChange={(e) => setAsiDual1(e.target.value)}
                                             style={{ width: '100%' }}
                                         >
                                             <option value="">Choose...</option>
                                             {['str', 'dex', 'con', 'int', 'wis', 'cha'].map(a => (
-                                                <option key={a} value={a} disabled={((character.data.abilityScores || {})[a] ?? 10) > 18}>
+                                                <option key={a} value={a} disabled={((character.data.abilityScores || {})[a] ?? 10) > 19}>
                                                     {ABILITY_LABELS[a]} ({(character.data.abilityScores || {})[a] ?? 10})
                                                 </option>
                                             ))}
                                         </select>
                                     </div>
-                                )}
-
-                                {asiMode === 'dual' && (
-                                    <div style={{ display: 'grid', gap: '1rem' }}>
-                                        <div>
-                                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                                                First Ability Score:
-                                            </label>
-                                            <select
-                                                className="input"
-                                                data-testid="asi-dual-1"
-                                                value={asiDual1}
-                                                onChange={(e) => setAsiDual1(e.target.value)}
-                                                style={{ width: '100%' }}
-                                            >
-                                                <option value="">Choose...</option>
-                                                {['str', 'dex', 'con', 'int', 'wis', 'cha'].map(a => (
-                                                    <option key={a} value={a} disabled={((character.data.abilityScores || {})[a] ?? 10) > 19}>
-                                                        {ABILITY_LABELS[a]} ({(character.data.abilityScores || {})[a] ?? 10})
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                                            Second Ability Score:
+                                        </label>
+                                        <select
+                                            className="input"
+                                            data-testid="asi-dual-2"
+                                            value={asiDual2}
+                                            onChange={(e) => setAsiDual2(e.target.value)}
+                                            style={{ width: '100%' }}
+                                            disabled={!asiDual1}
+                                        >
+                                            <option value="">Choose...</option>
+                                            {['str', 'dex', 'con', 'int', 'wis', 'cha']
+                                                .filter(ability => ability !== asiDual1)
+                                                .map(ability => (
+                                                    <option key={ability} value={ability} disabled={((character.data.abilityScores || {})[ability] ?? 10) > 19}>
+                                                        {ability === 'str' ? 'Strength' : 
+                                                         ability === 'dex' ? 'Dexterity' :
+                                                         ability === 'con' ? 'Constitution' :
+                                                         ability === 'int' ? 'Intelligence' :
+                                                         ability === 'wis' ? 'Wisdom' : 'Charisma'}
                                                     </option>
                                                 ))}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                                                Second Ability Score:
-                                            </label>
-                                            <select
-                                                className="input"
-                                                data-testid="asi-dual-2"
-                                                value={asiDual2}
-                                                onChange={(e) => setAsiDual2(e.target.value)}
-                                                style={{ width: '100%' }}
-                                                disabled={!asiDual1}
-                                            >
-                                                <option value="">Choose...</option>
-                                                {['str', 'dex', 'con', 'int', 'wis', 'cha']
-                                                    .filter(ability => ability !== asiDual1)
-                                                    .map(ability => (
-                                                        <option key={ability} value={ability} disabled={((character.data.abilityScores || {})[ability] ?? 10) > 19}>
-                                                            {ability === 'str' ? 'Strength' : 
-                                                             ability === 'dex' ? 'Dexterity' :
-                                                             ability === 'con' ? 'Constitution' :
-                                                             ability === 'int' ? 'Intelligence' :
-                                                             ability === 'wis' ? 'Wisdom' : 'Charisma'}
-                                                        </option>
-                                                    ))}
-                                            </select>
-                                        </div>
+                                        </select>
                                     </div>
-                                )}
-                            </div>
-                        )}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
-                        {/* Feat Selection */}
-                        {asiOrFeat === 'feat' && (
-                            <div style={{ marginTop: '1rem' }}>
-                                {loadingFeats ? (
-                                    <p>Loading feats...</p>
-                                ) : (
-                                    <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                                        {availableFeats.map(feat => (
-                                            <label
-                                                key={feat.id}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'flex-start',
-                                                    gap: '0.5rem',
-                                                    cursor: 'pointer',
-                                                    padding: '0.75rem',
-                                                    marginBottom: '0.5rem',
-                                                    backgroundColor: selectedFeat?.id === feat.id ? 'var(--surface-highlight)' : 'var(--surface)',
-                                                    borderRadius: '4px',
-                                                    border: selectedFeat?.id === feat.id ? '2px solid var(--primary)' : '1px solid var(--border)'
-                                                }}
-                                            >
-                                                <input
-                                                    type="radio"
-                                                    name="feat"
-                                                    checked={selectedFeat?.id === feat.id}
-                                                    data-testid={`feat-${feat.id}`}
-                                                    onChange={() => { setSelectedFeat(feat); setFeatAbility(feat.abilityScoreOptions?.length === 1 ? feat.abilityScoreOptions[0] : ''); }}
-                                                    style={{ marginTop: '0.25rem' }}
-                                                />
-                                                <div style={{ flex: 1 }}>
-                                                    <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>
-                                                        {feat.name}
-                                                        {feat.category && (
-                                                            <span style={{ fontWeight: 'normal', fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
-                                                                {feat.category === 'epic-boon' ? 'Epic Boon' : feat.category === 'fighting-style' ? 'Fighting Style' : feat.category === 'origin' ? 'Origin' : 'General'}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div style={{ fontSize: '0.875rem', whiteSpace: 'pre-wrap', color: 'var(--text-muted)' }}>
-                                                        {feat.description}
-                                                    </div>
-                                                    {feat.abilityScoreOptions && feat.abilityScoreOptions.length > 0 && selectedFeat?.id === feat.id && (
-                                                        <div style={{ marginTop: '0.5rem' }} onClick={e => e.stopPropagation()}>
-                                                            <label style={{ fontSize: '0.75rem', color: 'var(--primary)', marginRight: '0.5rem' }}>
-                                                                +1 to (max {feat.abilityScoreMax ?? 20}):
-                                                            </label>
-                                                            <select
-                                                                className="input"
-                                                                data-testid="feat-ability"
-                                                                value={featAbility}
-                                                                onChange={e => setFeatAbility(e.target.value)}
-                                                                style={{ width: 'auto', display: 'inline-block' }}
-                                                            >
-                                                                <option value="">Choose...</option>
-                                                                {feat.abilityScoreOptions.map(a => (
-                                                                    <option key={a} value={a} disabled={((character.data.abilityScores || {})[a] ?? 10) >= (feat.abilityScoreMax ?? 20)}>
-                                                                        {ABILITY_LABELS[a]} ({(character.data.abilityScores || {})[a] ?? 10})
-                                                                    </option>
-                                                                ))}
-                                                            </select>
-                                                        </div>
+                    {/* Feat Selection */}
+                    {asiOrFeat === 'feat' && (
+                        <div style={{ marginTop: '1rem' }}>
+                            {loadingFeats ? (
+                                <p>Loading feats...</p>
+                            ) : (
+                                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                    {availableFeats.map(feat => (
+                                        <label
+                                            key={feat.id}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'flex-start',
+                                                gap: '0.5rem',
+                                                cursor: 'pointer',
+                                                padding: '0.75rem',
+                                                marginBottom: '0.5rem',
+                                                backgroundColor: selectedFeat?.id === feat.id ? 'var(--surface-highlight)' : 'var(--surface)',
+                                                borderRadius: '4px',
+                                                border: selectedFeat?.id === feat.id ? '2px solid var(--primary)' : '1px solid var(--border)'
+                                            }}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="feat"
+                                                checked={selectedFeat?.id === feat.id}
+                                                data-testid={`feat-${feat.id}`}
+                                                onChange={() => { setSelectedFeat(feat); setFeatAbility(feat.abilityScoreOptions?.length === 1 ? feat.abilityScoreOptions[0] : ''); }}
+                                                style={{ marginTop: '0.25rem' }}
+                                            />
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>
+                                                    {feat.name}
+                                                    {feat.category && (
+                                                        <span style={{ fontWeight: 'normal', fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
+                                                            {feat.category === 'epic-boon' ? 'Epic Boon' : feat.category === 'fighting-style' ? 'Fighting Style' : feat.category === 'origin' ? 'Origin' : 'General'}
+                                                        </span>
                                                     )}
                                                 </div>
-                                            </label>
-                                        ))}
-                                        {availableFeats.length === 0 && (
-                                            <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No feats available (check prerequisites)</p>
+                                                <div style={{ fontSize: '0.875rem', whiteSpace: 'pre-wrap', color: 'var(--text-muted)' }}>
+                                                    {feat.description}
+                                                </div>
+                                                {feat.abilityScoreOptions && feat.abilityScoreOptions.length > 0 && selectedFeat?.id === feat.id && (
+                                                    <div style={{ marginTop: '0.5rem' }} onClick={e => e.stopPropagation()}>
+                                                        <label style={{ fontSize: '0.75rem', color: 'var(--primary)', marginRight: '0.5rem' }}>
+                                                            +1 to (max {feat.abilityScoreMax ?? 20}):
+                                                        </label>
+                                                        <select
+                                                            className="input"
+                                                            data-testid="feat-ability"
+                                                            value={featAbility}
+                                                            onChange={e => setFeatAbility(e.target.value)}
+                                                            style={{ width: 'auto', display: 'inline-block' }}
+                                                        >
+                                                            <option value="">Choose...</option>
+                                                            {feat.abilityScoreOptions.map(a => (
+                                                                <option key={a} value={a} disabled={((character.data.abilityScores || {})[a] ?? 10) >= (feat.abilityScoreMax ?? 20)}>
+                                                                    {ABILITY_LABELS[a]} ({(character.data.abilityScores || {})[a] ?? 10})
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </label>
+                                    ))}
+                                    {availableFeats.length === 0 && (
+                                        <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No feats available (check prerequisites)</p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Subclass Section */}
+            {needsSubclass && (
+                <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
+                    <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>Select Subclass</h3>
+                    <p style={{ marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                        At level {subclassLevel}, you choose a specialized path for your class.
+                    </p>
+                    <label style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '1rem' }}>
+                        <input type="checkbox" checked={showLegacySubclasses} onChange={e => setShowLegacySubclasses(e.target.checked)} />
+                        Show legacy (pre-2024) subclasses
+                    </label>
+
+                    {loadingSubclasses ? (
+                        <p>Loading subclasses...</p>
+                    ) : (
+                        <div style={{ display: 'grid', gap: '1rem' }}>
+                            {subclasses.filter(sub => !sub.legacy || showLegacySubclasses || selectedSubclass?.id === sub.id).map(sub => (
+                                <label key={sub.id} data-testid={`subclass-${sub.id}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', cursor: 'pointer', padding: '0.5rem', backgroundColor: selectedSubclass?.id === sub.id ? 'var(--surface-highlight)' : 'transparent', borderRadius: '4px' }}>
+                                    <input
+                                        type="radio"
+                                        name="subclass"
+                                        data-testid={`subclass-radio-${sub.id}`}
+                                        checked={selectedSubclass?.id === sub.id}
+                                        onChange={() => setSelectedSubclass(sub)}
+                                        style={{ marginTop: '0.25rem' }}
+                                    />
+                                    <div>
+                                        <div style={{ fontWeight: 'bold' }}>{sub.name}{sub.legacy ? <span style={{ fontWeight: 'normal', fontSize: '0.75rem', color: 'var(--text-muted)' }}> (legacy)</span> : null}</div>
+                                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{sub.description}</div>
+                                        {selectedSubclass?.id === sub.id && (
+                                            <div style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
+                                                <strong>Features Gained:</strong>
+                                                <ul style={{ paddingLeft: '1.25rem', marginTop: '0.25rem' }}>
+                                                    {sub.features.filter(f => f.level <= newClassLevel).map((f, i) => (
+                                                        <li key={i}>{f.name}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
                                         )}
                                     </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Subclass Section */}
-                {needsSubclass && (
-                    <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
-                        <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>Select Subclass</h3>
-                        <p style={{ marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-                            At level {subclassLevel}, you choose a specialized path for your class.
-                        </p>
-                        <label style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '1rem' }}>
-                            <input type="checkbox" checked={showLegacySubclasses} onChange={e => setShowLegacySubclasses(e.target.checked)} />
-                            Show legacy (pre-2024) subclasses
-                        </label>
-
-                        {loadingSubclasses ? (
-                            <p>Loading subclasses...</p>
-                        ) : (
-                            <div style={{ display: 'grid', gap: '1rem' }}>
-                                {subclasses.filter(sub => !sub.legacy || showLegacySubclasses || selectedSubclass?.id === sub.id).map(sub => (
-                                    <label key={sub.id} data-testid={`subclass-${sub.id}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', cursor: 'pointer', padding: '0.5rem', backgroundColor: selectedSubclass?.id === sub.id ? 'var(--surface-highlight)' : 'transparent', borderRadius: '4px' }}>
-                                        <input
-                                            type="radio"
-                                            name="subclass"
-                                            data-testid={`subclass-radio-${sub.id}`}
-                                            checked={selectedSubclass?.id === sub.id}
-                                            onChange={() => setSelectedSubclass(sub)}
-                                            style={{ marginTop: '0.25rem' }}
-                                        />
-                                        <div>
-                                            <div style={{ fontWeight: 'bold' }}>{sub.name}{sub.legacy ? <span style={{ fontWeight: 'normal', fontSize: '0.75rem', color: 'var(--text-muted)' }}> (legacy)</span> : null}</div>
-                                            <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{sub.description}</div>
-                                            {selectedSubclass?.id === sub.id && (
-                                                <div style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
-                                                    <strong>Features Gained:</strong>
-                                                    <ul style={{ paddingLeft: '1.25rem', marginTop: '0.25rem' }}>
-                                                        {sub.features.filter(f => f.level <= newClassLevel).map((f, i) => (
-                                                            <li key={i}>{f.name}</li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </label>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                    <button className="button secondary" onClick={onCancel}>Cancel</button>
-                    <button
-                        className="button primary"
-                        data-testid="levelup-confirm"
-                        onClick={handleSubmit}
-                        disabled={
-                            isSubmitting || 
-                            (hpMode === 'roll' && rolledHp === 0) || 
-                            ((Object.keys(effectiveClasses).length > 1 || character.level >= 1) && !levelUpMode) ||
-                            (levelUpMode === 'existing' && Object.keys(effectiveClasses).length > 1 && !selectedClassToLevel) ||
-                            (levelUpMode === 'multiclass' && !selectedMulticlass) ||
-                            (needsSubclass && !selectedSubclass) ||
-                            (needsFightingStyle && !selectedFightingStyle) ||
-                            (needsASI && !asiOrFeat) ||
-                            (needsASI && asiOrFeat === 'asi' && (
-                                (asiMode === 'single' && !asiSingle) ||
-                                (asiMode === 'dual' && (!asiDual1 || !asiDual2))
-                            )) ||
-                            (needsASI && asiOrFeat === 'feat' && !selectedFeat) ||
-                            (needsASI && asiOrFeat === 'feat' && !!selectedFeat?.abilityScoreOptions?.length && !featAbility && !selectedFeat.abilityScoreOptions.every(a => ((character.data.abilityScores || {})[a] ?? 10) >= (selectedFeat.abilityScoreMax ?? 20)))
-                        }
-                    >
-                        {isSubmitting ? 'Leveling Up...' : 'Confirm Level Up'}
-                    </button>
+                                </label>
+                            ))}
+                        </div>
+                    )}
                 </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+                <button
+                    className="btn"
+                    data-testid="levelup-confirm"
+                    onClick={handleSubmit}
+                    disabled={
+                        isSubmitting || 
+                        (hpMode === 'roll' && rolledHp === 0) || 
+                        ((Object.keys(effectiveClasses).length > 1 || character.level >= 1) && !levelUpMode) ||
+                        (levelUpMode === 'existing' && Object.keys(effectiveClasses).length > 1 && !selectedClassToLevel) ||
+                        (levelUpMode === 'multiclass' && !selectedMulticlass) ||
+                        (needsSubclass && !selectedSubclass) ||
+                        (needsFightingStyle && !selectedFightingStyle) ||
+                        (needsASI && !asiOrFeat) ||
+                        (needsASI && asiOrFeat === 'asi' && (
+                            (asiMode === 'single' && !asiSingle) ||
+                            (asiMode === 'dual' && (!asiDual1 || !asiDual2))
+                        )) ||
+                        (needsASI && asiOrFeat === 'feat' && !selectedFeat) ||
+                        (needsASI && asiOrFeat === 'feat' && !!selectedFeat?.abilityScoreOptions?.length && !featAbility && !selectedFeat.abilityScoreOptions.every(a => ((character.data.abilityScores || {})[a] ?? 10) >= (selectedFeat.abilityScoreMax ?? 20)))
+                    }
+                >
+                    {isSubmitting ? 'Leveling Up...' : 'Confirm Level Up'}
+                </button>
             </div>
-        </div>
+        </Modal>
     );
 }

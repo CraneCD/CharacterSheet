@@ -22,15 +22,6 @@ export default function AdminHome() {
 
     return (
         <div>
-            <div className="nav">
-                <div className="nav-brand">D&D 5.5e</div>
-                <div className="nav-links">
-                    <Link href="/dashboard">My Characters</Link>
-                    <Link href="/campaigns">Campaigns</Link>
-                    <Link href="/admin">Admin</Link>
-                </div>
-            </div>
-
             <h1 className="heading" style={{ marginBottom: '0.25rem' }}>Admin</h1>
             <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
                 Edit game reference data. Changes apply immediately to every character sheet that references them.

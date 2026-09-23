@@ -143,8 +143,8 @@ export interface CharacterData {
     fightingStyles?: string[]; // e.g. ['archery', 'defense'] – IDs from fighting-styles reference
     /** Notepad with pages; saves on close. */
     notepad?: { pages: string[] };
-    /** Character portrait as data URL (base64 image). */
-    portrait?: string;
+    /** Character portrait as data URL (base64 image); null once removed. */
+    portrait?: string | null;
 }
 
 export interface CharacterAction {

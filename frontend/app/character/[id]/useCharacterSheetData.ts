@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { CharacterData } from '@/lib/types';
 import { getCharacterSubclasses, getClassLevels, getSubclassMap } from '@/lib/subclasses';
+import { describeError, useOptimisticSave } from '@/app/components/ui/useOptimisticSave';
 
 export interface GameData {
     races: any[];
@@ -33,12 +34,49 @@ export function useCharacterSheetData(id: string | string[] | undefined) {
     const [gameData, setGameData] = useState<GameData | null>(null);
     const [classFeaturesList, setClassFeaturesList] = useState<ClassFeature[]>([]);
     const [subclassFeaturesList, setSubclassFeaturesList] = useState<ClassFeature[]>([]);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [reloadCount, setReloadCount] = useState(0);
+    const optimisticSave = useOptimisticSave();
 
     const handleUpdateCharacter = useCallback((updates: Partial<CharacterData>) => {
         setCharacter((prev: any) => ({
             ...prev,
             data: { ...prev.data, ...updates }
         }));
+    }, []);
+
+    /**
+     * Save sheet data: shows the change immediately, PATCHes it, and on failure puts back
+     * the previous values (unless something newer replaced them) and shows an error toast.
+     * Resolves to the updated character from the server, or undefined if the save failed.
+     */
+    const persistData = useCallback((updates: Partial<CharacterData>, errorMessage: string) => {
+        const keys = Object.keys(updates) as (keyof CharacterData)[];
+        let previous: Partial<CharacterData> | null = null;
+        return optimisticSave({
+            apply: () => setCharacter((prev: any) => {
+                if (previous === null) {
+                    previous = {};
+                    for (const key of keys) (previous as any)[key] = prev?.data?.[key];
+                }
+                return { ...prev, data: { ...prev.data, ...updates } };
+            }),
+            rollback: () => setCharacter((prev: any) => {
+                if (!prev || !previous) return prev;
+                const restored = { ...prev.data };
+                for (const key of keys) {
+                    if (restored[key] === updates[key]) restored[key] = (previous as any)[key];
+                }
+                return { ...prev, data: restored };
+            }),
+            request: () => api.patch(`/characters/${character?.id}/data`, updates),
+            errorMessage,
+        });
+    }, [optimisticSave, character?.id]);
+
+    const reload = useCallback(() => {
+        setLoadError(null);
+        setReloadCount((n) => n + 1);
     }, []);
 
     useEffect(() => {
@@ -71,11 +109,12 @@ export function useCharacterSheetData(id: string | string[] | undefined) {
                     setGameData(gameData);
                 }
             } catch (err) {
-                console.error(err);
+                console.error('Failed to load character sheet', err);
+                setLoadError(describeError("Couldn't load this character", err));
             }
         };
         loadData();
-    }, [id]);
+    }, [id, reloadCount]);
 
     // Load class and subclass features when character data is available
     useEffect(() => {
@@ -134,5 +173,5 @@ export function useCharacterSheetData(id: string | string[] | undefined) {
         loadFeatures();
     }, [character, gameData]);
 
-    return { character, setCharacter, handleUpdateCharacter, gameData, classFeaturesList, subclassFeaturesList };
+    return { character, setCharacter, handleUpdateCharacter, persistData, gameData, classFeaturesList, subclassFeaturesList, loadError, reload };
 }

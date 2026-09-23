@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { ClassResources, ClassResource } from '@/lib/types';
+import { describeError, useToast } from '@/app/components/ui';
 
 /** Psi Warrior ability that expends 1 Psionic Energy die */
 const PSI_WARRIOR_ABILITIES = [
@@ -29,6 +30,7 @@ export default function ClassResourcesManager({
     onLongRest,
     psiWarrior = false
 }: ClassResourcesManagerProps) {
+    const toast = useToast();
     const [resources, setResources] = useState<ClassResources>(initialResources || {});
     const [editingMaxFor, setEditingMaxFor] = useState<string | null>(null);
     const [editMaxValue, setEditMaxValue] = useState('');
@@ -56,7 +58,7 @@ export default function ClassResourcesManager({
                 onUpdate(updated);
             } catch (err) {
                 console.error('Failed to update class resource', err);
-                alert('Failed to update class resource');
+                toast.error(describeError("Couldn't update class resource", err));
             }
         }
     };
@@ -95,7 +97,7 @@ export default function ClassResourcesManager({
             setEditMaxValue('');
         } catch (err) {
             console.error('Failed to update resource max', err);
-            alert('Failed to update maximum uses');
+            toast.error(describeError("Couldn't update maximum uses", err));
         }
     };
 
@@ -127,7 +129,7 @@ export default function ClassResourcesManager({
                 if (onShortRest) onShortRest();
             } catch (err) {
                 console.error('Failed to reset resources on short rest', err);
-                alert('Failed to reset resources');
+                toast.error(describeError("Couldn't reset resources", err));
             }
         } else {
             if (onShortRest) onShortRest();
@@ -158,7 +160,7 @@ export default function ClassResourcesManager({
                 if (onLongRest) onLongRest();
             } catch (err) {
                 console.error('Failed to reset resources on long rest', err);
-                alert('Failed to reset resources');
+                toast.error(describeError("Couldn't reset resources", err));
             }
         } else {
             if (onLongRest) onLongRest();
@@ -181,17 +183,15 @@ export default function ClassResourcesManager({
                 </h3>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button
-                        className="button secondary"
+                        className="btn btn-secondary btn-sm"
                         onClick={handleShortRest}
-                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
                         title="Reset resources that recover on short rest"
                     >
                         Short Rest
                     </button>
                     <button
-                        className="button secondary"
+                        className="btn btn-secondary btn-sm"
                         onClick={handleLongRest}
-                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
                         title="Reset all resources"
                     >
                         Long Rest
@@ -248,7 +248,7 @@ export default function ClassResourcesManager({
                                         />
                                         <button
                                             type="button"
-                                            className="button primary"
+                                            className="btn"
                                             onClick={() => saveMax(name)}
                                             style={{ fontSize: '0.75rem', padding: '0.2rem 0.4rem' }}
                                         >
@@ -256,7 +256,7 @@ export default function ClassResourcesManager({
                                         </button>
                                         <button
                                             type="button"
-                                            className="button secondary"
+                                            className="btn btn-secondary"
                                             onClick={cancelEditingMax}
                                             style={{ fontSize: '0.75rem', padding: '0.2rem 0.4rem' }}
                                         >
@@ -275,7 +275,7 @@ export default function ClassResourcesManager({
                                         </span>
                                         <button
                                             type="button"
-                                            className="button secondary"
+                                            className="btn btn-secondary"
                                             onClick={() => startEditingMax(name)}
                                             title="Edit maximum uses"
                                             style={{ fontSize: '0.75rem', padding: '0.2rem 0.4rem' }}
@@ -353,7 +353,7 @@ export default function ClassResourcesManager({
                                     {PSI_WARRIOR_ABILITIES.map(({ id, name: abilityName, desc }) => (
                                         <button
                                             key={id}
-                                            className="button secondary"
+                                            className="btn btn-secondary"
                                             onClick={() => handleResourceChange(name, resource.current - 1)}
                                             disabled={resource.current <= 0}
                                             title={desc}

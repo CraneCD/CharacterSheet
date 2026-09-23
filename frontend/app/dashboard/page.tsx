@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { isStoredUserAdmin } from '@/lib/auth';
+import { buttonClass, ConfirmDialog, describeError, Skeleton, useToast } from '@/app/components/ui';
 
 interface Character {
     id: string;
@@ -16,14 +16,12 @@ interface Character {
 export default function Dashboard() {
     const [characters, setCharacters] = useState<Character[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
     const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
+    const [deleting, setDeleting] = useState(false);
     const [importing, setImporting] = useState(false);
-    const [isAdmin, setIsAdmin] = useState(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-    useEffect(() => {
-        setIsAdmin(isStoredUserAdmin());
-    }, []);
+    const toast = useToast();
 
     const handleImportFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -64,11 +62,10 @@ export default function Dashboard() {
 
             const created = await api.post('/characters', payload);
             setCharacters((prev) => [...prev, created]);
-            alert(`Imported character "${created.name}" successfully.`);
+            toast.success(`Imported "${created.name}".`);
         } catch (err: any) {
             console.error('Failed to import character JSON', err);
-            const message = err?.message || 'Failed to import character JSON.';
-            alert(message);
+            toast.error(describeError("Couldn't import character", err));
         } finally {
             setImporting(false);
             if (event.target) {
@@ -77,34 +74,45 @@ export default function Dashboard() {
         }
     };
 
-    useEffect(() => {
+    const loadCharacters = () => {
+        setLoading(true);
+        setLoadError('');
         api.get('/characters')
             .then(setCharacters)
-            .catch(console.error)
+            .catch((err) => {
+                console.error('Failed to load characters', err);
+                setLoadError(describeError("Couldn't load your characters", err));
+            })
             .finally(() => setLoading(false));
-    }, []);
+    };
+
+    useEffect(loadCharacters, []);
+
+    const handleDelete = async () => {
+        if (!characterToDelete) return;
+        const char = characterToDelete;
+        setDeleting(true);
+        try {
+            await api.delete(`/characters/${char.id}`);
+            setCharacters((prev) => prev.filter(c => c.id !== char.id));
+            setCharacterToDelete(null);
+            toast.success(`Deleted "${char.name}".`);
+        } catch (err: any) {
+            console.error('Failed to delete character', err);
+            toast.error(describeError(`Couldn't delete "${char.name}"`, err));
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     return (
         <div>
-            <div className="nav">
-                <div className="nav-brand">D&D 5.5e</div>
-                <div className="nav-links">
-                    <Link href="/dashboard">My Characters</Link>
-                    <Link href="/campaigns">Campaigns</Link>
-                    {isAdmin && <Link href="/admin">Admin</Link>}
-                    <button onClick={() => {
-                        localStorage.removeItem('token');
-                        window.location.href = '/login';
-                    }} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer' }}>Logout</button>
-                </div>
-            </div>
-
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <h1 className="heading" style={{ marginBottom: 0 }}>My Characters</h1>
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
                     <button
                         type="button"
-                        className="btn"
+                        className="btn btn-secondary"
                         onClick={() => {
                             if (fileInputRef.current && !importing) {
                                 fileInputRef.current.click();
@@ -122,13 +130,28 @@ export default function Dashboard() {
                         style={{ display: 'none' }}
                         onChange={handleImportFileChange}
                     />
-                    <Link href="/create" className="btn" style={{ whiteSpace: 'nowrap' }}>Create New Character</Link>
+                    <Link href="/create" className={buttonClass()}>Create New Character</Link>
                 </div>
             </div>
 
+            {loadError && !loading && (
+                <div className="form-error" role="alert" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
+                    <span>{loadError}</span>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={loadCharacters}>Try again</button>
+                </div>
+            )}
+
             {loading ? (
-                <p>Loading...</p>
-            ) : (
+                <div aria-busy="true" aria-label="Loading characters" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: '1.5rem' }}>
+                    {[0, 1, 2].map(i => (
+                        <div key={i} className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-3)' }}>
+                            <Skeleton width={120} height={160} />
+                            <Skeleton width="60%" height="1.25rem" />
+                            <Skeleton width="80%" />
+                        </div>
+                    ))}
+                </div>
+            ) : loadError ? null : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: '1.5rem' }}>
                     {characters.map((char) => (
                         <div key={char.id} className="card" style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
@@ -156,12 +179,13 @@ export default function Dashboard() {
                                     right: '1rem',
                                     background: 'none',
                                     border: 'none',
-                                    color: 'var(--error, #ef4444)',
+                                    color: 'var(--error)',
                                     fontSize: '1.25rem',
                                     cursor: 'pointer',
                                     lineHeight: 1
                                 }}
-                                title="Delete Character"
+                                title="Delete character"
+                                aria-label={`Delete ${char.name}`}
                             >
                                 &times;
                             </button>
@@ -170,36 +194,25 @@ export default function Dashboard() {
                     {characters.length === 0 && (
                         <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4rem', border: '2px dashed var(--border)', borderRadius: '0.5rem' }}>
                             <p style={{ marginBottom: '1rem', color: 'var(--text-muted)' }}>You haven&apos;t created any characters yet.</p>
-                            <Link href="/create" className="btn">Create Your First Character</Link>
+                            <Link href="/create" className={buttonClass()}>Create Your First Character</Link>
                         </div>
                     )}
                 </div>
             )}
 
             {characterToDelete && (
-                <div className="modal-overlay" onClick={() => setCharacterToDelete(null)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <h3>Delete Character</h3>
-                        <p>Are you sure you want to delete <strong>{characterToDelete.name}</strong>? This action cannot be undone.</p>
-                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
-                            <button className="button secondary" onClick={() => setCharacterToDelete(null)}>Cancel</button>
-                            <button className="button primary" onClick={async () => {
-                                const char = characterToDelete;
-                                setCharacterToDelete(null);
-                                try {
-                                    console.log('Attempting to delete character:', `/characters/${char.id}`);
-                                    const response = await api.delete(`/characters/${char.id}`);
-                                    console.log('Delete character response:', response);
-                                    setCharacters(characters.filter(c => c.id !== char.id));
-                                } catch (err: any) {
-                                    console.error('Failed to delete character', err);
-                                    const errorMessage = err?.message || 'Failed to delete character';
-                                    alert(`Failed to delete character: ${errorMessage}`);
-                                }
-                            }}>Delete</button>
-                        </div>
-                    </div>
-                </div>
+                <ConfirmDialog
+                    title="Delete character?"
+                    confirmLabel="Delete"
+                    danger
+                    busy={deleting}
+                    onConfirm={handleDelete}
+                    onCancel={() => setCharacterToDelete(null)}
+                >
+                    <p style={{ margin: 0 }}>
+                        <strong style={{ color: 'var(--text)' }}>{characterToDelete.name}</strong>{' '}will be permanently deleted. This can&apos;t be undone.
+                    </p>
+                </ConfirmDialog>
             )}
         </div>
     );
