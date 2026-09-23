@@ -1076,23 +1076,36 @@ router.delete('/:id/features', authenticateToken, (req: AuthRequest, res) =>
     })
 );
 
-// Add Action
+const actionKey = (name: unknown) => String(name ?? '').trim().toLowerCase();
+
+// Add Action. Names are unique per character: adding one that already exists is a
+// no-op, so double clicks or a client working from a stale action list can't duplicate it.
 router.post('/:id/actions', authenticateToken, (req: AuthRequest, res) =>
     mutateCharacterData(req, res, 'Failed to add action', (data) => {
         const { action } = req.body;
-        const actions = data.actions || [];
+        if (!action || typeof action !== 'object' || !actionKey(action.name)) {
+            return { status: 400, error: 'Action name is required' };
+        }
+        const actions = Array.isArray(data.actions) ? data.actions : [];
+        if (actions.some((a: any) => actionKey(a?.name) === actionKey(action.name))) return;
         actions.push(action);
         data.actions = actions;
     })
 );
 
-// Remove Action
+// Remove Action. When the client sends the action's name, the name decides what is
+// removed (the index is only a hint), so a stale index can't delete a different action.
 router.delete('/:id/actions', authenticateToken, (req: AuthRequest, res) =>
     mutateCharacterData(req, res, 'Failed to remove action', (data) => {
-        const { index } = req.body;
-        const actions = data.actions || [];
+        const { index, name } = req.body;
+        const actions = Array.isArray(data.actions) ? data.actions : [];
 
-        if (index !== undefined && index >= 0 && index < actions.length) {
+        if (name !== undefined) {
+            const at = actionKey(actions[index]?.name) === actionKey(name)
+                ? index
+                : actions.findIndex((a: any) => actionKey(a?.name) === actionKey(name));
+            if (at >= 0) actions.splice(at, 1);
+        } else if (index !== undefined && index >= 0 && index < actions.length) {
             actions.splice(index, 1);
         }
 

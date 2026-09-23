@@ -49,7 +49,8 @@ interface SpellManagerProps {
     onUpdate: (data: Partial<CharacterData>) => void;
     existingActions?: any[];
     onCreateAction?: (action: any) => Promise<void>;
-    onDeleteAction?: (index: number) => Promise<void>;
+    /** Remove an action; the name decides which one (the index is only a hint). */
+    onDeleteAction?: (index: number, name: string) => Promise<void>;
     classes?: { [classId: string]: number }; // Multiclass support
     allClasses?: any[]; // All available classes for reference
     subclassSpellcasting?: SubclassSpellcasting;
@@ -159,7 +160,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         const index = findActionIndex(actionName);
         if (index !== -1) {
             try {
-                await onDeleteAction(index);
+                await onDeleteAction(index, actionName);
             } catch (err) {
                 console.error('Failed to remove action', err);
             }

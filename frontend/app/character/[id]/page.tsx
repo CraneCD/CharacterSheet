@@ -1146,13 +1146,13 @@ export default function CharacterSheet() {
                             hasWeaponMastery={(classFeaturesList || []).some(f => f.name === 'Weapon Mastery')}
                             onDeleteMasteryActionsForWeapon={async (weaponName) => {
                                 const actions = (Array.isArray(data.actions) ? data.actions : []) as { name: string }[];
-                                const indices = actions
-                                    .map((a, i) => (isMasteryActionForWeapon(a.name, weaponName) ? i : -1))
-                                    .filter(i => i >= 0)
-                                    .sort((a, b) => b - a);
+                                const toRemove = actions
+                                    .map((a, i) => ({ index: i, name: a.name }))
+                                    .filter(a => isMasteryActionForWeapon(a.name, weaponName))
+                                    .sort((a, b) => b.index - a.index);
                                 let updatedChar: any = null;
-                                for (const idx of indices) {
-                                    updatedChar = await api.delete(`/characters/${character.id}/actions`, { data: { index: idx } });
+                                for (const { index, name } of toRemove) {
+                                    updatedChar = await api.delete(`/characters/${character.id}/actions`, { data: { index, name } });
                                 }
                                 if (updatedChar) setCharacter(updatedChar);
                             }}
@@ -1446,10 +1446,10 @@ export default function CharacterSheet() {
                                         throw err;
                                     }
                                 }}
-                                onDeleteAction={async (index) => {
+                                onDeleteAction={async (index, name) => {
                                     try {
                                         const updatedChar = await api.delete(`/characters/${character.id}/actions`, {
-                                            data: { index }
+                                            data: { index, name }
                                         });
                                         setCharacter((prev: any) => ({
                                             ...updatedChar,
