@@ -576,7 +576,7 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                 <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Level Up: {nextLevel}</h2>
 
                 {/* Class Selection Section - Show if character has multiple classes or can multiclass */}
-                {(Object.keys(effectiveClasses).length > 1 || (Object.keys(effectiveClasses).length === 1 && character.level >= 1)) && !levelUpMode && (
+                {(Object.keys(effectiveClasses).length > 1 || (Object.keys(effectiveClasses).length === 1 && character.level >= 1)) && (
                     <div className="card" style={{ marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
                         <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
                             Choose Level Up Path
