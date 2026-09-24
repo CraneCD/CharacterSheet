@@ -34,7 +34,7 @@ import { getRaceTraits, getBackgroundSkills, getSpeciesSpellEntries } from '@/li
 import { useCharacterSheetData } from './useCharacterSheetData';
 import { getCharacterSubclasses, getSubclassMap } from '@/lib/subclasses';
 import { getChoiceSkillBonuses, getChoiceSpellIds, getWeaponMasteries } from '@/lib/classChoices';
-import { Button, ConfirmDialog, describeError, EditableStat, Menu, Stat, useToast } from '@/app/components/ui';
+import { Button, ConfirmDialog, describeError, EditableStat, Menu, Stat, useOptimisticSave, useToast } from '@/app/components/ui';
 import { getSpellcastingSetup } from '@/lib/spellcastingSetup';
 import AcShield from './components/sections/AcShield';
 import { DiceProvider, RollButton } from '@/app/components/dice/DiceTray';
@@ -43,6 +43,7 @@ import SavingThrowsCard from './components/sections/SavingThrowsCard';
 import SkillsCard from './components/sections/SkillsCard';
 import SensesCard from './components/sections/SensesCard';
 import ProficienciesCard from './components/sections/ProficienciesCard';
+import CharacterName from './components/sections/CharacterName';
 import ConditionsCard from './components/sections/ConditionsCard';
 import NotesCard from './components/sections/NotesCard';
 import { useCoreColumnFit } from './useCoreColumnFit';
@@ -65,6 +66,7 @@ export default function CharacterSheet() {
         reload
     } = useCharacterSheetData(id);
     const toast = useToast();
+    const optimisticSave = useOptimisticSave();
     const [showLevelUp, setShowLevelUp] = useState(false);
     const [showLevelDownConfirm, setShowLevelDownConfirm] = useState(false);
     const [isLevelingDown, setIsLevelingDown] = useState(false);
@@ -117,6 +119,16 @@ export default function CharacterSheet() {
     const primaryClass = (character.class || character.classId || 'fighter').toLowerCase?.() || 'fighter';
     const level = character.level ?? 1;
     const characterName = character.name ?? 'Unknown';
+    const renameCharacter = (name: string) => {
+        const previous = character.name;
+        void optimisticSave({
+            apply: () => setCharacter((prev: any) => ({ ...prev, name })),
+            // Only undo if nothing renamed it again meanwhile
+            rollback: () => setCharacter((prev: any) => (prev.name === name ? { ...prev, name: previous } : prev)),
+            request: () => api.put(`/characters/${character.id}`, { name }),
+            errorMessage: "Couldn't rename character",
+        });
+    };
 
     const data = character.data || {};
     const raceId = (character.race || '').toLowerCase();
@@ -524,7 +536,7 @@ export default function CharacterSheet() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                         <Link href="/dashboard" className="no-print" style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'inline-block' }}>&larr; My Characters</Link>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                            <h1 className="heading" style={{ marginBottom: '0.25rem', flex: '1 1 auto', minWidth: 0, wordBreak: 'break-word' }}>{characterName}</h1>
+                            <CharacterName name={characterName} onRename={renameCharacter} />
                         <div className="sheet-actions no-print">
                             <Button variant="secondary" size="sm" onClick={() => setRestDialog('short')}>Short Rest</Button>
                             <Button variant="secondary" size="sm" onClick={() => setRestDialog('long')}>Long Rest</Button>
