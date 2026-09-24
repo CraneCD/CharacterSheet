@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { ClassInfo, Subclass } from '@/lib/types';
 import { selectableProps } from '@/app/components/ui/selectable';
+import { classColorStyle } from '@/lib/classColors';
 
 export interface FightingStyleOption {
     id: string;
@@ -62,7 +63,7 @@ export default function StepClass({ selectedClassId, onSelect, selectedSubclassI
                         <div
                             key={cls.id}
                             data-testid={`class-${cls.id}`}
-                            className={`card ${isSelected ? 'highlight' : ''}`}
+                            className={`card class-card${isSelected ? ' is-selected' : ''}`}
                             {...selectableProps(isSelected, () => {
                                 onSelect(cls);
                                 if (selectedClassId !== cls.id) {
@@ -70,13 +71,9 @@ export default function StepClass({ selectedClassId, onSelect, selectedSubclassI
                                     onSelectFightingStyle(null);
                                 }
                             })}
-                            style={{
-                                cursor: 'pointer',
-                                border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
-                                backgroundColor: isSelected ? 'var(--surface-highlight)' : 'var(--surface)'
-                            }}
+                            style={classColorStyle(cls.id)}
                         >
-                            <h3 style={{ fontWeight: 'bold', fontSize: '1.25rem', marginBottom: '0.5rem' }}>{cls.name}</h3>
+                            <h3 className="class-card-name">{cls.name}</h3>
                             {cls.description && (
                                 <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>{cls.description}</p>
                             )}

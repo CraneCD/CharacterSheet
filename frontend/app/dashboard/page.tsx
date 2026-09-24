@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Button, buttonClass, ConfirmDialog, describeError, Skeleton, useToast } from '@/app/components/ui';
+import { Button, buttonClass, ConfirmDialog, D20Icon, describeError, Skeleton, useToast } from '@/app/components/ui';
 import { CharacterDraft, clearDraft, hasDraftProgress, loadDraft } from '@/lib/characterDraft';
 import { downloadCharacterJson, ImportResult, parseCharacterImport } from '@/lib/characterTransfer';
 import CharacterCard, { CharacterSummary } from './components/CharacterCard';
@@ -184,13 +184,11 @@ export default function Dashboard() {
             {loading ? (
                 <div aria-busy="true" aria-label="Loading characters" className="character-grid">
                     {[0, 1, 2].map(i => (
-                        <div key={i} className="card" style={{ display: 'flex', gap: 'var(--space-4)' }}>
-                            <Skeleton width={72} height={96} />
-                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                                <Skeleton width="60%" height="1.25rem" />
-                                <Skeleton width="80%" />
-                                <Skeleton width="50%" />
-                            </div>
+                        <div key={i} className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-2)' }}>
+                            <Skeleton width={72} height={72} radius="var(--radius-full)" />
+                            <Skeleton width="60%" height="1.5rem" />
+                            <Skeleton width="70%" />
+                            <Skeleton width="90%" />
                         </div>
                     ))}
                 </div>
@@ -204,14 +202,23 @@ export default function Dashboard() {
                             onDelete={setCharacterToDelete}
                         />
                     ))}
+                    {visibleCharacters.length > 0 && !search && (
+                        <Link href="/create" className="character-card-new">
+                            <span className="character-card-new-icon" aria-hidden="true">+</span>
+                            <span className="character-card-new-title">{draft ? 'Continue new character' : 'New character'}</span>
+                            <span className="character-card-new-text">{draft ? 'Pick up where you left off' : 'Species, class and scores in a few minutes'}</span>
+                        </Link>
+                    )}
                     {characters.length > 0 && visibleCharacters.length === 0 && (
                         <p className="dashboard-empty-search">
                             No characters match &ldquo;{search}&rdquo;. <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSearch('')}>Clear search</button>
                         </p>
                     )}
                     {characters.length === 0 && (
-                        <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4rem 1rem', border: '2px dashed var(--border)', borderRadius: '0.5rem' }}>
-                            <p style={{ marginTop: 0, marginBottom: '1rem', color: 'var(--text-muted)' }}>You haven&apos;t created any characters yet.</p>
+                        <div className="dashboard-empty">
+                            <D20Icon className="dashboard-empty-die" strokeWidth={3} />
+                            <h2 className="dashboard-empty-title">Your party starts here</h2>
+                            <p className="dashboard-empty-text">You haven&apos;t created any characters yet.</p>
                             <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'center', flexWrap: 'wrap' }}>
                                 <Link href="/create" className={buttonClass()}>{draft ? 'Continue your first character' : 'Create your first character'}</Link>
                                 <Button variant="secondary" onClick={chooseImportFile}>Import from JSON</Button>

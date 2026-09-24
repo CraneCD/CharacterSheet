@@ -1,6 +1,7 @@
 'use client';
 
 import { SectionHeader } from '@/app/components/ui';
+import { RollButton } from '@/app/components/dice/DiceTray';
 import { formatMod } from './format';
 
 export interface SkillRow {
@@ -40,7 +41,9 @@ export default function SkillsCard({ skills, onToggleProficiency }: SkillsCardPr
                             {skill.name}
                             <span className="skill-stat">({skill.stat.toUpperCase()})</span>
                         </span>
-                        <span className="stat-list-total">{formatMod(skill.total)}</span>
+                        <RollButton label={skill.name} modifier={skill.total} className="stat-list-total">
+                            {formatMod(skill.total)}
+                        </RollButton>
                     </li>
                 ))}
             </ul>

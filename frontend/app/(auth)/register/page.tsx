@@ -38,9 +38,9 @@ export default function RegisterPage() {
     };
 
     return (
-        <div style={{ maxWidth: '400px', margin: '4rem auto' }}>
+        <div>
             <div className="card">
-                <h1 className="heading" style={{ textAlign: 'center' }}>Create account</h1>
+                <h1 className="heading">Create account</h1>
                 {error && <div className="form-error" role="alert">{error}</div>}
                 <form onSubmit={handleSubmit}>
                     <TextField

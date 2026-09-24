@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { clearAuthStorage, isStoredUserAdmin } from '@/lib/auth';
 import { isAdminPath, isProtectedPath } from './AuthGuard';
 import ThemeToggle from './ui/ThemeToggle';
+import D20Icon from './ui/D20Icon';
 
 /** Character pages (list, creation, sheets) all live under "My Characters". */
 function isCharactersPath(pathname: string): boolean {
@@ -31,7 +32,7 @@ export function AppNav() {
 
     return (
         <nav className="nav" aria-label="Main">
-            <Link href="/dashboard" className="nav-brand">D&amp;D 5.5e</Link>
+            <Link href="/dashboard" className="nav-brand"><D20Icon className="nav-brand-icon" />D&amp;D 5.5e</Link>
             <div className="nav-links">
                 <NavLink href="/dashboard" active={isCharactersPath(pathname)}>My Characters</NavLink>
                 {isAdmin && <NavLink href="/admin" active={isAdminPath(pathname)}>Admin</NavLink>}

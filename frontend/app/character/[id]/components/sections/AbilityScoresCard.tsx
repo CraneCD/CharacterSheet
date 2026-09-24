@@ -1,6 +1,7 @@
 'use client';
 
 import { EditableNumber, SectionHeader } from '@/app/components/ui';
+import { RollButton } from '@/app/components/dice/DiceTray';
 import { ABILITIES, ABILITY_NAMES, formatMod } from './format';
 
 interface AbilityScoresCardProps {
@@ -11,14 +12,20 @@ interface AbilityScoresCardProps {
     onChange: (ability: string, value: number) => void;
 }
 
+/** Ability scores as cut gems: the modifier large (it's what you add to rolls), the score small and editable. */
 export default function AbilityScoresCard({ scores, modifiers, onChange }: AbilityScoresCardProps) {
+    // The best modifier glows in the class colour
+    const best = ABILITIES.reduce((top, a) => (modifiers[a] > modifiers[top] ? a : top), ABILITIES[0]);
     return (
         <div className="card">
             <SectionHeader title="Ability Scores" />
-            {ABILITIES.map((ability) => (
-                <div key={ability} className="ability-row">
-                    <div className="ability-score-cell">
+            <div className="ability-gems">
+                {ABILITIES.map((ability) => (
+                    <div key={ability} className={ability === best ? 'ability-gem is-best' : 'ability-gem'}>
                         <div className="ability-abbr" aria-hidden="true">{ability}</div>
+                        <RollButton label={`${ABILITY_NAMES[ability]} check`} modifier={modifiers[ability]} className="ability-mod">
+                            {formatMod(modifiers[ability])}
+                        </RollButton>
                         <EditableNumber
                             label={`${ABILITY_NAMES[ability]} score`}
                             value={scores[ability]}
@@ -28,11 +35,8 @@ export default function AbilityScoresCard({ scores, modifiers, onChange }: Abili
                             onSave={(value) => onChange(ability, value)}
                         />
                     </div>
-                    <div className="ability-mod" aria-label={`${ABILITY_NAMES[ability]} modifier ${formatMod(modifiers[ability])}`}>
-                        {formatMod(modifiers[ability])}
-                    </div>
-                </div>
-            ))}
+                ))}
+            </div>
         </div>
     );
 }

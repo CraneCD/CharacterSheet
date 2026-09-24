@@ -80,6 +80,8 @@ function HPManager({ characterId, initialHP, onUpdate }: HPManagerProps) {
     const deathSaves = hp.deathSaves ?? { successes: 0, failures: 0 };
     const stable = isDown && deathSaves.successes >= 3;
     const percent = hp.max > 0 ? Math.round((Math.max(0, hp.current) / hp.max) * 100) : 0;
+    // Temporary HP shows as a striped segment after current HP, within the bar
+    const tempPercent = hp.max > 0 ? Math.min(100 - percent, Math.round((Math.max(0, hp.temp) / hp.max) * 100)) : 0;
 
     const handleDamage = () => {
         if (value <= 0) return;
@@ -210,6 +212,7 @@ function HPManager({ characterId, initialHP, onUpdate }: HPManagerProps) {
                 aria-valuetext={`${hp.current} of ${hp.max} hit points${hp.temp > 0 ? `, plus ${hp.temp} temporary` : ''}`}
             >
                 <div className="hp-bar-fill" style={{ width: `${percent}%` }} />
+                {tempPercent > 0 && <div className="hp-bar-temp" style={{ width: `${tempPercent}%` }} />}
             </div>
 
             <div className="hp-controls no-print">
