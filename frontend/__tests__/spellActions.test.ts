@@ -1,11 +1,4 @@
-import {
-    findActionSpell,
-    isActionForSpell,
-    liveSpellAction,
-    parseSpellActionName,
-    spellActionDescription,
-    spellActionName,
-} from '@/lib/spellActions';
+import { findActionSpell, parseSpellActionName, spellActionName } from '@/lib/spellActions';
 
 const spell = (id: string, name: string, extra: Partial<Record<string, string>> = {}) => ({
     id, name, castingTime: 'Action', range: '60 feet', components: 'V', duration: 'Instantaneous', description: `${name} 2024 text.`, ...extra,
@@ -30,49 +23,23 @@ describe('spell action names', () => {
     });
 });
 
-describe('live spell actions', () => {
-    it('shows the current spell text for an action with a spellId', () => {
-        const action = { name: 'Cast Healing Word (Bonus)', type: 'bonus' as const, description: 'stale', spellId: 'healing-word' };
-        const live = liveSpellAction(action, SPELLS);
-        expect(live.description).toBe(spellActionDescription(SPELLS[0]));
-        expect(live.name).toBe('Cast Healing Word (Bonus)');
-        expect(live.type).toBe('bonus');
+// The Actions card hides the "Cast <spell>" copies the app used to save; these are how it recognises them
+describe('recognising saved spell actions', () => {
+    it('finds the spell by spellId, even after a rename', () => {
+        expect(findActionSpell({ name: 'Cast Healing Word (Bonus)', spellId: 'healing-word' }, SPELLS)?.id).toBe('healing-word');
+        expect(findActionSpell({ name: 'Cast Branding Smite (Bonus)', spellId: 'shining-smite' }, SPELLS)?.name).toBe('Shining Smite');
     });
 
-    it('follows a renamed spell by spellId, keeping the saved Bonus/Reaction label', () => {
-        const action = { name: 'Cast Branding Smite (Bonus)', type: 'bonus' as const, description: 'old', spellId: 'shining-smite' };
-        expect(liveSpellAction(action, SPELLS).name).toBe('Cast Shining Smite (Bonus)');
-    });
-
-    it('matches older generated actions by name (case-insensitive)', () => {
-        const live = liveSpellAction(saved2014('Cast Pass Without Trace'), SPELLS);
-        expect(live.name).toBe('Cast Pass without Trace');
-        expect(live.description).toContain('Pass without Trace 2024 text.');
-    });
-
-    it('follows 2014 names of renamed spells for older actions (ids keep the old name)', () => {
-        expect(liveSpellAction(saved2014('Cast Feeblemind'), SPELLS).name).toBe('Cast Befuddlement');
-        expect(liveSpellAction(saved2014('Cast Power Word: Stun'), SPELLS).name).toBe('Cast Power Word Stun');
+    it('matches older generated actions by name, case-insensitively and by 2014 names', () => {
+        expect(findActionSpell(saved2014('Cast Pass Without Trace'), SPELLS)?.id).toBe('pass-without-trace');
+        expect(findActionSpell(saved2014('Cast Feeblemind'), SPELLS)?.name).toBe('Befuddlement');
+        expect(findActionSpell(saved2014('Cast Power Word: Stun'), SPELLS)?.id).toBe('power-word-stun');
     });
 
     it('leaves hand-written and unknown actions alone', () => {
-        const custom = { name: 'Cast Healing Word', type: 'action' as const, description: 'My house-ruled version.' };
-        expect(liveSpellAction(custom, SPELLS)).toBe(custom);
-        const unknown = saved2014('Cast Homebrew Blast');
-        expect(liveSpellAction(unknown, SPELLS)).toBe(unknown);
-        const item = { name: 'Use Cloak of Protection', type: 'action' as const, description: '+1 AC' };
-        expect(liveSpellAction(item, SPELLS)).toBe(item);
+        expect(findActionSpell({ name: 'Cast Healing Word', type: 'action', description: 'My house-ruled version.' }, SPELLS)).toBeUndefined();
+        expect(findActionSpell(saved2014('Cast Homebrew Blast'), SPELLS)).toBeUndefined();
+        expect(findActionSpell({ name: 'Use Cloak of Protection', description: '+1 AC' }, SPELLS)).toBeUndefined();
         expect(findActionSpell({ name: 'Cast Healing Word', spellId: 'gone' }, SPELLS)).toBeUndefined();
-    });
-});
-
-describe('finding a spell\'s action', () => {
-    it('matches by current name, or by spellId / old name with the same action type', () => {
-        const hw = SPELLS[0];
-        expect(isActionForSpell({ name: 'Cast Healing Word (Bonus)' }, hw, 'bonus', SPELLS)).toBe(true);
-        expect(isActionForSpell({ name: 'Cast Healing Word', spellId: 'healing-word', description: 'x' }, hw, 'action', SPELLS)).toBe(true);
-        expect(isActionForSpell({ name: 'Cast Healing Word', spellId: 'healing-word', description: 'x' }, hw, 'bonus', SPELLS)).toBe(false);
-        expect(isActionForSpell(saved2014('Cast Pass Without Trace'), SPELLS[1], 'action', SPELLS)).toBe(true);
-        expect(isActionForSpell(saved2014('Cast Pass Without Trace'), SPELLS[2], 'action', SPELLS)).toBe(false);
     });
 });
