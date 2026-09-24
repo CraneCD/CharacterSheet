@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { api } from '@/lib/api';
 import { CharacterFeature } from '@/lib/types';
 import { describeError, useToast } from '@/app/components/ui';
+
+/** Collapsed list height when the card has no extra room (a taller column elsewhere lets it grow). */
+const COLLAPSED_HEIGHT = 520;
 
 interface StaticFeature {
     name: string;
@@ -23,6 +26,11 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
     const [features, setFeatures] = useState<CharacterFeature[]>(initialFeatures || []);
     const [isAdding, setIsAdding] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
+    // The collapsed list fills the card (which stretches to the tallest column) but is at least
+    // min(COLLAPSED_HEIGHT, content) tall; Expand only shows while something is scrolled out of view.
+    const listRef = useRef<HTMLDivElement>(null);
+    const [contentHeight, setContentHeight] = useState<number | null>(null);
+    const [overflowing, setOverflowing] = useState(false);
     const [newItem, setNewItem] = useState<Partial<CharacterFeature>>({
         name: '',
         source: '',
@@ -33,6 +41,22 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
     // (see mergeLiveFeat below), so admin edits to a feat's text show up on
     // characters that already have it.
     const [featsById, setFeatsById] = useState<Record<string, { name: string; description: string }>>({});
+
+    useEffect(() => {
+        const list = listRef.current;
+        if (!list) return;
+        const measure = () => {
+            setContentHeight(list.scrollHeight);
+            setOverflowing(list.scrollHeight > list.clientHeight + 1);
+        };
+        measure();
+        if (typeof ResizeObserver === 'undefined') return;
+        // Re-measure when the card is resized (another column grows) or an entry changes size
+        const observer = new ResizeObserver(measure);
+        observer.observe(list);
+        Array.from(list.children).forEach((child) => observer.observe(child));
+        return () => observer.disconnect();
+    }, [features.length, staticFeatures.length, isExpanded]);
 
     // Update features when initialFeatures prop changes (e.g., after level up)
     useEffect(() => {
@@ -144,15 +168,17 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
             )}
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                <div 
+                <div
+                    ref={listRef}
                     className="collapsible-list"
-                    style={{ 
-                        flex: isExpanded ? 1 : '0 1 auto',
-                        display: 'flex', 
-                        flexDirection: 'column', 
+                    style={{
+                        // Collapsed: grow into the card's free space from a zero basis, never shorter than
+                        // min(COLLAPSED_HEIGHT, content), and scroll anything beyond that
+                        flex: isExpanded ? '1 1 auto' : '1 1 0px',
+                        display: 'flex',
+                        flexDirection: 'column',
                         gap: '0.75rem',
-                        minHeight: 0,
-                        maxHeight: isExpanded ? 'none' : '520px',
+                        minHeight: isExpanded ? 0 : Math.min(COLLAPSED_HEIGHT, contentHeight ?? COLLAPSED_HEIGHT),
                         overflowY: isExpanded ? 'visible' : 'auto',
                         paddingRight: isExpanded ? '0' : '0.5rem',
                         marginRight: isExpanded ? '0' : '-0.5rem'
@@ -202,8 +228,8 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
                     )}
                 </div>
 
-                {/* Expand/Collapse Button - pinned to bottom of card */}
-                {(staticFeatures.length > 0 || features.length > 0) && (
+                {/* Expand/Collapse, pinned to the bottom of the card; only when something is out of view */}
+                {(isExpanded || overflowing) && (
                     <div style={{ 
                         display: 'flex', 
                         justifyContent: 'center', 
@@ -215,6 +241,7 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
                         <button
                             className="btn btn-secondary"
                             onClick={() => setIsExpanded(!isExpanded)}
+                            aria-expanded={isExpanded}
                             style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
                         >
                             {isExpanded ? '▲ Collapse' : '▼ Expand'}

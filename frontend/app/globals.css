@@ -2745,6 +2745,8 @@ button {
 
   /* Lists that scroll inside a height limit on screen print in full */
   .collapsible-list {
+    flex: none !important;
+    min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
   }
