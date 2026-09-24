@@ -10,6 +10,9 @@ import SpellDetailsModal from './SpellDetailsModal';
 import { isActionForSpell, spellActionDescription, spellActionName } from '@/lib/spellActions';
 import MagicInitiateConfigModal from './MagicInitiateConfigModal';
 import { ConfirmDialog, describeError, Modal, useToast } from '@/app/components/ui';
+import SpellFilterBar from './SpellFilterBar';
+import SlotPips from './SlotPips';
+import { EMPTY_SPELL_FILTERS, hasActiveSpellFilters, schoolsOf, SpellFilters, spellMatches } from '@/lib/spellFilters';
 
 /** Subclass spellcasting (Arcane Trickster, Eldritch Knight). */
 interface SubclassSpellcasting {
@@ -79,6 +82,9 @@ export default function SpellManager({ characterId, classId, level, initialSpell
     const [isAdding, setIsAdding] = useState(false);
     const [isCantripMode, setIsCantripMode] = useState(false); // For prepared casters: true = learn cantrip, false = prepare spell
     const [searchTerm, setSearchTerm] = useState('');
+    // Filters for the spell list on the sheet and for the learn/prepare picker
+    const [listFilters, setListFilters] = useState<SpellFilters>(EMPTY_SPELL_FILTERS);
+    const [pickerFilters, setPickerFilters] = useState<SpellFilters>(EMPTY_SPELL_FILTERS);
     const [spellToDelete, setSpellToDelete] = useState<string | null>(null);
     const [spellbookSpellToRemove, setSpellbookSpellToRemove] = useState<{ id: string; name: string } | null>(null);
     const [expandedLevels, setExpandedLevels] = useState<{ [level: number]: boolean }>(() => {
@@ -561,20 +567,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         return !effectiveSpellbook.includes(s.id);
     });
 
-    // Filter available spells by search term
-    const filteredSpells = availableSpells.filter(spell => {
-        if (!searchTerm.trim()) return true;
-        const search = searchTerm.toLowerCase();
-        return (
-            spell.name.toLowerCase().includes(search) ||
-            spell.school.toLowerCase().includes(search) ||
-            spell.description.toLowerCase().includes(search) ||
-            spell.castingTime.toLowerCase().includes(search) ||
-            spell.range.toLowerCase().includes(search) ||
-            spell.components.toLowerCase().includes(search) ||
-            spell.duration.toLowerCase().includes(search)
-        );
-    });
+    // Filter the learn/prepare picker (search covers name, school, text, casting time, range, components and duration)
+    const filteredSpells = availableSpells.filter(spell => spellMatches(spell, spell, pickerFilters));
 
     // Elven lineage spells (2024 PHB): granted at character levels 1, 3, 5. Always prepared.
     const lineageKey = (elvenLineage || '').toLowerCase().replace(/\s+/g, '_');
@@ -763,6 +757,15 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             slots: lvl > 0 ? (maxSlots[lvl - 1] || 0) : 0
         };
     }).filter(group => group.spells.length > 0 || group.slots > 0);
+
+    // Spell list filters: hide non-matching spells, and empty levels while a filter is on
+    const spellById = new Map(safeAllSpells.map(sp => [sp.id, sp]));
+    const listFiltersActive = hasActiveSpellFilters(listFilters);
+    const listTotal = spellsByLevel.reduce((n, g) => n + g.spells.length, 0);
+    const visibleGroups = spellsByLevel
+        .map(group => ({ ...group, spells: group.spells.filter(sp => spellMatches(sp, spellById.get(sp.id), listFilters)) }))
+        .filter(group => !listFiltersActive || group.spells.length > 0);
+    const listShown = visibleGroups.reduce((n, g) => n + g.spells.length, 0);
 
     // Magic Initiate only: show just the feat's spell list and config
     if (isMagicInitiateOnly && onMagicInitiateUpdate) {
@@ -966,6 +969,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     setIsAdding(false);
                     setIsCantripMode(false);
                     setSearchTerm('');
+                    setPickerFilters(EMPTY_SPELL_FILTERS);
                 }} ariaLabel={preparedCaster && isCantripMode ? 'Learn Cantrip' : preparedCaster ? 'Prepare Spell' : 'Learn New Spell'} contentStyle={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
                     <h3>
                         {preparedCaster && isCantripMode
@@ -986,24 +990,19 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             Cantrips must be learned one by one. Select a cantrip to learn it.
                         </p>
                     )}
-                    <input
-                        type="text"
-                        placeholder="Search spells by name, school, description, casting time, range, components, or duration..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: '0.75rem',
-                            marginTop: '1rem',
-                            marginBottom: '1rem',
-                            border: '1px solid var(--border)',
-                            borderRadius: '4px',
-                            backgroundColor: 'var(--surface)',
-                            color: 'var(--text)',
-                            fontSize: '0.875rem'
-                        }}
-                        autoFocus
-                    />
+                    <div style={{ marginTop: 'var(--space-4)' }}>
+                        <SpellFilterBar
+                            filters={pickerFilters}
+                            onChange={setPickerFilters}
+                            levels={Array.from(new Set(availableSpells.map(sp => sp.level))).sort((a, b) => a - b)}
+                            schools={schoolsOf(availableSpells)}
+                            showPrepared={false}
+                            shown={filteredSpells.length}
+                            total={availableSpells.length}
+                            searchPlaceholder="Search by name, school, text, range…"
+                            autoFocus
+                        />
+                    </div>
                     <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.5rem', overflowY: 'auto', flex: 1 }}>
                         {filteredSpells.map(spell => {
                             const isPrepared = safeMySpells.find(ms => ms.id === spell.id)?.prepared || false;
@@ -1019,37 +1018,48 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             const canPrepare = !atSpellsLimit && (
                                 shouldLearn || spell.level === 0 || isPrepared || currentPreparedCount < preparedSpellsLimit
                             );
-                            
+
+                            const runPickerAction = () => {
+                                if (canPrepare) {
+                                    shouldLearn ? learnSpell(spell) : prepareSpellDirectly(spell);
+                                } else if (atSpellsLimit) {
+                                    toast.error(spell.level === 0
+                                        ? `You can only know ${cantripsKnownLimit} cantrips. Unlearn a cantrip first.`
+                                        : `You can only know ${spellsKnownLimit} spells. Unlearn a spell first.`);
+                                } else if (!shouldLearn && spell.level > 0) {
+                                    toast.error(`You have reached your prepared spells limit (${preparedSpellsLimit}). Unprepare a spell first to prepare a new one.`);
+                                }
+                            };
+
                             return (
-                                <div 
-                                    key={spell.id} 
-                                    className="spell-row" 
-                                    style={{ 
-                                        cursor: canPrepare ? 'pointer' : 'not-allowed', 
-                                        padding: '0.5rem', 
-                                        border: '1px solid var(--border)', 
+                                <div
+                                    key={spell.id}
+                                    className="spell-row"
+                                    style={{
+                                        cursor: canPrepare ? 'pointer' : 'not-allowed',
+                                        padding: '0.5rem',
+                                        border: '1px solid var(--border)',
                                         borderRadius: '4px',
                                         backgroundColor: isPrepared ? 'var(--surface)' : 'transparent',
                                         opacity: canPrepare ? 1 : 0.5
-                                    }} 
-                                    onClick={() => {
-                                        if (canPrepare) {
-                                            shouldLearn ? learnSpell(spell) : prepareSpellDirectly(spell);
-                                        } else if (atSpellsLimit) {
-                                            toast.error(spell.level === 0
-                                                ? `You can only know ${cantripsKnownLimit} cantrips. Unlearn a cantrip first.`
-                                                : `You can only know ${spellsKnownLimit} spells. Unlearn a spell first.`);
-                                        } else if (!shouldLearn && spell.level > 0) {
-                                            toast.error(`You have reached your prepared spells limit (${preparedSpellsLimit}). Unprepare a spell first to prepare a new one.`);
-                                        }
                                     }}
+                                    // Mouse shortcut; the row's Learn/Prepare button is the accessible control
+                                    onClick={runPickerAction}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <div style={{ fontWeight: 'bold' }}>{spell.name}</div>
                                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                            {preparedCaster && !shouldLearn && isPrepared && (
-                                                <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 'bold' }}>Prepared</span>
-                                            )}
+                                            <button
+                                                type="button"
+                                                className={`btn btn-sm ${isPrepared && !shouldLearn ? '' : 'btn-secondary'}`}
+                                                aria-disabled={!canPrepare || undefined}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    runPickerAction();
+                                                }}
+                                            >
+                                                {shouldLearn ? (isKnown ? 'Known' : 'Learn') : (isPrepared ? 'Prepared' : 'Prepare')}
+                                            </button>
                                             <button
                                                 className="btn btn-secondary btn-sm"
                                                 onClick={(e) => {
@@ -1070,20 +1080,18 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             );
                         })}
                         {filteredSpells.length === 0 && availableSpells.length > 0 && (
-                            <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No spells match your search.</p>
+                            <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No spells match these filters.</p>
                         )}
                         {availableSpells.length === 0 && (
                             <p>No spells available to learn at this level.</p>
                         )}
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-                        <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                            {filteredSpells.length} of {availableSpells.length} spells
-                        </span>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
                         <button className="btn btn-secondary" onClick={() => {
                             setIsAdding(false);
                             setIsCantripMode(false);
                             setSearchTerm('');
+                            setPickerFilters(EMPTY_SPELL_FILTERS);
                         }}>Close</button>
                     </div>
                 </Modal>
@@ -1165,96 +1173,73 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
                         {pact.count} level {pact.slotLevel} slot{pact.count === 1 ? '' : 's'} (Warlock {warlockLevel}) · regain on a Short or Long Rest · usable for any of your spells
                     </span>
-                    <div style={{ display: 'flex', gap: '0.25rem', marginLeft: 'auto' }}>
-                        {Array.from({ length: pact.count }).map((_, slotIdx) => {
-                            const isUsed = slotIdx < pactSlotsUsed;
-                            return (
-                                <div
-                                    key={slotIdx}
-                                    data-testid={`pact-slot-${slotIdx}`}
-                                    onClick={() => handlePactSlotChange(isUsed && slotIdx === pactSlotsUsed - 1 ? slotIdx : slotIdx + 1)}
-                                    style={{
-                                        width: '12px', height: '12px', borderRadius: '50%',
-                                        border: '1px solid var(--primary)',
-                                        backgroundColor: isUsed ? 'var(--primary)' : 'transparent',
-                                        cursor: 'pointer'
-                                    }}
-                                    title="Toggle Pact Magic slot"
-                                />
-                            );
-                        })}
+                    <div style={{ marginLeft: 'auto' }}>
+                        <SlotPips
+                            label="Pact Magic slots"
+                            total={pact.count}
+                            used={pactSlotsUsed}
+                            onChange={handlePactSlotChange}
+                            testIdPrefix="pact-slot"
+                        />
                     </div>
                 </div>
             )}
 
-            {spellsByLevel.map(group => {
-                const isExpanded = expandedLevels[group.level] !== false; // Default to true
+            {listTotal > 0 && (
+                <SpellFilterBar
+                    filters={listFilters}
+                    onChange={setListFilters}
+                    levels={spellsByLevel.filter(g => g.spells.length > 0).map(g => g.level)}
+                    schools={schoolsOf(spellsByLevel.flatMap(g => g.spells))}
+                    shown={listShown}
+                    total={listTotal}
+                />
+            )}
+            {listFiltersActive && visibleGroups.length === 0 && (
+                <p className="empty-note" style={{ marginBottom: 'var(--space-4)' }}>
+                    No spells match these filters.{' '}
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setListFilters(EMPTY_SPELL_FILTERS)}>Clear filters</button>
+                </p>
+            )}
+
+            {visibleGroups.map(group => {
+                // Filtering shows matches even inside collapsed levels
+                const isExpanded = listFiltersActive || expandedLevels[group.level] !== false; // Default to true
+                const groupListId = `spell-level-${group.level}`;
                 return (
                 <div key={group.level} style={{ marginBottom: '1rem' }}>
-                    <div 
+                    <div
                         className="spell-level-row"
-                        style={{ 
-                            borderBottom: '1px solid var(--border)', 
-                            paddingBottom: '0.25rem', 
-                            marginBottom: '0.5rem', 
-                            fontWeight: 'bold', 
-                            fontSize: '0.875rem', 
-                            color: 'var(--text-muted)',
-                            cursor: 'pointer'
-                        }}
-                        onClick={() => setExpandedLevels({ ...expandedLevels, [group.level]: !isExpanded })}
+                        style={{ borderBottom: '1px solid var(--border)', paddingBottom: 'var(--space-1)', marginBottom: 'var(--space-2)' }}
                     >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ fontSize: '0.75rem', userSelect: 'none' }}>
-                                {isExpanded ? '▼' : '▶'}
-                            </span>
+                        <button
+                            type="button"
+                            className="spell-level-toggle"
+                            aria-expanded={isExpanded}
+                            aria-controls={groupListId}
+                            onClick={() => setExpandedLevels({ ...expandedLevels, [group.level]: !isExpanded })}
+                        >
+                            <span aria-hidden="true">{isExpanded ? '▼' : '▶'}</span>
                             <span>{group.level === 0 ? 'Cantrips' : `Level ${group.level}`}</span>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--text-muted)' }}>
-                                ({group.spells.length})
-                            </span>
-                        </div>
+                            <span className="spell-level-count">({group.spells.length})</span>
+                        </button>
 
                         {/* Spell Slots UI */}
                         {group.level > 0 && group.slots > 0 && (
-                            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
-                                <span style={{ marginRight: '0.5rem', fontSize: '0.75rem' }}>Slots:</span>
-                                {Array.from({ length: group.slots }).map((_, slotIdx) => {
-                                    const isUsed = slotIdx < (slotsUsed[group.level] || 0);
-                                    return (
-                                        <div
-                                            key={slotIdx}
-                                            onClick={() => {
-                                                // Toggle slot logic: click to set used/unused
-                                                const currentUsed = slotsUsed[group.level] || 0;
-                                                const newUsed = isUsed ? slotIdx : slotIdx + 1; // Simplify: click Nth slot sets usage to N+1
-                                                // Actually click to toggle specific one? No, slots are pool.
-                                                // Click 3rd slot: if 3 used, make 2 used? 
-                                                // Simple logic: Click empty -> fill. Click full -> empty (from right).
-                                                // Let's just use click to set exact amount for now or simple +/-
-
-                                                // Better UX: Click a circle. If it's filled and it's the last filled one, unfill it. If it's empty, fill it (and all before it).
-                                                let nextVal = slotIdx + 1;
-                                                if (isUsed && slotIdx === (slotsUsed[group.level] || 0) - 1) {
-                                                    nextVal = slotIdx; // Uncheck this one
-                                                }
-                                                handleSlotChange(group.level, nextVal);
-                                            }}
-                                            style={{
-                                                width: '12px', height: '12px', borderRadius: '50%',
-                                                border: '1px solid var(--primary)',
-                                                backgroundColor: isUsed ? 'var(--primary)' : 'transparent',
-                                                cursor: 'pointer'
-                                            }}
-                                            title="Toggle Spell Slot"
-                                        />
-                                    );
-                                })}
+                            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }} aria-hidden="true">Slots:</span>
+                                <SlotPips
+                                    label={`Level ${group.level} spell slots`}
+                                    total={group.slots}
+                                    used={slotsUsed[group.level] || 0}
+                                    onChange={(used) => handleSlotChange(group.level, used)}
+                                />
                             </div>
                         )}
                     </div>
 
                     {isExpanded && (
-                        <div className="spell-level-grid">
+                        <div className="spell-level-grid" id={groupListId}>
                             {group.spells.map(spell => {
                             // For prepared casters, spell might have isKnown property
                             const isKnown = preparedCaster ? (spell as any).isKnown !== false : true;
