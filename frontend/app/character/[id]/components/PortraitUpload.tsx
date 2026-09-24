@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { describeError, useToast } from '@/app/components/ui';
+import { CharacterToken, describeError, useToast } from '@/app/components/ui';
 
 const MAX_SIZE = 256;
 const MAX_FILE_MB = 5;
@@ -46,10 +46,14 @@ function resizeImage(file: File): Promise<string> {
 interface PortraitUploadProps {
     portrait: string | undefined;
     onUpdate: (dataUrl: string | null) => void;
+    /** Shown on the token (initial, class-coloured ring and level) */
+    name: string;
+    classId?: string;
+    level?: number;
     disabled?: boolean;
 }
 
-export default function PortraitUpload({ portrait, onUpdate, disabled }: PortraitUploadProps) {
+export default function PortraitUpload({ portrait, onUpdate, name, classId, level, disabled }: PortraitUploadProps) {
     const toast = useToast();
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -74,65 +78,31 @@ export default function PortraitUpload({ portrait, onUpdate, disabled }: Portrai
         e.target.value = '';
     };
 
-    const handleRemove = () => {
-        onUpdate(null);
-    };
+    const token = <CharacterToken name={name} portrait={portrait} classId={classId} level={level} size="lg" />;
 
     return (
-        <div className="no-print" style={{ flexShrink: 0 }}>
+        <div className="portrait-upload">
             <input
                 ref={inputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
                 onChange={handleFileChange}
-                style={{ display: 'none' }}
+                hidden
             />
-            <div
-                style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: '50%',
-                    overflow: 'hidden',
-                    border: '2px solid var(--border)',
-                    backgroundColor: 'var(--surface)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: disabled ? 'default' : 'pointer',
-                    position: 'relative'
-                }}
-                onClick={() => !disabled && inputRef.current?.click()}
-                title={portrait ? 'Click to change' : 'Click to upload portrait'}
-            >
-                {portrait ? (
-                    <img
-                        src={portrait}
-                        alt="Character portrait"
-                        style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover'
-                        }}
-                    />
-                ) : (
-                    <span style={{ fontSize: '2rem', color: 'var(--text-muted)' }}>👤</span>
-                )}
-            </div>
-            {portrait && !disabled && (
+            {disabled ? token : (
                 <button
                     type="button"
-                    className="btn btn-secondary"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemove();
-                    }}
-                    style={{
-                        fontSize: '0.65rem',
-                        padding: '0.15rem 0.4rem',
-                        marginTop: '0.25rem',
-                        width: '100%'
-                    }}
+                    className="token-button"
+                    onClick={() => inputRef.current?.click()}
+                    aria-label={portrait ? 'Change portrait' : 'Upload a portrait'}
+                    title={portrait ? 'Change portrait' : 'Upload a portrait'}
                 >
+                    {token}
+                    <span className="token-button-hint no-print" aria-hidden="true">{portrait ? 'Change' : 'Add portrait'}</span>
+                </button>
+            )}
+            {portrait && !disabled && (
+                <button type="button" className="btn btn-ghost btn-sm no-print portrait-remove" onClick={() => onUpdate(null)}>
                     Remove
                 </button>
             )}

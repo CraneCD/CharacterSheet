@@ -21,6 +21,7 @@ import { planLongRest, planShortRest, RestContext } from '@/lib/rest';
 import { downloadCharacterJson } from '@/lib/characterTransfer';
 import { calculateArmorClass } from '@/lib/armorClass';
 import { defaultSpeed, overrideToStore, resolveOverride } from '@/lib/sheetDefaults';
+import { classColorStyle } from '@/lib/classColors';
 import { CharacterItem, CharacterFeature } from '@/lib/types';
 import { 
     calculateSpeedBonusFromFeatures, 
@@ -36,6 +37,7 @@ import { getCharacterSubclasses, getSubclassMap } from '@/lib/subclasses';
 import { getChoiceSkillBonuses, getChoiceSpellIds, getWeaponMasteries } from '@/lib/classChoices';
 import { Button, ConfirmDialog, describeError, EditableStat, Menu, Stat, useToast } from '@/app/components/ui';
 import { getSpellcastingSetup } from '@/lib/spellcastingSetup';
+import AcShield from './components/sections/AcShield';
 import AbilityScoresCard from './components/sections/AbilityScoresCard';
 import SavingThrowsCard from './components/sections/SavingThrowsCard';
 import SkillsCard from './components/sections/SkillsCard';
@@ -470,12 +472,15 @@ export default function CharacterSheet() {
     };
 
     return (
-        <div style={{ marginBottom: '2rem' }}>
+        <div className="sheet" style={{ marginBottom: '2rem', ...classColorStyle(primaryClass) }}>
             {/* Header */}
             <div className="sheet-header">
                 <div style={{ flex: '1 1 auto', minWidth: 0, maxWidth: '100%', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
                     <PortraitUpload
                         portrait={data.portrait ?? undefined}
+                        name={characterName}
+                        classId={primaryClass}
+                        level={level}
                         onUpdate={async (dataUrl) => {
                             // null (not undefined) so removal survives JSON serialization
                             await persistData({ portrait: dataUrl }, "Couldn't save portrait");
@@ -507,8 +512,10 @@ export default function CharacterSheet() {
                             />
                         </div>
                     </div>
-                        <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', wordBreak: 'break-word', whiteSpace: 'normal', overflowWrap: 'break-word', lineHeight: '1.5' }}>
-                            Level {level} {race.name} {classNameDisplay} • {background.name}
+                        <div className="sheet-meta">
+                            <span>Level {level} {race.name}</span>
+                            <span className="class-badge">{classNameDisplay}</span>
+                            {background.name && <span>{background.name}</span>}
                         </div>
                     </div>
                 </div>
@@ -540,6 +547,7 @@ export default function CharacterSheet() {
                     <EditableStat
                         label="AC"
                         value={ac}
+                        display={<AcShield value={ac} />}
                         description={acDescription}
                         sublabel={acStat.overridden ? 'set manually' : undefined}
                         min={0}

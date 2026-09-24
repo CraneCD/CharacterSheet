@@ -15,3 +15,4 @@ export { default as Menu } from './Menu';
 export type { MenuItem } from './Menu';
 export { selectableProps } from './selectable';
 export { default as D20Icon } from './D20Icon';
+export { default as CharacterToken } from './CharacterToken';
