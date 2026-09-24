@@ -145,6 +145,7 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <div 
+                    className="collapsible-list"
                     style={{ 
                         flex: isExpanded ? 1 : '0 1 auto',
                         display: 'flex', 

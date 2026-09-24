@@ -1302,8 +1302,8 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                         {!preparedCaster && !isElvenLineageSpell && !isSubclassBonusSpell && (
                                             <button
                                                 type="button"
-                                                className="btn btn-ghost"
-                                                style={{ color: 'var(--error)', fontSize: '1.25rem', lineHeight: 1 }}
+                                                className="btn btn-ghost btn-sm btn-text-danger"
+                                                style={{ fontSize: 'var(--font-size-lg)', lineHeight: 1 }}
                                                 onClick={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();
@@ -1318,8 +1318,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                         {isWizardSpellbook && spell.level > 0 && !isElvenLineageSpell && !isSubclassBonusSpell && (
                                             <button
                                                 type="button"
-                                                className="btn btn-ghost"
-                                                style={{ color: 'var(--error)', fontSize: '1rem', lineHeight: 1 }}
+                                                className="btn btn-ghost btn-sm btn-text-danger"
                                                 onClick={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();

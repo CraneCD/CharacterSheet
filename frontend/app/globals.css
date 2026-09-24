@@ -297,6 +297,12 @@ button {
   color: #ffffff;
 }
 
+/* Ghost button for destructive text actions ("Remove") */
+.btn-ghost.btn-text-danger,
+.btn-ghost.btn-text-danger:hover:not(:disabled) {
+  color: var(--error);
+}
+
 .btn-sm {
   padding: var(--space-1) var(--space-2);
   font-size: var(--font-size-xs);
@@ -1387,7 +1393,8 @@ button {
   display: none;
 }
 
-@media (max-width: 767px) {
+/* screen only: a printed page is narrower than this, and print has its own layout */
+@media screen and (max-width: 767px) {
   .mobile-only {
     display: flex !important;
   }
@@ -1933,6 +1940,108 @@ button {
   font-weight: 400;
 }
 
+/* Landing page */
+.landing {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-12) 0;
+}
+
+.landing-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.landing-title {
+  margin: 0 0 var(--space-4);
+  font-size: clamp(2.25rem, 8vw, 4rem);
+  background: linear-gradient(to right, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.landing-lead {
+  max-width: 600px;
+  margin: 0 0 var(--space-8);
+  font-size: clamp(1.125rem, 3vw, 1.5rem);
+  color: var(--text-muted);
+}
+
+.landing-actions {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.landing-shots {
+  position: relative;
+  margin: var(--space-12) 0;
+  padding-right: 18%;
+}
+
+.landing-shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.landing-shot-phone {
+  position: absolute;
+  right: 0;
+  bottom: -2rem;
+  width: 25%;
+  border-radius: 1.25rem;
+  border-width: 4px;
+}
+
+.landing-shots-single {
+  padding-right: 0;
+}
+
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: var(--space-6);
+  margin-top: var(--space-12);
+}
+
+.landing-feature h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-lg);
+}
+
+.landing-feature p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.landing-footer-cta {
+  margin-top: var(--space-8);
+}
+
+@media (max-width: 640px) {
+  .landing {
+    padding: var(--space-8) 0;
+  }
+
+  .landing-shots {
+    padding-right: 0;
+  }
+
+  .landing-shot-phone {
+    position: static;
+    width: 60%;
+    margin: var(--space-4) auto 0;
+  }
+}
+
 /* Modal Styles (use the <Modal> component; these classes are its markup) */
 .modal-overlay {
   position: fixed;
@@ -2224,20 +2333,31 @@ button {
   }
 }
 
+@page {
+  margin: 12mm;
+}
+
 @media print {
-  /* Print always uses a light palette, whatever the screen theme. */
-  :root,
-  :root[data-theme] {
+  /* Print always uses a black-and-white palette, whatever the screen theme.
+   * The :not() raises specificity above the light-theme blocks. */
+  :root:not([data-print-exempt]),
+  :root[data-theme]:not([data-print-exempt]) {
     color-scheme: light;
     --background: #ffffff;
     --surface: #ffffff;
     --surface-raised: #ffffff;
-    --surface-sunken: #ffffff;
+    --surface-sunken: #f3f4f6;
     --text: #000000;
     --text-muted: #444444;
-    --border: #cccccc;
+    --border: #bbbbbb;
+    --border-strong: #666666;
+    --input-border: #bbbbbb;
     --primary: #000000;
+    --primary-strong: #000000;
     --primary-soft: transparent;
+    --success: #000000;
+    --warning: #000000;
+    --error: #000000;
     --coin-pp: #000000;
     --coin-gp: #000000;
     --coin-ep: #000000;
@@ -2247,19 +2367,29 @@ button {
     --shadow-lg: none;
   }
 
-  .no-print,
-  .sheet-header button:not(.stat-edit-button),
-  .sheet-header a,
-  .card h3 button,
-  .btn,
-  .nav,
-  .toast-region {
-    display: none !important;
+  html {
+    font-size: 11px;
   }
 
   body {
     background-color: white;
     color: black;
+  }
+
+  /* Interactive-only UI */
+  .no-print,
+  .btn,
+  .nav,
+  .toast-region,
+  .sheet-tabs,
+  .sheet-actions,
+  .spell-filters,
+  .languages-add,
+  .chip-remove,
+  .hp-last-change,
+  .stat-edit-hint,
+  .sheet-header a {
+    display: none !important;
   }
 
   .container {
@@ -2268,24 +2398,91 @@ button {
     padding: 0;
   }
 
-  .sheet-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    /* Force 3 columns */
-    gap: 1rem;
+  /* Header: name and vitals on the first lines of the page */
+  .sheet-header {
+    margin-bottom: var(--space-2);
   }
 
-  .card {
-    border: 1px solid #ccc;
-    box-shadow: none;
-    break-inside: avoid;
+  .sheet-header .heading {
+    font-size: 2rem;
+  }
+
+  .sheet-vitals {
+    position: static;
+    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-2);
+  }
+
+  .sheet-stats-row {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--space-2);
+  }
+
+  /* HP is only in the vitals strip on phones; on paper it belongs there too */
+  .mobile-only {
+    display: flex !important;
   }
 
   .stat-box {
     border: 1px solid #000;
+    padding: var(--space-1);
   }
 
-  .stat-edit-hint {
-    display: none;
+  .stat-edit-button {
+    border: none;
+  }
+
+  .sheet-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--space-3);
+  }
+
+  .sheet-column {
+    gap: var(--space-3);
+  }
+
+  .card {
+    padding: var(--space-3);
+    border: 1px solid #bbb;
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  .section-header {
+    margin-bottom: var(--space-2);
+  }
+
+  /* Spells on their own full-width block, two columns per level */
+  [data-tab="spells"] {
+    break-before: auto;
+  }
+
+  .spell-level-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .spell-item {
+    break-inside: avoid;
+  }
+
+  /* Lists that scroll inside a height limit on screen print in full */
+  .collapsible-list {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .hp-bar {
+    border-color: #000;
+  }
+
+  .hp-bar-fill {
+    background-color: #666 !important;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
   }
 }

@@ -483,6 +483,7 @@ export default function EquipmentManager({
 
             <div style={{ position: 'relative' }}>
                 <div 
+                    className="collapsible-list"
                     style={{ 
                         maxHeight: isExpanded ? 'none' : '400px',
                         overflowY: isExpanded ? 'visible' : 'auto',
