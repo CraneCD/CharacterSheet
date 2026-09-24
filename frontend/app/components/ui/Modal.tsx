@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useEffect, useId, useRef } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 export interface ModalProps {
@@ -83,6 +83,8 @@ export default function Modal({
     const pressStartedOnOverlay = useRef(false);
     const onCloseRef = useRef(onClose);
     const dismissibleRef = useRef(dismissible);
+    // Where focus was before opening, read on first render: a child's autoFocus moves it before effects run
+    const [previouslyFocused] = useState(() => (typeof document === 'undefined' ? null : document.activeElement as HTMLElement | null));
     onCloseRef.current = onClose;
     dismissibleRef.current = dismissible;
 
@@ -91,7 +93,6 @@ export default function Modal({
         modalStack.push(token);
         lockScroll();
 
-        const previouslyFocused = document.activeElement as HTMLElement | null;
         const content = contentRef.current;
         // Respect a child's autoFocus; otherwise focus the requested element or the dialog.
         if (content && !content.contains(document.activeElement)) {

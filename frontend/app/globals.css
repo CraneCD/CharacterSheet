@@ -4049,6 +4049,46 @@ button {
   line-height: var(--line-height);
 }
 
+.notes-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: 1;
+  min-height: 0;
+}
+
+.notes-expand-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: -0.1em;
+}
+
+/* Larger view: the page fills the dialog */
+.notes-modal {
+  display: flex;
+  flex-direction: column;
+  height: 90vh;
+}
+
+.notes-modal .notes-text {
+  min-height: 12rem;
+  padding: var(--space-4);
+  resize: none;
+  font-size: var(--font-size-md);
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .notes-modal {
+    height: 95vh;
+  }
+}
+
 .notes-footer {
   display: flex;
   justify-content: space-between;
