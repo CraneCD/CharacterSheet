@@ -18,13 +18,16 @@ interface ClassResourcesManagerProps {
     onUpdate: (newResources: ClassResources) => void;
     /** When true, Psionic Energy Dice shows nested use buttons; Telekinetic Movement is hidden. */
     psiWarrior?: boolean;
+    /** Calculated maximum uses per resource; a resource whose max differs can be reset to it. */
+    defaultMax?: Record<string, number>;
 }
 
 export default function ClassResourcesManager({ 
     characterId, 
     initialResources, 
     onUpdate,
-    psiWarrior = false
+    psiWarrior = false,
+    defaultMax = {}
 }: ClassResourcesManagerProps) {
     const toast = useToast();
     const [resources, setResources] = useState<ClassResources>(initialResources || {});
@@ -72,9 +75,7 @@ export default function ClassResourcesManager({
         setEditMaxValue('');
     };
 
-    const saveMax = async (resourceName: string) => {
-        const raw = parseInt(editMaxValue, 10);
-        const newMax = isNaN(raw) || raw < 1 ? 1 : Math.min(999, raw);
+    const saveMax = async (resourceName: string, newMax: number, errorMessage = "Couldn't update maximum uses") => {
         const res = resources[resourceName];
         if (!res) return;
 
@@ -93,8 +94,13 @@ export default function ClassResourcesManager({
             setEditMaxValue('');
         } catch (err) {
             console.error('Failed to update resource max', err);
-            toast.error(describeError("Couldn't update maximum uses", err));
+            toast.error(describeError(errorMessage, err));
         }
+    };
+
+    const saveEditedMax = (resourceName: string) => {
+        const raw = parseInt(editMaxValue, 10);
+        saveMax(resourceName, isNaN(raw) || raw < 1 ? 1 : Math.min(999, raw));
     };
 
     const resourceEntries = Object.entries(resources).filter(
@@ -141,7 +147,7 @@ export default function ClassResourcesManager({
                                                 if (v === '' || /^\d+$/.test(v)) setEditMaxValue(v);
                                             }}
                                             onKeyDown={(e) => {
-                                                if (e.key === 'Enter') saveMax(name);
+                                                if (e.key === 'Enter') saveEditedMax(name);
                                                 if (e.key === 'Escape') cancelEditingMax();
                                             }}
                                             style={{
@@ -159,7 +165,7 @@ export default function ClassResourcesManager({
                                         <button
                                             type="button"
                                             className="btn"
-                                            onClick={() => saveMax(name)}
+                                            onClick={() => saveEditedMax(name)}
                                             style={{ fontSize: '0.75rem', padding: '0.2rem 0.4rem' }}
                                         >
                                             Save
@@ -192,6 +198,17 @@ export default function ClassResourcesManager({
                                         >
                                             Edit
                                         </button>
+                                        {defaultMax[name] !== undefined && resource.max !== defaultMax[name] && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost btn-sm no-print"
+                                                onClick={() => saveMax(name, defaultMax[name], "Couldn't reset maximum uses")}
+                                                aria-label={`Reset ${resource.name} maximum to ${defaultMax[name]}`}
+                                                title={`Differs from the calculated maximum. Reset to ${defaultMax[name]}`}
+                                            >
+                                                ↺ Reset
+                                            </button>
+                                        )}
                                     </>
                                 )}
                             </div>
