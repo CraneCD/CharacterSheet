@@ -23,7 +23,14 @@ const numbers = { attack: 7, dc: 15, modifier: 4 };
 describe('spell rows', () => {
     it('sorts spells by casting time and explains reaction triggers', () => {
         expect(castingTimeToTiming('1 bonus action')).toBe('bonus');
+        expect(castingTimeToTiming('Bonus Action')).toBe('bonus');
         expect(castingTimeToTiming('1 minute')).toBe('other');
+        expect(castingTimeToTiming('1 hour or Ritual')).toBe('other');
+        // Any wording of a one-action cast is an Action
+        for (const t of ['1 action', 'Action', '1 Action', '1\u00a0action', 'One action', 'Magic action', '1 action or Ritual', ' action.']) {
+            expect(castingTimeToTiming(t)).toBe('action');
+        }
+        expect(castingTimeToTiming(undefined as unknown as string)).toBe('other');
         const shield = spellRow(SHIELD, { id: 'shield' }, 5, numbers);
         expect(shield).toMatchObject({ timing: 'reaction', note: 'When you are hit by an attack roll or targeted by the Magic Missile spell.' });
         const ritual = spellRow(RITUAL, { id: 'find-familiar' }, 5, numbers);
