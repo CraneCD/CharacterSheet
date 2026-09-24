@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { CharacterItem, ItemCategory } from '@/lib/types';
-import { getMasteryActionsForWeapon, getMasteryForWeapon } from '@/lib/weaponMastery';
 import { describeError, Modal, useToast } from '@/app/components/ui';
 
 interface EquipmentManagerProps {
@@ -14,11 +13,8 @@ interface EquipmentManagerProps {
     abilityScores?: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
     proficiencyBonus?: number;
     existingActions?: any[];
+    /** Adds a "Use <item>" action for magic items (weapons and mastery show in Actions on their own) */
     onCreateAction?: (action: any) => Promise<void>;
-    hasWeaponMastery?: boolean;
-    /** Weapons picked for Weapon Mastery (lowercase); null/undefined = every weapon (characters from before the choice existed). */
-    masteryWeapons?: string[] | null;
-    onDeleteMasteryActionsForWeapon?: (weaponName: string) => Promise<void>;
 }
 
 export default function EquipmentManager({ 
@@ -30,9 +26,6 @@ export default function EquipmentManager({
     proficiencyBonus = 2,
     existingActions = [],
     onCreateAction,
-    hasWeaponMastery = false,
-    masteryWeapons,
-    onDeleteMasteryActionsForWeapon
 }: EquipmentManagerProps) {
     const toast = useToast();
     const [equipment, setEquipment] = useState<(string | CharacterItem)[]>(initialEquipment || []);
@@ -198,32 +191,6 @@ export default function EquipmentManager({
                 }
             });
             setEquipment(newEquipment);
-        }
-
-        // Weapon attacks are shown only in the Attacks section (CombatManager). Do not create them as actions.
-        // Handle Weapon Mastery actions on equip/unequip only.
-        if (isWeapon(item)) {
-            const masteryChosen = !masteryWeapons || masteryWeapons.includes(item.name.trim().toLowerCase());
-            if (newEquipped && hasWeaponMastery && masteryChosen && onCreateAction) {
-                const masteryActions = getMasteryActionsForWeapon(item.name);
-                for (const ma of masteryActions) {
-                    const exists = existingActions.some((a: any) => a.name === ma.name);
-                    if (!exists) {
-                        try {
-                            await onCreateAction(ma);
-                        } catch (err) {
-                            console.error('Failed to create mastery action', err);
-                        }
-                    }
-                }
-            }
-            if (!newEquipped && hasWeaponMastery && getMasteryForWeapon(item.name) && onDeleteMasteryActionsForWeapon) {
-                try {
-                    await onDeleteMasteryActionsForWeapon(item.name);
-                } catch (err) {
-                    console.error('Failed to remove mastery actions', err);
-                }
-            }
         }
 
         try {

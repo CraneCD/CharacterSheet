@@ -7,6 +7,7 @@ import { SpellcastingSetup } from '@/lib/spellcastingSetup';
 import { describeError, useToast } from '@/app/components/ui';
 import SpellManager from '../SpellManager';
 import { formatMod } from './format';
+import type { CastableSummary } from '@/lib/actionRows';
 
 interface SpellcastingSectionProps {
     character: any;
@@ -20,22 +21,13 @@ interface SpellcastingSectionProps {
     hasMagicInitiateFeat: boolean;
     setCharacter: (updater: any) => void;
     onUpdate: (updates: Partial<CharacterData>) => void;
-}
-
-/** Keep the client's slot usage when a server response for an unrelated change comes back. */
-function keepSlotsUsed(updatedChar: any) {
-    return (prev: any) => ({
-        ...updatedChar,
-        data: {
-            ...updatedChar.data,
-            spellSlotsUsed: prev?.data?.spellSlotsUsed ?? updatedChar.data?.spellSlotsUsed ?? {},
-        },
-    });
+    /** Spells castable now and slots left, for the Actions card */
+    onCastableChange?: (summary: CastableSummary) => void;
 }
 
 export default function SpellcastingSection({
     character, setup, level, proficiencyBonus, modifiers, abilityScores, gameClasses,
-    speciesSpells, hasMagicInitiateFeat, setCharacter, onUpdate,
+    speciesSpells, hasMagicInitiateFeat, setCharacter, onUpdate, onCastableChange,
 }: SpellcastingSectionProps) {
     const toast = useToast();
     const data: Partial<CharacterData> & Record<string, any> = character.data || {};
@@ -125,23 +117,7 @@ export default function SpellcastingSection({
                             });
                     }
                 }}
-                existingActions={Array.isArray(data.actions) ? data.actions : []}
-                onCreateAction={async (action) => {
-                    try {
-                        setCharacter(keepSlotsUsed(await api.post(`/characters/${character.id}/actions`, { action })));
-                    } catch (err) {
-                        console.error('Failed to create action', err);
-                        throw err;
-                    }
-                }}
-                onDeleteAction={async (index, name) => {
-                    try {
-                        setCharacter(keepSlotsUsed(await api.delete(`/characters/${character.id}/actions`, { data: { index, name } })));
-                    } catch (err) {
-                        console.error('Failed to delete action', err);
-                        throw err;
-                    }
-                }}
+                onCastableChange={onCastableChange}
             />
         </div>
     );

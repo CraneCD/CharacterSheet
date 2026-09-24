@@ -9,11 +9,13 @@ export interface RollRequest {
     label: string;
     modifier: number;
     /** Attacks: offered as "Roll damage" after the attack roll (dice doubled on a natural 20). */
-    damage?: { expression: string; modifier: number };
+    damage?: { expression: string; modifier: number; /** Tray title, e.g. "Cure Wounds healing" */ label?: string };
 }
 
 interface DiceApi {
     roll: (request: RollRequest, mode?: RollMode) => void;
+    /** Rolls request.damage straight away (damage or healing with no attack roll) */
+    rollEffect: (request: RollRequest) => void;
 }
 
 const DiceContext = createContext<DiceApi | null>(null);
@@ -76,11 +78,14 @@ export function DiceProvider({ children }: { children: React.ReactNode }) {
 
     const rollDamageFor = useCallback((request: RollRequest, critical: boolean) => {
         if (!request.damage) return;
-        const result = rollDamage(`${request.label.replace(/ attack$/, '')} damage`, request.damage.expression, request.damage.modifier, critical);
+        const label = request.damage.label ?? `${request.label.replace(/ attack$/, '')} damage`;
+        const result = rollDamage(label, request.damage.expression, request.damage.modifier, critical);
         if (result) show(result, request);
     }, [show]);
 
-    const api = useMemo(() => ({ roll }), [roll]);
+    const rollEffect = useCallback((request: RollRequest) => rollDamageFor(request, false), [rollDamageFor]);
+
+    const api = useMemo(() => ({ roll, rollEffect }), [roll, rollEffect]);
 
     return (
         <DiceContext.Provider value={api}>
@@ -184,6 +189,33 @@ export function RollButton({ label, modifier, damage, className, children }: Rol
             className={className ? `roll-button ${className}` : 'roll-button'}
             onClick={() => dice.roll({ label, modifier, damage })}
             aria-label={`Roll ${label}, ${sign}`}
+            title={`Roll ${label}`}
+        >
+            {children}
+        </button>
+    );
+}
+
+interface EffectRollButtonProps {
+    /** Tray title, e.g. "Longsword damage" or "Cure Wounds healing" */
+    label: string;
+    expression: string;
+    modifier: number;
+    className?: string;
+    children: React.ReactNode;
+}
+
+/** A damage or healing roll you can tap. Plain text without a DiceProvider. */
+export function EffectRollButton({ label, expression, modifier, className, children }: EffectRollButtonProps) {
+    const dice = useDice();
+    if (!dice) return <span className={className}>{children}</span>;
+    const full = `${expression}${formatBonus(modifier)}`;
+    return (
+        <button
+            type="button"
+            className={className ? `roll-button ${className}` : 'roll-button'}
+            onClick={() => dice.rollEffect({ label, modifier: 0, damage: { expression, modifier, label } })}
+            aria-label={`Roll ${label}, ${full}`}
             title={`Roll ${label}`}
         >
             {children}

@@ -7,8 +7,7 @@ import HPManager from './components/HPManager';
 import HitDiceManager from './components/HitDiceManager';
 import EquipmentManager from './components/EquipmentManager';
 import LevelUpWizard from './components/LevelUpWizard';
-import CombatManager from './components/CombatManager';
-import ActionManager from './components/ActionManager';
+import ActionsCard from './components/ActionsCard';
 import NotepadManager from './components/NotepadManager';
 import PortraitUpload from './components/PortraitUpload';
 import FeatureManager from './components/FeatureManager';
@@ -29,7 +28,8 @@ import {
     getAbilityScoreIncreasesFromFeatures,
     getSavingThrowProficienciesFromFeatures
 } from '@/lib/featureStatModifiers';
-import { isMasteryActionForWeapon } from '@/lib/weaponMastery';
+import { getWeaponAttacks } from '@/lib/attacks';
+import type { CastableSummary } from '@/lib/actionRows';
 import { getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
 import { getRaceTraits, getBackgroundSkills, getSpeciesSpellEntries } from '@/lib/wizardReference';
 import { useCharacterSheetData } from './useCharacterSheetData';
@@ -71,6 +71,8 @@ export default function CharacterSheet() {
     const sheetBodyRef = useRef<HTMLDivElement>(null);
     // Spell names for class-choice spells (Mystic Arcanum, Signature Spells), loaded only when needed
     const [choiceSpellNames, setChoiceSpellNames] = useState<Record<string, string> | null>(null);
+    // Spells you can cast and slots left, reported by the spell list for the Actions card
+    const [castable, setCastable] = useState<CastableSummary | null>(null);
     const choiceSpellIdsKey = getChoiceSpellIds(character?.data?.classChoices).join(',');
     useEffect(() => {
         if (!choiceSpellIdsKey) return;
@@ -424,6 +426,21 @@ export default function CharacterSheet() {
     });
     const hasSpellcasting = !!spellcasting;
 
+    // Actions card inputs
+    const weaponAttacks = getWeaponAttacks({
+        equipment,
+        strMod: effectiveModifiers.str,
+        dexMod: effectiveModifiers.dex,
+        profBonus: pb,
+        fightingStyles,
+        rogueLevel: characterClasses.find((c: any) => c.id === 'rogue')?.level,
+    });
+    const hasWeaponMastery = (classFeaturesList || []).some(f => f.name === 'Weapon Mastery');
+    const featureNames = new Set(allFeatures.map(f => f.name));
+    const extraAttacks = featureNames.has('Three Extra Attacks') ? 3 : featureNames.has('Two Extra Attacks') ? 2 : featureNames.has('Extra Attack') ? 1 : 0;
+    const spellMod = spellcasting ? (effectiveModifiers as Record<string, number>)[spellcasting.ability] ?? 0 : 0;
+    const spellNumbers = spellcasting ? { attack: pb + spellMod, dc: 8 + pb + spellMod, modifier: spellMod } : null;
+
     const hpForVitals = { current: 0, max: 0, temp: 0, ...(data.hp || {}) };
     const sheetTabs: { id: SheetTabId; label: string }[] = [
         { id: 'core', label: 'Core' },
@@ -682,25 +699,21 @@ export default function CharacterSheet() {
                         />
                     </div>
 
-                    {/* Attacks */}
-                    <div data-tab="combat">
-                        <CombatManager
-                            equipment={equipment}
-                            strMod={effectiveModifiers.str}
-                            dexMod={effectiveModifiers.dex}
-                            profBonus={pb}
-                            fightingStyles={fightingStyles}
-                            rogueLevel={characterClasses.find((c: any) => c.id === 'rogue')?.level}
-                        />
-                    </div>
-
-                    {/* Actions & Bonus Actions */}
+                    {/* Actions: attacks, spells, features and custom actions by timing */}
                     <div data-tab="combat" className="sheet-column-fill">
-                        <ActionManager
+                        <ActionsCard
                             characterId={character.id}
-                            initialActions={Array.isArray(data.actions) ? data.actions : []}
-                            onUpdate={(updates) => handleUpdateCharacter(updates)}
-                            featureActions={undefined}
+                            attacks={weaponAttacks}
+                            hasWeaponMastery={hasWeaponMastery}
+                            masteryWeapons={masteryWeapons}
+                            castable={hasSpellcasting ? castable : null}
+                            spellcasting={spellNumbers}
+                            characterLevel={level}
+                            resources={data.classResources}
+                            primaryClass={primaryClass}
+                            storedActions={Array.isArray(data.actions) ? data.actions : []}
+                            extraAttacks={extraAttacks}
+                            onUpdate={handleUpdateCharacter}
                         />
                     </div>
                 </div>
@@ -711,7 +724,6 @@ export default function CharacterSheet() {
                     <div data-tab="gear">
                         <EquipmentManager
                             characterId={character.id}
-                            masteryWeapons={masteryWeapons}
                             initialEquipment={data.equipment || []}
                             onUpdate={(newEquipment) => {
                                 handleUpdateCharacter({ equipment: newEquipment });
@@ -729,19 +741,6 @@ export default function CharacterSheet() {
                                     console.error('Failed to create action', err);
                                     throw err;
                                 }
-                            }}
-                            hasWeaponMastery={(classFeaturesList || []).some(f => f.name === 'Weapon Mastery')}
-                            onDeleteMasteryActionsForWeapon={async (weaponName) => {
-                                const actions = (Array.isArray(data.actions) ? data.actions : []) as { name: string }[];
-                                const toRemove = actions
-                                    .map((a, i) => ({ index: i, name: a.name }))
-                                    .filter(a => isMasteryActionForWeapon(a.name, weaponName))
-                                    .sort((a, b) => b.index - a.index);
-                                let updatedChar: any = null;
-                                for (const { index, name } of toRemove) {
-                                    updatedChar = await api.delete(`/characters/${character.id}/actions`, { data: { index, name } });
-                                }
-                                if (updatedChar) setCharacter(updatedChar);
                             }}
                         />
                     </div>
@@ -789,6 +788,7 @@ export default function CharacterSheet() {
                         hasMagicInitiateFeat={hasMagicInitiateFeat}
                         setCharacter={setCharacter}
                         onUpdate={handleUpdateCharacter}
+                        onCastableChange={setCastable}
                     />
                 </div>
             )}

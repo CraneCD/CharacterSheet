@@ -3259,3 +3259,441 @@ button {
   background: var(--class-color);
   border-radius: 2px;
 }
+
+/* ---------- Actions card: everything you can do on your turn, by timing ---------- */
+.actions-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  --src-weapon: var(--class-fighter);
+  --src-spell: var(--arcane);
+  --src-feature: var(--class-color);
+  --src-item: var(--primary);
+  --src-custom: var(--class-warlock);
+}
+
+.actions-card .section-header {
+  margin-bottom: 0;
+}
+
+.actions-custom-form {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.actions-custom-form .field {
+  margin-bottom: 0;
+}
+
+.actions-custom-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.actions-custom-buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.actions-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.actions-tab {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: var(--space-1) 2px;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: none;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.actions-tab:hover {
+  color: var(--text);
+}
+
+.actions-tab[aria-selected="true"] {
+  background: var(--surface-raised);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.actions-tab-count {
+  min-width: 1.4em;
+  padding: 0 0.3rem;
+  border-radius: var(--radius-full);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.actions-tab[aria-selected="true"] .actions-tab-count {
+  background: var(--primary-strong);
+  color: var(--primary-contrast);
+}
+
+.actions-turn-note {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.actions-turn-note strong {
+  color: var(--text);
+}
+
+.action-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.action-row {
+  border-bottom: 1px solid var(--border);
+}
+
+.action-row:last-child {
+  border-bottom: none;
+}
+
+.action-row-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 2rem;
+  grid-template-areas: "name nums toggle";
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.action-row-name {
+  grid-area: name;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.action-row-title {
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.action-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.action-tag {
+  --src: var(--text-muted);
+  padding: 0 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--src) 55%, transparent);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--src) 10%, transparent);
+  color: var(--src);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.action-tag.source-weapon { --src: var(--src-weapon); }
+.action-tag.source-spell { --src: var(--src-spell); }
+.action-tag.source-feature { --src: var(--src-feature); }
+.action-tag.source-item { --src: var(--src-item); }
+.action-tag.source-custom { --src: var(--src-custom); }
+
+.action-tag.is-mastery {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.action-tag.is-mastery:hover {
+  background: color-mix(in srgb, var(--src) 22%, transparent);
+}
+
+.action-tag.is-concentration {
+  border-style: dashed;
+}
+
+.action-uses {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.action-pips {
+  display: inline-flex;
+  gap: 5px;
+  padding: 0 3px;
+}
+
+/* Lit diamond = slot left, hollow = used (same as the spell list) */
+.action-pip {
+  width: 0.5rem;
+  height: 0.5rem;
+  border: 1.5px solid var(--primary);
+  border-radius: 1px;
+  background: var(--primary-strong);
+  transform: rotate(45deg);
+}
+
+.action-pip.is-used {
+  background: transparent;
+}
+
+.action-row-note {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.action-row-nums {
+  grid-area: nums;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.action-hit,
+.action-effect,
+.action-save {
+  font-weight: 800;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.action-effect {
+  font-size: var(--font-size-sm);
+}
+
+.action-save {
+  padding: 0 var(--space-1);
+}
+
+.action-hit small,
+.action-effect small,
+.action-save small {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* Rollable numbers get a dotted underline so they read as tappable without hover */
+.action-row-nums .roll-button {
+  text-decoration: underline dotted color-mix(in srgb, var(--primary) 70%, transparent);
+  text-underline-offset: 3px;
+}
+
+.action-row-nums .roll-button:hover {
+  text-decoration: none;
+}
+
+.action-row-toggle {
+  grid-area: toggle;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-muted);
+}
+
+.action-row-toggle:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.action-row-toggle svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--transition-fast);
+}
+
+.action-row-toggle[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+.action-row-detail {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.action-row-detail[hidden] {
+  display: none;
+}
+
+.action-row-detail p {
+  margin: 0;
+  max-width: 65ch;
+}
+
+.action-mastery-name {
+  color: var(--src-weapon);
+}
+
+.action-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  font-size: var(--font-size-xs);
+}
+
+.action-facts div {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.action-facts dt {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.action-facts dt::after {
+  content: ":";
+}
+
+.action-facts dd {
+  margin: 0;
+}
+
+.action-remove {
+  justify-self: start;
+  color: var(--error);
+}
+
+.actions-basic {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.actions-basic-title {
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.actions-basic-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.actions-basic-chip {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--text);
+  font-size: var(--font-size-sm);
+}
+
+.actions-basic-chip:hover,
+.actions-basic-chip[aria-expanded="true"] {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.actions-basic-detail {
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  border-left: 2px solid var(--primary);
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.actions-basic-detail strong {
+  color: var(--text);
+}
+
+@media (max-width: 480px) {
+  .action-row-main {
+    grid-template-columns: minmax(0, 1fr) 2rem;
+    grid-template-areas: "name toggle" "nums nums";
+    row-gap: 2px;
+  }
+
+  .action-row-nums:empty {
+    display: none;
+  }
+
+  .actions-tab {
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    font-size: var(--font-size-xs);
+  }
+
+  .actions-custom-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.actions-print-title {
+  display: none;
+}
+
+/* Paper: every timing prints under its own heading, as a compact list */
+@media print {
+  .actions-tabs,
+  .action-row-toggle,
+  .actions-basic,
+  .action-remove,
+  .actions-panel .empty-note {
+    display: none !important;
+  }
+
+  .actions-panel[hidden] {
+    display: block !important;
+  }
+
+  .actions-print-title {
+    display: block;
+    margin: var(--space-2) 0 0;
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .actions-panel:has(.empty-note),
+  .actions-panel[hidden]:has(.empty-note) {
+    display: none !important;
+  }
+}

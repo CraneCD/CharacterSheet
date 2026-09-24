@@ -7,11 +7,11 @@ import { calculateMulticlassSpellcasterLevel, getSpellcastingClasses, calculateP
 import { ELVEN_LINEAGE_SPELLS, SUBCLASS_BONUS_SPELLS, MAGIC_INITIATE_CLASSES } from '@/lib/wizardReference';
 import { getSlotsForClass, getPactMagic, THIRD_CASTER_SPELLS_KNOWN, getThirdCasterCantrips } from '@/lib/spellSlots';
 import SpellDetailsModal from './SpellDetailsModal';
-import { isActionForSpell, spellActionDescription, spellActionName } from '@/lib/spellActions';
 import MagicInitiateConfigModal from './MagicInitiateConfigModal';
 import { ConfirmDialog, describeError, Modal, useToast } from '@/app/components/ui';
 import SpellFilterBar from './SpellFilterBar';
 import SlotPips from './SlotPips';
+import type { CastableSummary } from '@/lib/actionRows';
 import { EMPTY_SPELL_FILTERS, hasActiveSpellFilters, schoolsOf, SpellFilters, spellMatches } from '@/lib/spellFilters';
 
 /** Subclass spellcasting (Arcane Trickster, Eldritch Knight). */
@@ -52,10 +52,6 @@ interface SpellManagerProps {
     spellbook?: string[];
     abilityScores?: { [key: string]: number }; // For calculating prepared spells limit
     onUpdate: (data: Partial<CharacterData>) => void;
-    existingActions?: any[];
-    onCreateAction?: (action: any) => Promise<void>;
-    /** Remove an action; the name decides which one (the index is only a hint). */
-    onDeleteAction?: (index: number, name: string) => Promise<void>;
     classes?: { [classId: string]: number }; // Multiclass support
     allClasses?: any[]; // All available classes for reference
     subclassSpellcasting?: SubclassSpellcasting;
@@ -67,13 +63,15 @@ interface SpellManagerProps {
         spell1: string | null;
     };
     onMagicInitiateUpdate?: (magicInitiate: NonNullable<SpellManagerProps['magicInitiate']>) => void;
+    /** Called with the spells you can cast now and the slots left (the sheet's Actions card lists them). */
+    onCastableChange?: (summary: CastableSummary) => void;
     /** Magic Initiate: 1st-level spell uses remaining (1 = available, 0 = used). Resets on long rest. */
     magicInitiateSpell1Used?: number;
     /** Called when Magic Initiate 1st-level slot is toggled. used: 0 = used, 1 = available. */
     onMagicInitiateSlotChange?: (used: number) => void;
 }
 
-export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, initialPactSlotsUsed = 0, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, existingActions = [], onCreateAction, onDeleteAction, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel, subclassSpells, classFeatureSpells = [], bonusCantrips = 0, speciesSpells, magicInitiate, onMagicInitiateUpdate, magicInitiateSpell1Used = 1, onMagicInitiateSlotChange }: SpellManagerProps) {
+export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, initialPactSlotsUsed = 0, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel, subclassSpells, classFeatureSpells = [], bonusCantrips = 0, speciesSpells, magicInitiate, onMagicInitiateUpdate, magicInitiateSpell1Used = 1, onMagicInitiateSlotChange, onCastableChange }: SpellManagerProps) {
     const toast = useToast();
     const [mySpells, setMySpells] = useState<CharacterSpell[]>(Array.isArray(initialSpells) ? initialSpells : []);
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
@@ -129,79 +127,6 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         onUpdate({ spells, spellSlotsUsed: slots });
     };
 
-    // Helper function to parse casting time and determine action type
-    const getActionTypeFromCastingTime = (castingTime: string): 'action' | 'bonus' | 'reaction' | 'other' => {
-        const time = castingTime.toLowerCase();
-        if (time.includes('bonus action')) {
-            return 'bonus';
-        } else if (time.includes('reaction')) {
-            return 'reaction';
-        } else if (time.includes('action') || time === '1 action') {
-            return 'action';
-        } else {
-            return 'other';
-        }
-    };
-
-    // Helper function to get action name for a spell
-    const getActionName = (spellName: string, type: 'action' | 'bonus' | 'reaction' | 'other') => spellActionName(spellName, type);
-
-    const safeExistingActions = Array.isArray(existingActions) ? existingActions : [];
-    // Helper function to find action index by name
-    const findActionIndex = (actionName: string): number => {
-        return safeExistingActions.findIndex(a => a?.name === actionName);
-    };
-
-    // Index of the action that casts this spell with this action type. Matches by spellId
-    // too, so actions saved under an older spell name (e.g. before a rename) are found.
-    const findSpellActionIndex = (spell: { id: string; name: string }, type: 'action' | 'bonus' | 'reaction' | 'other'): number => {
-        const full = safeAllSpells.find(s => s.id === spell.id);
-        if (!full) return findActionIndex(getActionName(spell.name, type));
-        return safeExistingActions.findIndex(a => a && isActionForSpell(a, full, type, safeAllSpells));
-    };
-
-    // Remove the action that casts this spell with this action type (if there is one)
-    const removeSpellAction = async (spell: { id: string; name: string }, type: 'action' | 'bonus' | 'reaction' | 'other') => {
-        if (!onDeleteAction) return;
-        const index = findSpellActionIndex(spell, type);
-        if (index !== -1) {
-            try {
-                await onDeleteAction(index, safeExistingActions[index].name);
-            } catch (err) {
-                console.error('Failed to remove action', err);
-            }
-        }
-    };
-
-    // Helper function to create action for spell
-    const createSpellAction = async (spell: Spell | CharacterSpell) => {
-        if (!onCreateAction) return;
-        
-        const spellData = 'description' in spell ? spell : safeAllSpells.find(s => s.id === spell.id);
-        if (!spellData) return;
-
-        // Determine action type from casting time
-        const actionType = getActionTypeFromCastingTime(spellData.castingTime);
-        const actionName = getActionName(spell.name, actionType);
-        
-        // Check if action already exists
-        if (findSpellActionIndex(spell, actionType) !== -1) {
-            return; // Action already exists
-        }
-
-        try {
-            // The saved text is a fallback; the Actions panel shows the current spell text via spellId
-            await onCreateAction({
-                name: actionName,
-                description: spellActionDescription(spellData),
-                type: actionType,
-                spellId: spell.id
-            });
-        } catch (err) {
-            console.error('Failed to create spell action', err);
-        }
-    };
-
     const learnSpell = async (spell: Spell) => {
         try {
             // Check spells known limit for subclass spellcasting (Arcane Trickster, Eldritch Knight)
@@ -249,10 +174,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             const updated = [...mySpells, newSpell];
             setMySpells(updated);
             updateParent(updated, slotsUsed);
-            
-            // Create action for learned spell
-            await createSpellAction(newSpell);
-            
+
             setIsAdding(false);
             setIsCantripMode(false);
             setSearchTerm('');
@@ -279,10 +201,6 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             const updated = safeMySpells.filter(s => s.id !== spellId);
             setMySpells(updated);
             updateParent(updated, slotsUsed);
-            
-            // Remove corresponding action and bonus action
-            await removeSpellAction(spellToRemove, 'action');
-            await removeSpellAction(spellToRemove, 'bonus');
         } catch (err: any) {
             console.error('Failed to remove spell', err);
             toast.error(describeError("Couldn't remove spell", err));
@@ -314,14 +232,6 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             const updatedSpells = safeMySpells.filter(s => s.id !== spellId);
             setMySpells(updatedSpells);
             onUpdate({ spellbook: newSpellbook, spells: updatedSpells });
-            const spellToRemove = safeMySpells.find(s => s.id === spellId);
-            if (spellToRemove) {
-                const fullSpell = safeAllSpells.find(s => s.id === spellId);
-                if (fullSpell) {
-                    const actionType = getActionTypeFromCastingTime(fullSpell.castingTime);
-                    await removeSpellAction(spellToRemove, actionType);
-                }
-            }
         } catch (err) {
             console.error('Failed to remove spell from spellbook', err);
             toast.error(describeError("Couldn't remove spell from spellbook", err));
@@ -365,9 +275,6 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             const updated = [...mySpells, newSpell];
             setMySpells(updated);
             updateParent(updated, slotsUsed);
-            
-            // Create action for prepared spell (type determined by casting time)
-            await createSpellAction(newSpell);
         } catch (err) {
             console.error('Failed to prepare spell', err);
             toast.error(describeError("Couldn't prepare spell", err));
@@ -393,23 +300,6 @@ export default function SpellManager({ characterId, classId, level, initialSpell
             const updated = safeMySpells.map(s => s.id === spellId ? { ...s, prepared: !currentStatus } : s);
             setMySpells(updated);
             updateParent(updated, slotsUsed);
-            
-            // Get spell data to determine action type from casting time
-            const spellData = safeAllSpells.find(s => s.id === spell.id);
-            if (spellData) {
-                const actionType = getActionTypeFromCastingTime(spellData.castingTime);
-                const actionName = getActionName(spell.name, actionType);
-                
-                // Remove any existing action with different type (in case it was created incorrectly)
-                for (const type of ['action', 'bonus', 'reaction', 'other'] as const) {
-                    if (getActionName(spell.name, type) !== actionName) {
-                        await removeSpellAction(spell, type);
-                    }
-                }
-                
-                // Create action with correct type based on casting time
-                await createSpellAction(spell);
-            }
         } catch (err) {
             console.error('Failed to update preparation', err);
         }
@@ -766,6 +656,30 @@ export default function SpellManager({ characterId, classId, level, initialSpell
         .map(group => ({ ...group, spells: group.spells.filter(sp => spellMatches(sp, spellById.get(sp.id), listFilters)) }))
         .filter(group => !listFiltersActive || group.spells.length > 0);
     const listShown = visibleGroups.reduce((n, g) => n + g.spells.length, 0);
+
+    // Spells castable right now: cantrips, prepared spells (known spells for known casters) and granted
+    // spells, plus Magic Initiate's. Reported to the sheet so the Actions card can list them.
+    const preparesSpells = preparedCaster || spellcastingClasses.some(sc => sc.classInfo.preparedCaster) || isInnateOnly;
+    const castableKey = JSON.stringify({
+        spells: [
+            ...spellsByLevel.flatMap(group => group.spells
+                .filter((sp: any) => sp.level === 0 || (preparesSpells ? sp.prepared : sp.isKnown))
+                .map((sp: any) => ({
+                    id: sp.id,
+                    ...(sp.isElvenLineage ? { grantedBy: 'Species' } : sp.isSubclassBonus ? { grantedBy: sp.bonusLabel || 'Subclass' } : {}),
+                }))),
+            ...[...(magicInitiate?.cantrips || []), ...(magicInitiate?.spell1 ? [magicInitiate.spell1] : [])]
+                .map(id => ({ id, grantedBy: 'Magic Initiate' })),
+        ],
+        maxSlots,
+        slotsUsed,
+        pact: pact ? { ...pact, used: pactSlotsUsed } : null,
+    } satisfies CastableSummary);
+    useEffect(() => {
+        onCastableChange?.(JSON.parse(castableKey));
+        // Report once per distinct change
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [castableKey]);
 
     // Magic Initiate only: show just the feat's spell list and config
     if (isMagicInitiateOnly && onMagicInitiateUpdate) {
