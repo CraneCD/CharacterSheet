@@ -373,8 +373,8 @@ export default function EquipmentManager({
                 }} ariaLabel="Add Item" contentStyle={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
                     <h3>Add Item</h3>
                     <div style={{ marginBottom: '1rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Select Category</label>
-                        <select
+                        <label htmlFor="equipmentmanager-select-category" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Select Category</label>
+                        <select id="equipmentmanager-select-category"
                             className="input"
                             value={selectedCategory}
                             onChange={e => {
@@ -483,6 +483,7 @@ export default function EquipmentManager({
 
             <div style={{ position: 'relative' }}>
                 <div 
+                    className="collapsible-list"
                     style={{ 
                         maxHeight: isExpanded ? 'none' : '400px',
                         overflowY: isExpanded ? 'visible' : 'auto',
@@ -586,8 +587,8 @@ export default function EquipmentManager({
                                                         )}
                                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
                                                             <div>
-                                                                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Quantity</label>
-                                                                <input
+                                                                <label htmlFor="equipmentmanager-quantity" style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Quantity</label>
+                                                                <input id="equipmentmanager-quantity"
                                                                     type="text"
                                                                     inputMode="numeric"
                                                                     pattern="[0-9]*"
@@ -623,8 +624,8 @@ export default function EquipmentManager({
                                                             </div>
                                                             {(isArmor(itemObj) || isShield(itemObj)) && (
                                                                 <div>
-                                                                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Base AC</label>
-                                                                    <input
+                                                                    <label htmlFor="equipmentmanager-base-ac" style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Base AC</label>
+                                                                    <input id="equipmentmanager-base-ac"
                                                                         type="text"
                                                                         inputMode="numeric"
                                                                         pattern="[0-9]*"
@@ -651,8 +652,8 @@ export default function EquipmentManager({
                                                         </div>
                                                         {isArmor(itemObj) && (
                                                             <div>
-                                                                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Armor Type</label>
-                                                                <select
+                                                                <label htmlFor="equipmentmanager-armor-type" style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Armor Type</label>
+                                                                <select id="equipmentmanager-armor-type"
                                                                     className="input"
                                                                     value={itemObj.armorMethod || 'light'}
                                                                     onChange={e => handleUpdateItem(actualIndex, { armorMethod: e.target.value as any })}
@@ -666,8 +667,8 @@ export default function EquipmentManager({
                                                         {isWeapon(itemObj) && (
                                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
                                                                 <div>
-                                                                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Damage</label>
-                                                                    <input
+                                                                    <label htmlFor="equipmentmanager-damage" style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Damage</label>
+                                                                    <input id="equipmentmanager-damage"
                                                                         type="text"
                                                                         className="input"
                                                                         placeholder="e.g. 1d8"
@@ -676,8 +677,8 @@ export default function EquipmentManager({
                                                                     />
                                                                 </div>
                                                                 <div>
-                                                                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Damage Type</label>
-                                                                    <input
+                                                                    <label htmlFor="equipmentmanager-damage-type" style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Damage Type</label>
+                                                                    <input id="equipmentmanager-damage-type"
                                                                         type="text"
                                                                         className="input"
                                                                         placeholder="e.g. slashing"

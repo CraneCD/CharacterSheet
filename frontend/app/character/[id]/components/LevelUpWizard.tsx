@@ -669,10 +669,10 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                     {/* Show class selection if leveling up existing class */}
                     {levelUpMode === 'existing' && Object.keys(effectiveClasses).length > 1 && (
                         <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--surface)', borderRadius: '4px' }}>
-                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                            <label htmlFor="field-levelup-class-select" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
                                 Select Class to Level Up:
                             </label>
-                            <select
+                            <select id="field-levelup-class-select"
                                 className="input"
                                 data-testid="levelup-class-select"
                                 value={selectedClassToLevel}
@@ -699,11 +699,11 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                 <p>Loading available classes...</p>
                             ) : (
                                 <>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                                    <div id="multiclass-heading" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
                                         Select Class to Multiclass Into:
-                                    </label>
+                                    </div>
                                     {availableClasses.length > 0 ? (
-                                        <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        <div role="radiogroup" aria-labelledby="multiclass-heading" style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                             {availableClasses.map((cls: any) => (
                                                 <label
                                                     key={cls.id}
@@ -837,8 +837,8 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                     </p>
                     {[0, 1].map(idx => (
                         <div key={idx} style={{ marginBottom: '0.75rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Spell {idx + 1}</label>
-                            <select
+                            <label htmlFor={`field-wizard-spell-${idx}`} style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Spell {idx + 1}</label>
+                            <select id={`field-wizard-spell-${idx}`}
                                 className="input"
                                 data-testid={`wizard-spell-${idx}`}
                                 value={wizardSpellbookChoices[idx] || ''}
@@ -1038,10 +1038,10 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
 
                             {asiMode === 'single' && (
                                 <div>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                                    <label htmlFor="field-asi-single" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
                                         Select Ability Score:
                                     </label>
-                                    <select
+                                    <select id="field-asi-single"
                                         className="input"
                                         data-testid="asi-single"
                                         value={asiSingle}
@@ -1061,10 +1061,10 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                             {asiMode === 'dual' && (
                                 <div style={{ display: 'grid', gap: '1rem' }}>
                                     <div>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                                        <label htmlFor="field-asi-dual-1" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
                                             First Ability Score:
                                         </label>
-                                        <select
+                                        <select id="field-asi-dual-1"
                                             className="input"
                                             data-testid="asi-dual-1"
                                             value={asiDual1}
@@ -1080,10 +1080,10 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                         </select>
                                     </div>
                                     <div>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                                        <label htmlFor="field-asi-dual-2" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
                                             Second Ability Score:
                                         </label>
-                                        <select
+                                        <select id="field-asi-dual-2"
                                             className="input"
                                             data-testid="asi-dual-2"
                                             value={asiDual2}
@@ -1154,10 +1154,10 @@ export default function LevelUpWizard({ character, onComplete, onCancel }: Level
                                                 </div>
                                                 {feat.abilityScoreOptions && feat.abilityScoreOptions.length > 0 && selectedFeat?.id === feat.id && (
                                                     <div style={{ marginTop: '0.5rem' }} onClick={e => e.stopPropagation()}>
-                                                        <label style={{ fontSize: '0.75rem', color: 'var(--primary)', marginRight: '0.5rem' }}>
+                                                        <label htmlFor="field-feat-ability" style={{ fontSize: '0.75rem', color: 'var(--primary)', marginRight: '0.5rem' }}>
                                                             +1 to (max {feat.abilityScoreMax ?? 20}):
                                                         </label>
-                                                        <select
+                                                        <select id="field-feat-ability"
                                                             className="input"
                                                             data-testid="feat-ability"
                                                             value={featAbility}

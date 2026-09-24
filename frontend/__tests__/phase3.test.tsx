@@ -160,9 +160,9 @@ describe('StepAbilities', () => {
     it('restores point buy with the remaining budget', () => {
         render(<Harness />);
         fireEvent.click(screen.getByRole('button', { name: 'Point Buy' }));
-        const plus = screen.getAllByRole('button', { name: '+' });
-        fireEvent.click(plus[0]);
-        fireEvent.click(plus[0]);
+        const plusStr = screen.getByRole('button', { name: 'Increase STR' });
+        fireEvent.click(plusStr);
+        fireEvent.click(plusStr);
         expect(screen.getByText(/Points Remaining/)).toHaveTextContent('Points Remaining: 25 / 27');
 
         fireEvent.click(screen.getByText('toggle'));

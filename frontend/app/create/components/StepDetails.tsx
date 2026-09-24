@@ -86,8 +86,8 @@ export default function StepDetails({ data, onUpdate, onBackgroundLoaded }: Step
 
             <div className="card">
                 <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>Character Name</label>
-                    <input
+                    <label htmlFor="field-character-name" style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>Character Name</label>
+                    <input id="field-character-name"
                         type="text"
                         className="input"
                         data-testid="character-name"
@@ -98,8 +98,8 @@ export default function StepDetails({ data, onUpdate, onBackgroundLoaded }: Step
                 </div>
 
                 <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>Alignment</label>
-                    <select
+                    <label htmlFor="field-alignment" style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>Alignment</label>
+                    <select id="field-alignment"
                         className="input"
                         data-testid="alignment"
                         value={data.alignment}
@@ -112,13 +112,14 @@ export default function StepDetails({ data, onUpdate, onBackgroundLoaded }: Step
 
                 <div style={{ marginBottom: '1rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                        <label style={{ fontWeight: 'bold' }}>Background</label>
+                        <label htmlFor="field-background" style={{ fontWeight: 'bold' }}>Background</label>
                         <label style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                             <input type="checkbox" checked={showLegacy} onChange={e => setShowLegacy(e.target.checked)} />
                             Show legacy (pre-2024) backgrounds
                         </label>
                     </div>
                     <select
+                        id="field-background"
                         className="input"
                         data-testid="background"
                         value={data.backgroundId}

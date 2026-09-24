@@ -26,10 +26,10 @@ function EquipmentLines({ lines, choices, onChange, prefix }: { lines: string[];
                 const value = choices[index] ?? '';
                 return (
                     <div key={index} className="card" style={{ padding: '1rem' }}>
-                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                        <label htmlFor={`field-${prefix}-equipment-${index}`} style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
                             Choose {opts.length > 2 ? 'A, B, or C' : 'A or B'}
                         </label>
-                        <select
+                        <select id={`field-${prefix}-equipment-${index}`}
                             className="input"
                             data-testid={`${prefix}-equipment-${index}`}
                             value={value}

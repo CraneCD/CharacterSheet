@@ -119,10 +119,11 @@ export default function ReferenceForm({ type, initialKey, initialData, onSubmit,
             {error && <div style={{ color: 'var(--error)', marginBottom: '1rem' }}>{error}</div>}
 
             <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                <label htmlFor="ref-key" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                     {type === 'classFeature' ? 'Class Id (e.g. "wizard")' : type === 'trait' ? 'Name' : 'Key / Id'}
                 </label>
                 <input
+                    id="ref-key"
                     type="text"
                     className="input"
                     value={key}
@@ -192,11 +193,12 @@ export default function ReferenceForm({ type, initialKey, initialData, onSubmit,
                 <>
                     {fields.map(f => (
                         <div key={f.key} style={{ marginBottom: '1rem' }}>
-                            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                            <label htmlFor={`ref-field-${f.key}`} style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                                 {f.label}
                             </label>
                             {f.kind === 'textarea' ? (
                                 <textarea
+                                    id={`ref-field-${f.key}`}
                                     className="input"
                                     rows={6}
                                     value={simpleValues[f.key] ?? ''}
@@ -205,6 +207,7 @@ export default function ReferenceForm({ type, initialKey, initialData, onSubmit,
                                 />
                             ) : f.kind === 'boolean' ? (
                                 <select
+                                    id={`ref-field-${f.key}`}
                                     className="input"
                                     value={simpleValues[f.key] ?? 'false'}
                                     onChange={e => setSimpleValues({ ...simpleValues, [f.key]: e.target.value })}
@@ -214,6 +217,7 @@ export default function ReferenceForm({ type, initialKey, initialData, onSubmit,
                                 </select>
                             ) : f.kind === 'select' ? (
                                 <select
+                                    id={`ref-field-${f.key}`}
                                     className="input"
                                     value={simpleValues[f.key] ?? ''}
                                     onChange={e => setSimpleValues({ ...simpleValues, [f.key]: e.target.value })}
@@ -223,6 +227,7 @@ export default function ReferenceForm({ type, initialKey, initialData, onSubmit,
                                 </select>
                             ) : (
                                 <input
+                                    id={`ref-field-${f.key}`}
                                     type={f.kind === 'number' ? 'number' : 'text'}
                                     className="input"
                                     value={simpleValues[f.key] ?? ''}
@@ -234,10 +239,10 @@ export default function ReferenceForm({ type, initialKey, initialData, onSubmit,
                     ))}
 
                     <div style={{ marginBottom: '1rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                        <label htmlFor="ref-other-json" style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                             Other fields (JSON) — anything not covered above (e.g. prerequisites, nested feature lists)
                         </label>
-                        <textarea
+                        <textarea id="ref-other-json"
                             className="input"
                             rows={8}
                             value={otherJson}

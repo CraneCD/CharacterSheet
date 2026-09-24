@@ -67,11 +67,14 @@ API errors are thrown as `ApiError` (`status` + the server's `error` text as `me
 
 ### UI Conventions
 
-- **Tokens:** colors, spacing, radius, type scale and shadows are CSS variables in `frontend/app/globals.css`. Use them (`var(--surface)`, `var(--space-4)`, ...) instead of literal values; colors are redefined for the light theme and for print, so hardcoded colors break those.
+- **Tokens:** colors, spacing, radius, type scale and shadows are CSS variables in `frontend/app/globals.css`. Use them (`var(--surface)`, `var(--space-4)`, ...) instead of literal values; colors are redefined for the light theme and for print, so hardcoded colors break those. `--primary`/`--error` are for text and accents; put white text only on `--primary-strong`/`--error-strong` fills (the pairs meet WCAG AA in both themes).
 - **Shared components** live in `frontend/app/components/ui` (import from `@/app/components/ui`): `Button`/`buttonClass` (the only button styles: `.btn` + `btn-secondary|ghost|danger`, `btn-sm|lg`), `Modal` (focus trap, Escape, labelled dialog — don't hand-roll `.modal-overlay`), `ConfirmDialog`, `Field`/`TextField`, `Stat`/`EditableStat`/`EditableNumber`, `Menu` (menu button), `Skeleton`, `SectionHeader`.
 - **Feedback:** never use `alert()`/`confirm()`. Use `useToast()` for messages and `ConfirmDialog` for confirmations. Saves should be optimistic with rollback: `useOptimisticSave()`, or `persistData()` from `useCharacterSheetData` on the sheet. Failed saves must tell the user (`describeError(message, err)`), not just `console.error`.
 - **Sheet rules helpers:** HP changes (damage through temp HP, healing, death saves) live in `frontend/lib/hp.ts`; Short/Long Rest planning and summaries in `frontend/lib/rest.ts`. The sheet has one rest flow (header buttons → `RestDialogs`); don't add per-card rest buttons.
 - **Character creation:** the wizard autosaves a draft per user in `localStorage` (`frontend/lib/characterDraft.ts`); the dashboard offers to continue or discard it. Step components must restore their state from props when revisited (see `StepAbilities`). Import/export parsing and file naming live in `frontend/lib/characterTransfer.ts`.
+- **Accessibility:** tie every label to its control (`htmlFor`/`id`, or `TextField`), make clickable things buttons (see `selectableProps` for card-style choices), and keep `frontend/__tests__/a11y.test.tsx` (jest-axe) passing when adding screens.
+- **Sheet structure:** the sheet page composes cards from `app/character/[id]/components/sections`; rules math lives in `frontend/lib` (`armorClass.ts`, `spellcastingSetup.ts`, `hp.ts`, `rest.ts`, `spellFilters.ts`). Add new rules logic there with tests rather than inline in render.
+- **Print:** `@media print` in `globals.css` lays the sheet out for paper; phone-only rules are `@media screen and (max-width: 767px)` so they never apply to print.
 - **Theme:** dark by default, light follows the OS or the nav toggle (`data-theme` on `<html>`, see `frontend/lib/theme.ts`).
 
 ### Route Protection

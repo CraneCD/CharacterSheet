@@ -81,24 +81,24 @@ export default function MagicInitiateConfigModal({
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1, overflowY: 'auto' }}>
                 <div>
-                    <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Spell list</label>
-                    <select className="input" value={miClass} onChange={e => setMiClass(e.target.value as MagicInitiateConfig['class'])}>
+                    <label htmlFor="magicinitiateconfigmodal-spell-list" style={{ display: 'block', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Spell list</label>
+                    <select id="magicinitiateconfigmodal-spell-list" className="input" value={miClass} onChange={e => setMiClass(e.target.value as MagicInitiateConfig['class'])}>
                         {MAGIC_INITIATE_CLASSES.map(c => (
                             <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                     </select>
                 </div>
                 <div>
-                    <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Spellcasting ability</label>
-                    <select className="input" value={ability} onChange={e => setAbility(e.target.value as MagicInitiateConfig['ability'])}>
+                    <label htmlFor="magicinitiateconfigmodal-spellcasting-ability" style={{ display: 'block', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Spellcasting ability</label>
+                    <select id="magicinitiateconfigmodal-spellcasting-ability" className="input" value={ability} onChange={e => setAbility(e.target.value as MagicInitiateConfig['ability'])}>
                         {MAGIC_INITIATE_ABILITIES.map(a => (
                             <option key={a.id} value={a.id}>{a.name}</option>
                         ))}
                     </select>
                 </div>
                 <div>
-                    <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Cantrip 1</label>
-                    <select className="input" value={cantrip1} onChange={e => setCantrip1(e.target.value)}>
+                    <label htmlFor="magicinitiateconfigmodal-cantrip-1" style={{ display: 'block', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Cantrip 1</label>
+                    <select id="magicinitiateconfigmodal-cantrip-1" className="input" value={cantrip1} onChange={e => setCantrip1(e.target.value)}>
                         <option value="">Select...</option>
                         {cantrips.map(s => (
                             <option key={s.id} value={s.id}>{s.name}</option>
@@ -106,8 +106,8 @@ export default function MagicInitiateConfigModal({
                     </select>
                 </div>
                 <div>
-                    <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Cantrip 2</label>
-                    <select className="input" value={cantrip2} onChange={e => setCantrip2(e.target.value)}>
+                    <label htmlFor="magicinitiateconfigmodal-cantrip-2" style={{ display: 'block', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Cantrip 2</label>
+                    <select id="magicinitiateconfigmodal-cantrip-2" className="input" value={cantrip2} onChange={e => setCantrip2(e.target.value)}>
                         <option value="">Select...</option>
                         {cantrips.map(s => (
                             <option key={s.id} value={s.id}>{s.name}</option>
@@ -115,8 +115,8 @@ export default function MagicInitiateConfigModal({
                     </select>
                 </div>
                 <div>
-                    <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem' }}>1st-level spell</label>
-                    <select className="input" value={spell1} onChange={e => setSpell1(e.target.value)}>
+                    <label htmlFor="magicinitiateconfigmodal-1st-level-spell" style={{ display: 'block', fontWeight: 'bold', fontSize: '0.875rem', marginBottom: '0.25rem' }}>1st-level spell</label>
+                    <select id="magicinitiateconfigmodal-1st-level-spell" className="input" value={spell1} onChange={e => setSpell1(e.target.value)}>
                         <option value="">Select a 1st-level spell...</option>
                         {level1Spells.map(s => (
                             <option key={s.id} value={s.id}>{s.name}</option>
