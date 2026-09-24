@@ -145,8 +145,8 @@ export default function StepAbilities({ initialScores, method: savedMethod, onUp
                         <div style={{ display: 'grid', gap: '0.5rem' }}>
                             {ABILITIES.map(ability => (
                                 <div key={ability} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <label style={{ fontWeight: 'bold', width: '3rem', textTransform: 'uppercase' }}>{ability}</label>
-                                    <select
+                                    <label htmlFor={`field-standard-${ability}`} style={{ fontWeight: 'bold', width: '3rem', textTransform: 'uppercase' }}>{ability}</label>
+                                    <select id={`field-standard-${ability}`}
                                         className="input"
                                         data-testid={`standard-${ability}`}
                                         value={assignedStandard[ability] || ''}
@@ -172,16 +172,18 @@ export default function StepAbilities({ initialScores, method: savedMethod, onUp
                         <div style={{ display: 'grid', gap: '0.5rem' }}>
                             {ABILITIES.map(ability => (
                                 <div key={ability} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <label style={{ fontWeight: 'bold', width: '3rem', textTransform: 'uppercase' }}>{ability}</label>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <span id={`pointbuy-${ability}`} style={{ fontWeight: 'bold', width: '3rem', textTransform: 'uppercase' }}>{ability}</span>
+                                    <div role="group" aria-labelledby={`pointbuy-${ability}`} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                         <button
                                             className="btn btn-secondary"
+                                            aria-label={`Decrease ${ability.toUpperCase()}`}
                                             onClick={() => handlePointBuy(ability, -1)}
                                             disabled={scores[ability] <= 8}
                                         >-</button>
-                                        <span style={{ width: '2rem', textAlign: 'center', fontWeight: 'bold' }}>{scores[ability]}</span>
+                                        <span aria-live="polite" style={{ width: '2rem', textAlign: 'center', fontWeight: 'bold' }}>{scores[ability]}</span>
                                         <button
                                             className="btn btn-secondary"
+                                            aria-label={`Increase ${ability.toUpperCase()}`}
                                             onClick={() => handlePointBuy(ability, 1)}
                                             disabled={scores[ability] >= 15 || pointsRemaining < (POINT_BUY_COSTS[scores[ability] + 1] - POINT_BUY_COSTS[scores[ability]])}
                                         >+</button>
@@ -203,8 +205,8 @@ export default function StepAbilities({ initialScores, method: savedMethod, onUp
                         <div style={{ display: 'grid', gap: '0.5rem' }}>
                             {ABILITIES.map(ability => (
                                 <div key={ability} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <label style={{ fontWeight: 'bold', width: '3rem', textTransform: 'uppercase' }}>{ability}</label>
-                                    <input
+                                    <label htmlFor={`field-manual-${ability}`} style={{ fontWeight: 'bold', width: '3rem', textTransform: 'uppercase' }}>{ability}</label>
+                                    <input id={`field-manual-${ability}`}
                                         type="text"
                                         data-testid={`manual-${ability}`}
                                         inputMode="numeric"

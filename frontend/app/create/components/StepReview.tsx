@@ -35,13 +35,15 @@ function fightingStyleDisplayName(id: string): string {
 
 const labelStyle = { display: 'block', fontWeight: 'bold', marginBottom: '0.35rem', fontSize: '0.875rem' } as const;
 
-function UniqueSelects({ count, options, values, onChange, testId, placeholder }: { count: number; options: string[]; values: string[]; onChange: (v: string[]) => void; testId: string; placeholder: string }) {
+/** `count` selects that can't repeat a value, labelled as a group by `labelledBy`. */
+function UniqueSelects({ count, options, values, onChange, testId, placeholder, labelledBy, itemLabel }: { count: number; options: string[]; values: string[]; onChange: (v: string[]) => void; testId: string; placeholder: string; labelledBy: string; itemLabel: string }) {
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div role="group" aria-labelledby={labelledBy} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {Array.from({ length: count }).map((_, idx) => (
                 <select
                     key={idx}
                     className="input"
+                    aria-label={`${itemLabel} ${idx + 1} of ${count}`}
                     data-testid={`${testId}-${idx}`}
                     value={values[idx] || ''}
                     onChange={(e) => {
@@ -117,8 +119,8 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
 
                     {lineage && (
                         <div>
-                            <label style={labelStyle}>{lineage.label} — choose one</label>
-                            <select
+                            <label htmlFor="field-lineage" style={labelStyle}>{lineage.label} — choose one</label>
+                            <select id="field-lineage"
                                 className="input"
                                 data-testid="lineage"
                                 value={(isElf ? data.elvenLineageChoice : data.speciesLineageChoice) || ''}
@@ -133,8 +135,8 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
                     )}
                     {!lineage && isElf && (
                         <div>
-                            <label style={labelStyle}>Elven Lineage — choose your lineage</label>
-                            <select className="input" data-testid="lineage" value={data.elvenLineageChoice || ''} onChange={(e) => onUpdate({ elvenLineageChoice: e.target.value })}>
+                            <label htmlFor="field-lineage" style={labelStyle}>Elven Lineage — choose your lineage</label>
+                            <select id="field-lineage" className="input" data-testid="lineage" value={data.elvenLineageChoice || ''} onChange={(e) => onUpdate({ elvenLineageChoice: e.target.value })}>
                                 <option value="">Select a lineage...</option>
                                 {ELVEN_LINEAGES.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                             </select>
@@ -143,8 +145,8 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
 
                     {needsSize && (
                         <div>
-                            <label style={labelStyle}>Size</label>
-                            <select className="input" data-testid="size" value={data.sizeChoice || ''} onChange={(e) => onUpdate({ sizeChoice: e.target.value })}>
+                            <label htmlFor="field-size" style={labelStyle}>Size</label>
+                            <select id="field-size" className="input" data-testid="size" value={data.sizeChoice || ''} onChange={(e) => onUpdate({ sizeChoice: e.target.value })}>
                                 <option value="">Select a size...</option>
                                 <option value="Medium">Medium</option>
                                 <option value="Small">Small</option>
@@ -154,8 +156,8 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
 
                     {needsKeenSenses && (
                         <div>
-                            <label style={labelStyle}>Keen Senses — choose one skill</label>
-                            <select className="input" data-testid="keen-senses" value={data.keenSensesChoice || ''} onChange={(e) => onUpdate({ keenSensesChoice: e.target.value })}>
+                            <label htmlFor="field-keen-senses" style={labelStyle}>Keen Senses — choose one skill</label>
+                            <select id="field-keen-senses" className="input" data-testid="keen-senses" value={data.keenSensesChoice || ''} onChange={(e) => onUpdate({ keenSensesChoice: e.target.value })}>
                                 <option value="">Select a skill</option>
                                 {KEEN_SENSES_SKILLS.filter(s => !takenBy(data.keenSensesChoice).has(s)).map((s) => <option key={s} value={s}>{s}</option>)}
                             </select>
@@ -164,15 +166,17 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
 
                     {needsClassSkills && (
                         <div>
-                            <label style={labelStyle}>
+                            <div id="group-class-skills" style={labelStyle}>
                                 {className} — choose {classSkillChoicesCount} skill{classSkillChoicesCount === 1 ? '' : 's'} (class proficiencies)
-                            </label>
+                            </div>
                             <UniqueSelects
                                 count={classSkillChoicesCount}
                                 options={availableClassSkills}
                                 values={classSkillChoices}
                                 onChange={(v) => onUpdate({ classSkillChoices: v })}
                                 testId="class-skill"
+                                labelledBy="group-class-skills"
+                                itemLabel="Skill"
                                 placeholder="Select a skill..."
                             />
                         </div>
@@ -180,8 +184,8 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
 
                     {needsSkillful && (
                         <div>
-                            <label style={labelStyle}>Skillful — choose one skill</label>
-                            <select className="input" data-testid="skillful" value={data.skillfulChoice || ''} onChange={(e) => onUpdate({ skillfulChoice: e.target.value })}>
+                            <label htmlFor="field-skillful" style={labelStyle}>Skillful — choose one skill</label>
+                            <select id="field-skillful" className="input" data-testid="skillful" value={data.skillfulChoice || ''} onChange={(e) => onUpdate({ skillfulChoice: e.target.value })}>
                                 <option value="">Select a skill</option>
                                 {SKILLS_FOR_SKILLFUL.filter(s => !takenBy(data.skillfulChoice).has(s)).map((s) => <option key={s} value={s}>{s}</option>)}
                             </select>
@@ -190,11 +194,11 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
 
                     {needsVersatile && (
                         <div>
-                            <label style={labelStyle}>Versatile — choose an Origin feat</label>
+                            <label htmlFor="field-versatile" style={labelStyle}>Versatile — choose an Origin feat</label>
                             {featsLoading ? (
                                 <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Loading feats…</div>
                             ) : (
-                                <select className="input" data-testid="versatile" value={data.versatileFeatId || ''} onChange={(e) => onUpdate({ versatileFeatId: e.target.value })}>
+                                <select id="field-versatile" className="input" data-testid="versatile" value={data.versatileFeatId || ''} onChange={(e) => onUpdate({ versatileFeatId: e.target.value })}>
                                     <option value="">Select a feat</option>
                                     {versatileOptions.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                                 </select>
@@ -204,9 +208,9 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
 
                     {needsExpertise && (
                         <div>
-                            <label style={labelStyle}>
+                            <div id="group-expertise" style={labelStyle}>
                                 Expertise — choose {expertiseCount} skills (double proficiency bonus)
-                            </label>
+                            </div>
                             {proficientSkills.length === 0 ? (
                                 <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', fontStyle: 'italic' }}>
                                     Pick your skill proficiencies first.
@@ -218,6 +222,8 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
                                     values={expertiseChoices}
                                     onChange={(v) => onUpdate({ expertiseChoices: v })}
                                     testId="expertise"
+                                    labelledBy="group-expertise"
+                                    itemLabel="Expertise skill"
                                     placeholder="Select a skill..."
                                 />
                             )}
@@ -226,15 +232,17 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
 
                     {totalLangChoices > 0 && (
                         <div>
-                            <label style={labelStyle}>
+                            <div id="group-languages" style={labelStyle}>
                                 Languages — you know Common; choose {totalLangChoices} more
-                            </label>
+                            </div>
                             <UniqueSelects
                                 count={totalLangChoices}
                                 options={STANDARD_LANGUAGES_2024}
                                 values={languageChoices}
                                 onChange={(v) => onUpdate({ languageChoices: v })}
                                 testId="language"
+                                labelledBy="group-languages"
+                                itemLabel="Language"
                                 placeholder="Select a language..."
                             />
                         </div>
