@@ -20,6 +20,7 @@ import { getHpStatus } from '@/lib/hp';
 import { planLongRest, planShortRest, RestContext } from '@/lib/rest';
 import { downloadCharacterJson } from '@/lib/characterTransfer';
 import { calculateArmorClass } from '@/lib/armorClass';
+import { defaultSpeed, overrideToStore, resolveOverride } from '@/lib/sheetDefaults';
 import { CharacterItem, CharacterFeature } from '@/lib/types';
 import { 
     calculateSpeedBonusFromFeatures, 
@@ -209,14 +210,16 @@ export default function CharacterSheet() {
         fightingStyles,
     });
 
-    const ac = data.ac !== undefined ? data.ac : calculatedAC;
+    const acStat = resolveOverride(data.ac, calculatedAC);
+    const ac = acStat.value;
     const acFormula = `${acParts.join(' + ')} = ${calculatedAC}`;
-    const acDescription = data.ac !== undefined && data.ac !== calculatedAC
+    const acDescription = acStat.overridden
         ? `Set manually. Calculated: ${acFormula}`
         : `AC: ${acFormula}`;
     
-    // Speed: calculate base speed, then add feature bonuses
-    const baseSpeed = data.speed !== undefined ? data.speed : (race.speed || 30);
+    // Speed: base speed (manual override or species default), then add feature bonuses
+    const speedStat = resolveOverride(data.speed, defaultSpeed(race.speed, data.elvenLineage));
+    const baseSpeed = speedStat.value;
     const speedBonus = calculateSpeedBonusFromFeatures(allFeatures, primaryClass, level);
     const speed = baseSpeed + speedBonus;
     
@@ -526,20 +529,25 @@ export default function CharacterSheet() {
                         value={baseSpeed}
                         display={`${speed} ft.`}
                         sublabel={speedBonusDisplay > 0 ? `(+${speedBonusDisplay} from features)` : undefined}
+                        description={speedStat.overridden ? `Set manually. Species default: ${speedStat.calculated} ft.` : undefined}
                         min={0}
                         max={200}
-                        onSave={(value) => persistData({ speed: value }, "Couldn't update speed")}
+                        onSave={(value) => persistData({ speed: overrideToStore(value, speedStat.calculated) }, "Couldn't update speed")}
+                        onReset={speedStat.overridden ? () => persistData({ speed: null }, "Couldn't reset speed") : undefined}
+                        resetLabel={`Reset speed to ${speedStat.calculated} ft.`}
                     />
                     <Stat label="Initiative" value={formatMod(effectiveModifiers.dex)} />
                     <EditableStat
                         label="AC"
                         value={ac}
                         description={acDescription}
-                        sublabel={data.ac !== undefined && data.ac !== calculatedAC ? 'set manually' : undefined}
+                        sublabel={acStat.overridden ? 'set manually' : undefined}
                         min={0}
                         max={50}
                         highlight
-                        onSave={(value) => persistData({ ac: value }, "Couldn't update AC")}
+                        onSave={(value) => persistData({ ac: overrideToStore(value, calculatedAC) }, "Couldn't update AC")}
+                        onReset={acStat.overridden ? () => persistData({ ac: null }, "Couldn't reset AC") : undefined}
+                        resetLabel={`Reset AC to calculated ${calculatedAC}`}
                     />
                 </div>
             </div>

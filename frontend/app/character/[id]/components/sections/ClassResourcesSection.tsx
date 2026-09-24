@@ -73,6 +73,12 @@ export function resolveClassResources(input: ResolveInput): { resources: ClassRe
     return { resources, psiWarrior, needsSave: changed && Object.keys(resources).length > 0 };
 }
 
+/** The calculated maximum uses of each resource, ignoring any maximums edited by hand. */
+export function defaultResourceMaximums(input: ResolveInput): Record<string, number> {
+    const { resources } = resolveClassResources({ ...input, data: { ...input.data, classResources: undefined } });
+    return Object.fromEntries(Object.entries(resources).map(([name, res]) => [name, res.max]));
+}
+
 interface ClassResourcesSectionProps extends ResolveInput {
     characterId: string;
     onUpdate: (updates: Partial<CharacterData>) => void;
@@ -97,6 +103,7 @@ export default function ClassResourcesSection({ characterId, onUpdate, ...input 
             characterId={characterId}
             initialResources={resources}
             psiWarrior={psiWarrior}
+            defaultMax={defaultResourceMaximums(input)}
             onUpdate={(newResources) => onUpdate({ classResources: newResources })}
         />
     );

@@ -89,8 +89,10 @@ export interface CharacterData {
     classResources?: ClassResources; // Class-specific resources (sorcery points, focus points, etc.)
     /** Rules version the stored classResources were derived from (see RESOURCE_RULES_VERSION). */
     classResourcesRules?: string;
-    ac?: number; // Optional - if not set, will be calculated
-    speed?: number; // Optional - if not set, will use race default
+    /** Manual AC override; null/missing = calculated from armor and features. */
+    ac?: number | null;
+    /** Manual base speed override; null/missing = species default. */
+    speed?: number | null;
     abilityScores: {
         str: number;
         dex: number;

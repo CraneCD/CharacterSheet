@@ -153,16 +153,27 @@ export function EditableNumber({ label, value, display, sublabel, description, m
 
 interface EditableStatProps extends Omit<EditableNumberProps, 'showHint' | 'className'> {
     highlight?: boolean;
+    /** Shown while the value is a manual override: puts the calculated default back. */
+    onReset?: () => void;
+    /** Accessible name and tooltip of the reset button, e.g. "Reset AC to calculated 13". */
+    resetLabel?: string;
 }
 
-/** A header stat (Speed, AC) that can be edited in place. */
-export function EditableStat({ highlight = false, ...props }: EditableStatProps) {
+/** A header stat (Speed, AC) that can be edited in place, and reset when overridden. */
+export function EditableStat({ highlight = false, onReset, resetLabel, ...props }: EditableStatProps) {
+    const resetName = resetLabel ?? `Reset ${props.label}`;
     return (
         <div className={highlight ? 'stat-box highlight' : 'stat-box'}>
             <div className="stat-label" aria-hidden="true">{props.label}</div>
             <div className="stat-value">
                 <EditableNumber {...props} showHint />
             </div>
+            {onReset && (
+                <button type="button" className="stat-reset no-print" onClick={onReset} aria-label={resetName} title={resetName}>
+                    <span aria-hidden="true">↺</span>
+                    <span className="stat-reset-text" aria-hidden="true">reset</span>
+                </button>
+            )}
         </div>
     );
 }
