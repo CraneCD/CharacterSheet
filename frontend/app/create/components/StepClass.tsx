@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { ClassInfo, Subclass } from '@/lib/types';
+import { selectableProps } from '@/app/components/ui/selectable';
 
 export interface FightingStyleOption {
     id: string;
@@ -62,17 +63,17 @@ export default function StepClass({ selectedClassId, onSelect, selectedSubclassI
                             key={cls.id}
                             data-testid={`class-${cls.id}`}
                             className={`card ${isSelected ? 'highlight' : ''}`}
-                            style={{
-                                cursor: 'pointer',
-                                border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
-                                backgroundColor: isSelected ? 'var(--surface-highlight)' : 'var(--surface)'
-                            }}
-                            onClick={() => {
+                            {...selectableProps(isSelected, () => {
                                 onSelect(cls);
                                 if (selectedClassId !== cls.id) {
                                     onSelectSubclass(null);
                                     onSelectFightingStyle(null);
                                 }
+                            })}
+                            style={{
+                                cursor: 'pointer',
+                                border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
+                                backgroundColor: isSelected ? 'var(--surface-highlight)' : 'var(--surface)'
                             }}
                         >
                             <h3 style={{ fontWeight: 'bold', fontSize: '1.25rem', marginBottom: '0.5rem' }}>{cls.name}</h3>
@@ -109,7 +110,7 @@ export default function StepClass({ selectedClassId, onSelect, selectedSubclassI
                         {availableSubclasses.map(sub => (
                             <div
                                 key={sub.id}
-                                onClick={() => onSelectSubclass(sub)}
+                                {...selectableProps(selectedSubclassId === sub.id, () => onSelectSubclass(sub))}
                                 style={{
                                     cursor: 'pointer',
                                     padding: '1rem',
@@ -139,7 +140,7 @@ export default function StepClass({ selectedClassId, onSelect, selectedSubclassI
                             <div
                                 key={fs.id}
                                 data-testid={`fighting-style-${fs.id}`}
-                                onClick={() => onSelectFightingStyle(selectedFightingStyleId === fs.id ? null : fs.id)}
+                                {...selectableProps(selectedFightingStyleId === fs.id, () => onSelectFightingStyle(selectedFightingStyleId === fs.id ? null : fs.id))}
                                 style={{
                                     cursor: 'pointer',
                                     padding: '1rem',

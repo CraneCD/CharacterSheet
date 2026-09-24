@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import StepRace from './StepRace';
 import StepClass from './StepClass';
-import StepAbilities from './StepAbilities';
+import StepAbilities, { AbilityMethod } from './StepAbilities';
+import WizardStepper from './WizardStepper';
 import StepDetails from './StepDetails';
 import StepStartingEquipment from './StepStartingEquipment';
 import StepReview from './StepReview';
@@ -14,7 +15,9 @@ import { getRaceTraits, getBackgroundSkills, getBackgroundAbilityOptions, isVali
 import { splitEquipmentChoice, itemNameToCharacterItem, parseCurrency } from '@/lib/equipmentMapping';
 import { buildChoicePayload, getClassChoices } from '@/lib/classChoices';
 import ClassChoicesPicker, { choicesComplete } from '@/app/character/[id]/components/ClassChoicesPicker';
-import { ConfirmDialog, describeError, useToast } from '@/app/components/ui';
+import { Button, ConfirmDialog, describeError, Skeleton, useToast } from '@/app/components/ui';
+import { clearDraft, hasDraftProgress, loadDraft, saveDraft } from '@/lib/characterDraft';
+import { formatRelativeTime } from '@/lib/relativeTime';
 
 type Currency = { cp?: number; sp?: number; ep?: number; gp?: number; pp?: number };
 
@@ -29,13 +32,17 @@ export function applyBackgroundAsi(scores: Record<string, number>, asi: Record<s
     return out;
 }
 
-export default function WizardContainer() {
-    const router = useRouter();
-    const [step, setStep] = useState(1);
-    const [loading, setLoading] = useState(false);
-    const [confirmingExit, setConfirmingExit] = useState(false);
-    const toast = useToast();
-    const [formData, setFormData] = useState({
+const STEPS = [
+    { label: 'Species' },
+    { label: 'Class' },
+    { label: 'Abilities' },
+    { label: 'Background' },
+    { label: 'Equipment' },
+    { label: 'Choices & Review' },
+];
+
+function initialFormData() {
+    return {
         raceId: '',
         classId: '',
         abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
@@ -55,8 +62,23 @@ export default function WizardContainer() {
         classSkillChoices: [] as string[],
         languageChoices: [] as string[],
         /** Level 1 class feature choices (Divine Order, first invocation, Weapon Mastery, ...), by choice key. */
-        classChoicePicks: {} as Record<string, string[]>
-    });
+        classChoicePicks: {} as Record<string, string[]>,
+        /** How ability scores were generated; unset until the Abilities step is first opened. */
+        abilityMethod: undefined as AbilityMethod | undefined
+    };
+}
+
+export default function WizardContainer() {
+    const router = useRouter();
+    const [step, setStep] = useState(1);
+    const [maxStepReached, setMaxStepReached] = useState(1);
+    const [loading, setLoading] = useState(false);
+    const [confirmingStartOver, setConfirmingStartOver] = useState(false);
+    // Drafts load from browser storage after mount; nothing is saved until then
+    const [hydrated, setHydrated] = useState(false);
+    const [resumedAt, setResumedAt] = useState<string | null>(null);
+    const toast = useToast();
+    const [formData, setFormData] = useState(initialFormData);
 
     // We store full objects for race/class/background to display names in Review without refetching
     const [selectedRace, setSelectedRace] = useState<Race | null>(null);
@@ -65,9 +87,66 @@ export default function WizardContainer() {
     const [selectedFightingStyle, setSelectedFightingStyle] = useState<string | null>(null);
     const [selectedBackground, setSelectedBackground] = useState<Background | null>(null);
 
-    const handleNext = () => setStep(step + 1);
-    const handleBack = () => setStep(step - 1);
-    const handleExit = () => setConfirmingExit(true);
+    // Resume an unfinished character from this browser
+    useEffect(() => {
+        const draft = loadDraft();
+        if (draft && hasDraftProgress(draft.formData)) {
+            setFormData({ ...initialFormData(), ...draft.formData });
+            setSelectedRace(draft.selections.race ?? null);
+            setSelectedClass(draft.selections.classInfo ?? null);
+            setSelectedSubclass(draft.selections.subclass ?? null);
+            setSelectedFightingStyle(draft.selections.fightingStyle ?? null);
+            setSelectedBackground(draft.selections.background ?? null);
+            setStep(draft.step);
+            setMaxStepReached(Math.max(draft.step, draft.maxStepReached));
+            setResumedAt(draft.savedAt);
+        }
+        setHydrated(true);
+    }, []);
+
+    // Save progress as you go
+    useEffect(() => {
+        if (!hydrated || !hasDraftProgress(formData)) return;
+        saveDraft({
+            step,
+            maxStepReached,
+            formData,
+            selections: {
+                race: selectedRace,
+                classInfo: selectedClass,
+                subclass: selectedSubclass,
+                background: selectedBackground,
+                fightingStyle: selectedFightingStyle,
+            },
+        });
+    }, [hydrated, step, maxStepReached, formData, selectedRace, selectedClass, selectedSubclass, selectedBackground, selectedFightingStyle]);
+
+    const goToStep = (next: number) => {
+        setStep(next);
+        setMaxStepReached((reached) => Math.max(reached, next));
+        window.scrollTo?.({ top: 0 });
+    };
+    const handleNext = () => goToStep(step + 1);
+    const handleBack = () => goToStep(step - 1);
+
+    const handleSaveAndExit = () => {
+        if (hasDraftProgress(formData)) toast.info('Draft saved. Continue it any time from My Characters.');
+        router.push('/dashboard');
+    };
+
+    const startOver = () => {
+        clearDraft();
+        setFormData(initialFormData());
+        setSelectedRace(null);
+        setSelectedClass(null);
+        setSelectedSubclass(null);
+        setSelectedFightingStyle(null);
+        setSelectedBackground(null);
+        setStep(1);
+        setMaxStepReached(1);
+        setResumedAt(null);
+        setConfirmingStartOver(false);
+    };
 
     const lineageId = formData.raceId === 'elf' ? formData.elvenLineageChoice : formData.speciesLineageChoice;
     const currentRaceTraits = () => getRaceTraits(formData.raceId, formData.elvenLineageChoice, selectedRace, formData.speciesLineageChoice);
@@ -226,8 +305,10 @@ export default function WizardContainer() {
                 data
             };
 
-            await api.post('/characters', payload);
-            router.push('/dashboard');
+            const created = await api.post('/characters', payload);
+            clearDraft();
+            toast.success(`Created ${formData.name || 'your character'}.`);
+            router.push(created?.id ? `/character/${created.id}` : '/dashboard');
         } catch (err) {
             console.error('Failed to create character', err);
             toast.error(describeError("Couldn't create character. Please check your choices", err));
@@ -249,8 +330,8 @@ export default function WizardContainer() {
         spellbook: [] as string[],
     };
 
-    const isStepValid = () => {
-        switch (step) {
+    const isStepValidAt = (s: number): boolean => {
+        switch (s) {
             case 1: return !!formData.raceId;
             case 2:
                 if (!formData.classId) return false;
@@ -304,55 +385,56 @@ export default function WizardContainer() {
             default: return true;
         }
     };
+    const isStepValid = () => isStepValidAt(step);
+    /** A step can be opened once every step before it is filled in. */
+    const canVisitStep = (s: number) => s <= maxStepReached && Array.from({ length: s - 1 }, (_, i) => i + 1).every(isStepValidAt);
 
     return (
         <div style={{ maxWidth: '800px', margin: '0 auto 2rem', paddingBottom: '100px' }}>
-            {confirmingExit && (
+            {confirmingStartOver && (
                 <ConfirmDialog
-                    title="Exit character creation?"
-                    confirmLabel="Exit and discard"
+                    title="Start over?"
+                    confirmLabel="Discard and start over"
                     cancelLabel="Keep editing"
                     danger
-                    onConfirm={() => router.push('/dashboard')}
-                    onCancel={() => setConfirmingExit(false)}
+                    onConfirm={startOver}
+                    onCancel={() => setConfirmingStartOver(false)}
                 >
-                    Your choices so far will be lost.
+                    Your saved draft and all choices so far will be discarded.
                 </ConfirmDialog>
             )}
-            {/* Header with Exit Button */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-4)' }}>
                 <h1 className="heading" style={{ margin: 0 }}>Create New Character</h1>
-                <button
-                    className="btn btn-secondary"
-                    onClick={handleExit}
-                    style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
-                >
-                    Exit Wizard
-                </button>
+                <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                    {hasDraftProgress(formData) && (
+                        <Button variant="ghost" onClick={() => setConfirmingStartOver(true)}>Start over</Button>
+                    )}
+                    <Button variant="secondary" onClick={handleSaveAndExit}>
+                        {hasDraftProgress(formData) ? 'Save & exit' : 'Exit'}
+                    </Button>
+                </div>
             </div>
 
-            {/* Progress Bar */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem', position: 'relative' }}>
-                <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '2px', backgroundColor: 'var(--border)', zIndex: 0 }}></div>
-                {[1, 2, 3, 4, 5, 6].map(s => {
-                    const isActive = s <= step;
-                    return (
-                        <div key={s} style={{
-                            width: '2rem', height: '2rem', borderRadius: '50%',
-                            backgroundColor: isActive ? 'var(--primary)' : 'var(--surface)',
-                            border: '2px solid ' + (isActive ? 'var(--primary)' : 'var(--border)'),
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            zIndex: 1, fontWeight: 'bold', color: isActive ? '#fff' : 'var(--text-muted)'
-                        }}>
-                            {s}
-                        </div>
-                    );
-                })}
-            </div>
+            {resumedAt && (
+                <div className="wizard-notice" role="status">
+                    <span>Picked up where you left off (draft saved {formatRelativeTime(resumedAt)}).</span>
+                    <Button variant="ghost" size="sm" onClick={() => setResumedAt(null)} aria-label="Dismiss">&times;</Button>
+                </div>
+            )}
+
+            <WizardStepper
+                steps={STEPS}
+                current={step}
+                isComplete={(s) => s <= maxStepReached && isStepValidAt(s)}
+                canVisit={canVisitStep}
+                onSelect={goToStep}
+            />
+            <h2 className="visually-hidden" aria-live="polite">Step {step} of {STEPS.length}: {STEPS[step - 1].label}</h2>
 
             {/* Step Content */}
             <div style={{ minHeight: '400px', marginBottom: '100px' }}>
-                {step === 1 && (
+                {!hydrated && <Skeleton height="20rem" />}
+                {hydrated && step === 1 && (
                     <StepRace
                         selectedRaceId={formData.raceId}
                         onSelect={(race) => {
@@ -372,7 +454,7 @@ export default function WizardContainer() {
                         }}
                     />
                 )}
-                {step === 2 && (
+                {hydrated && step === 2 && (
                     <StepClass
                         selectedClassId={formData.classId}
                         onSelect={(cls) => {
@@ -396,13 +478,15 @@ export default function WizardContainer() {
                         onSelectFightingStyle={setSelectedFightingStyle}
                     />
                 )}
-                {step === 3 && (
+                {hydrated && step === 3 && (
                     <StepAbilities
                         initialScores={formData.abilityScores}
-                        onUpdate={(scores) => setFormData({ ...formData, abilityScores: scores })}
+                        method={formData.abilityMethod}
+                        onUpdate={(scores) => setFormData((prev) => ({ ...prev, abilityScores: scores }))}
+                        onMethodChange={(abilityMethod) => setFormData((prev) => ({ ...prev, abilityMethod }))}
                     />
                 )}
-                {step === 4 && (
+                {hydrated && step === 4 && (
                     <StepDetails
                         data={{ name: formData.name, backgroundId: formData.backgroundId, alignment: formData.alignment, backgroundAsi: formData.backgroundAsi }}
                         onBackgroundLoaded={setSelectedBackground}
@@ -416,7 +500,7 @@ export default function WizardContainer() {
                         }}
                     />
                 )}
-                {step === 5 && (
+                {hydrated && step === 5 && (
                     <StepStartingEquipment
                         selectedClass={selectedClass}
                         selectedBackground={selectedBackground}
@@ -426,7 +510,7 @@ export default function WizardContainer() {
                         onBackgroundChange={(choices) => setFormData({ ...formData, backgroundEquipmentChoices: choices })}
                     />
                 )}
-                {step === 6 && (() => {
+                {hydrated && step === 6 && (() => {
                     const rt = currentRaceTraits();
                     const bgSkills = getBackgroundSkills(formData.backgroundId, selectedBackground);
                     const traitSkills = getSkillProficienciesFromTraits(rt);

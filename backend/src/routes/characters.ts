@@ -164,12 +164,21 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
                 data: true,
             }
         });
-        // The dashboard list only renders the portrait from `data`; strip the
-        // rest (spells, features, equipment, levelHistory, …) so we don't ship
-        // every character's full sheet on the hottest read path.
+        // The dashboard cards only show the portrait and HP from `data`; strip
+        // the rest (spells, features, equipment, levelHistory, …) so we don't
+        // ship every character's full sheet on the hottest read path.
         const trimmed = characters.map((c) => {
-            const data = c.data as { portrait?: string } | null;
-            return { ...c, data: data?.portrait ? { portrait: data.portrait } : {} };
+            const data = c.data as { portrait?: string; hp?: { current?: number; max?: number; temp?: number } } | null;
+            const summary: { portrait?: string; hp?: { current: number; max: number; temp: number } } = {};
+            if (data?.portrait) summary.portrait = data.portrait;
+            if (data?.hp && typeof data.hp === 'object') {
+                summary.hp = {
+                    current: Number(data.hp.current) || 0,
+                    max: Number(data.hp.max) || 0,
+                    temp: Number(data.hp.temp) || 0,
+                };
+            }
+            return { ...c, data: summary };
         });
         res.json(trimmed);
     } catch (error) {
