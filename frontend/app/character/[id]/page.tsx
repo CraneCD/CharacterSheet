@@ -5,9 +5,7 @@ import { api } from '@/lib/api';
 import Link from 'next/link';
 import HPManager from './components/HPManager';
 import HitDiceManager from './components/HitDiceManager';
-import ClassResourcesManager from './components/ClassResourcesManager';
 import EquipmentManager from './components/EquipmentManager';
-import SpellManager from './components/SpellManager';
 import LevelUpWizard from './components/LevelUpWizard';
 import CombatManager from './components/CombatManager';
 import ActionManager from './components/ActionManager';
@@ -21,8 +19,8 @@ import SheetTabs, { SheetTabId } from './components/SheetTabs';
 import { getHpStatus } from '@/lib/hp';
 import { planLongRest, planShortRest, RestContext } from '@/lib/rest';
 import { downloadCharacterJson } from '@/lib/characterTransfer';
-import { CharacterData, CharacterItem, CharacterFeature } from '@/lib/types';
-import { mergeHeroicInspiration, mergeBlessingOfTheRavenQueen, reconcileClassResources, RESOURCE_RULES_VERSION } from '@/lib/classResources';
+import { calculateArmorClass } from '@/lib/armorClass';
+import { CharacterItem, CharacterFeature } from '@/lib/types';
 import { 
     calculateSpeedBonusFromFeatures, 
     getACCalculationFromFeatures,
@@ -30,15 +28,19 @@ import {
     getSavingThrowProficienciesFromFeatures
 } from '@/lib/featureStatModifiers';
 import { isMasteryActionForWeapon } from '@/lib/weaponMastery';
-import { getSkillProficienciesFromTraits, hasResourceful, hasBlessingOfTheRavenQueen } from '@/lib/racialTraitBonuses';
-import { getRaceTraits, getBackgroundSkills, getSpeciesSpellEntries, STANDARD_LANGUAGES } from '@/lib/wizardReference';
+import { getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
+import { getRaceTraits, getBackgroundSkills, getSpeciesSpellEntries } from '@/lib/wizardReference';
 import { useCharacterSheetData } from './useCharacterSheetData';
-import { calculateAllClassResources, getCharacterSubclasses, getSubclassMap } from '@/lib/subclasses';
-import { SUBCLASS_BONUS_SPELLS } from '@/lib/wizardReference';
-import { getBonusCantrips, getChoiceResources, getChoiceSkillBonuses, getChoiceSpellIds, getWeaponMasteries } from '@/lib/classChoices';
-import { Button, ConfirmDialog, describeError, EditableNumber, EditableStat, Menu, SectionHeader, Stat, useToast } from '@/app/components/ui';
-
-const ABILITY_NAMES: Record<string, string> = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' };
+import { getCharacterSubclasses, getSubclassMap } from '@/lib/subclasses';
+import { getChoiceSkillBonuses, getChoiceSpellIds, getWeaponMasteries } from '@/lib/classChoices';
+import { Button, ConfirmDialog, describeError, EditableStat, Menu, Stat, useToast } from '@/app/components/ui';
+import { getSpellcastingSetup } from '@/lib/spellcastingSetup';
+import AbilityScoresCard from './components/sections/AbilityScoresCard';
+import SavingThrowsCard from './components/sections/SavingThrowsCard';
+import SkillsCard from './components/sections/SkillsCard';
+import LanguagesCard from './components/sections/LanguagesCard';
+import ClassResourcesSection from './components/sections/ClassResourcesSection';
+import SpellcastingSection from './components/sections/SpellcastingSection';
 
 export default function CharacterSheet() {
     const { id } = useParams();
@@ -196,82 +198,16 @@ export default function CharacterSheet() {
     };
 
     // Calculate AC (use manual override if set, otherwise calculate)
-    const acCalculationMethod = getACCalculationFromFeatures(allFeatures, primaryClass);
-    let calculatedAC = 10 + effectiveModifiers.dex;
-    // Human-readable AC breakdown, e.g. "Chain Mail 16 + Shield 2"
-    const acParts: string[] = [];
-    const dexPart = (cap?: number) => {
-        const dex = cap === undefined ? effectiveModifiers.dex : Math.min(effectiveModifiers.dex, cap);
-        return `DEX ${formatMod(dex)}${cap !== undefined && effectiveModifiers.dex > cap ? ` (max ${formatMod(cap)})` : ''}`;
-    };
-
-    // Check equipped items
     const equipment: (string | CharacterItem)[] = Array.isArray(data.equipment) ? data.equipment : [];
-    const equippedItems = equipment
-        .map(item => (typeof item === 'string' ? { name: item } : item))
-        .filter(item => item.equipped);
-
-    const armor = equippedItems.find(i => (i.category === 'armor' || i.type === 'armor'));
-    const shield = equippedItems.find(i => (i.category === 'shield' || i.type === 'shield'));
-
-    // Check if unarmored (no armor equipped)
-    const isUnarmored = !armor;
-
-    if (armor) {
-        const baseAC = armor.baseAC ?? 11;
-        const armorName = armor.name || 'Armor';
-        if (armor.armorMethod === 'heavy') {
-            calculatedAC = baseAC;
-            acParts.push(`${armorName} ${baseAC}`);
-        } else if (armor.armorMethod === 'medium') {
-            calculatedAC = baseAC + Math.min(effectiveModifiers.dex, 2);
-            acParts.push(`${armorName} ${baseAC}`, dexPart(2));
-        } else {
-            // Light or undefined -> Base + Dex
-            calculatedAC = baseAC + effectiveModifiers.dex;
-            acParts.push(`${armorName} ${baseAC}`, dexPart());
-        }
-    } else {
-        // Unarmored Defense calculations
-        const unarmoredTraits: string[] = (data.racialTraits && data.racialTraits.length > 0) ? data.racialTraits : (race?.traits || []);
-        const draconicResilience = subclassMap.sorcerer === 'draconic' && (classLevels.sorcerer ?? 0) >= 3;
-        if (unarmoredTraits.includes('Natural Armor (Shell)')) {
-            // Tortle shell: base AC 17, Dexterity doesn't apply
-            calculatedAC = 17;
-            acParts.push('Shell 17');
-        } else if (acCalculationMethod === 'unarmored-monk' && isUnarmored && !shield) {
-            calculatedAC = 10 + effectiveModifiers.dex + effectiveModifiers.wis;
-            acParts.push('Unarmored Defense 10', dexPart(), `WIS ${formatMod(effectiveModifiers.wis)}`);
-        } else if (acCalculationMethod === 'unarmored-barbarian' && isUnarmored) {
-            calculatedAC = 10 + effectiveModifiers.dex + effectiveModifiers.con;
-            acParts.push('Unarmored Defense 10', dexPart(), `CON ${formatMod(effectiveModifiers.con)}`);
-        } else if (draconicResilience) {
-            // Draconic Sorcery: 10 + Dex + Cha while not wearing armor
-            calculatedAC = 10 + effectiveModifiers.dex + effectiveModifiers.cha;
-            acParts.push('Draconic Resilience 10', dexPart(), `CHA ${formatMod(effectiveModifiers.cha)}`);
-        } else {
-            // Standard unarmored: 10 + Dex
-            calculatedAC = 10 + effectiveModifiers.dex;
-            acParts.push('Unarmored 10', dexPart());
-        }
-        if (unarmoredTraits.includes('Natural Armor') && 13 + effectiveModifiers.dex > calculatedAC) {
-            // Lizardfolk: base AC 13 + Dex if that's better
-            calculatedAC = 13 + effectiveModifiers.dex;
-            acParts.splice(0, acParts.length, 'Natural Armor 13', dexPart());
-        }
-    }
-
-    if (shield) {
-        calculatedAC += shield.baseAC ?? 2;
-        acParts.push(`${shield.name || 'Shield'} +${shield.baseAC ?? 2}`);
-    }
-
-    // Defense fighting style: +1 AC while wearing armor
     const fightingStyles = (data.fightingStyles as string[] | undefined) || [];
-    if (armor && fightingStyles.includes('defense')) {
-        calculatedAC += 1;
-        acParts.push('Defense +1');
-    }
+    const { value: calculatedAC, parts: acParts } = calculateArmorClass({
+        equipment,
+        modifiers: effectiveModifiers,
+        unarmoredMethod: getACCalculationFromFeatures(allFeatures, primaryClass),
+        traits: (data.racialTraits && data.racialTraits.length > 0) ? data.racialTraits : (race?.traits || []),
+        draconicResilience: subclassMap.sorcerer === 'draconic' && (classLevels.sorcerer ?? 0) >= 3,
+        fightingStyles,
+    });
 
     const ac = data.ac !== undefined ? data.ac : calculatedAC;
     const acFormula = `${acParts.join(' + ')} = ${calculatedAC}`;
@@ -469,18 +405,18 @@ export default function CharacterSheet() {
     };
 
     // Check if character has spellcasting from base class or subclass (Arcane Trickster, Eldritch Knight)
-    const hasBaseSpellcasting = characterClasses.some((c: any) => {
-        const clsInfo = (gameData.classes || []).find((gc: any) => (gc.id || '').toLowerCase() === (c.id || '').toLowerCase());
-        return clsInfo?.spellcaster;
-    });
-    // Eldritch Knight / Arcane Trickster: spellcasting from a subclass, keyed to that class's level
-    const casterSubclass = characterSubclasses.find(s =>
-        s.subclass.spellcasting && s.classLevel >= 3 && ['arcane_trickster', 'eldritch_knight'].includes(s.subclass.id));
-    const subclassGrantsSpellcasting = !!casterSubclass;
     const speciesSpells = getSpeciesSpellEntries(character.race, data.speciesLineage || data.elvenLineage);
-    const hasElvenLineageSpells = speciesSpells.length > 0;
     const hasMagicInitiateFeat = (data.features || []).some((f: any) => (f.name || '').toLowerCase() === 'magic initiate');
-    const hasSpellcasting = hasBaseSpellcasting || subclassGrantsSpellcasting || hasElvenLineageSpells || hasMagicInitiateFeat;
+    const spellcasting = getSpellcastingSetup({
+        characterClasses,
+        gameClasses: gameData.classes || [],
+        characterSubclasses,
+        level,
+        hasSpeciesSpells: speciesSpells.length > 0,
+        hasMagicInitiateFeat,
+        magicInitiateAbility: data.magicInitiate?.ability,
+    });
+    const hasSpellcasting = !!spellcasting;
 
     const hpForVitals = { current: 0, max: 0, temp: 0, ...(data.hp || {}) };
     const sheetTabs: { id: SheetTabId; label: string }[] = [
@@ -682,92 +618,14 @@ export default function CharacterSheet() {
             <div className="sheet-grid">
                 {/* Left Column: Core Stats */}
                 <div className="sheet-column">
-                    {/* Ability Scores */}
-                    <div data-tab="core" className="card">
-                        <SectionHeader title="Ability Scores" />
-                        <div>
-                            {['str', 'dex', 'con', 'int', 'wis', 'cha'].map(stat => (
-                                <div key={stat} className="ability-row">
-                                    <div style={{ textAlign: 'center', width: '3rem' }}>
-                                        <div style={{ fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.875rem', color: 'var(--text-muted)' }}>{stat}</div>
-                                        <EditableNumber
-                                            label={`${ABILITY_NAMES[stat]} score`}
-                                            value={abilityScores[stat as keyof typeof abilityScores]}
-                                            min={1}
-                                            max={30}
-                                            className="ability-score"
-                                            onSave={(value) => handleAbilityScoreChange(stat, value)}
-                                        />
-                                    </div>
-                                    <div style={{ fontWeight: 'bold', fontSize: '1.25rem', width: '3rem', textAlign: 'center', backgroundColor: 'var(--surface)', borderRadius: '0.25rem', padding: '0.25rem 0' }}>
-                                        {formatMod(effectiveModifiers[stat])}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                    <div data-tab="core">
+                        <AbilityScoresCard scores={abilityScores} modifiers={effectiveModifiers} onChange={handleAbilityScoreChange} />
                     </div>
-
-                    {/* Saving Throws */}
-                    <div data-tab="core" className="card">
-                        <SectionHeader title="Saving Throws" />
-                        <div>
-                            {saves.map(save => (
-                                <div key={save.stat} className="save-row">
-                                    <span style={{ textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
-                                        <span className="proficient-dot" style={{ backgroundColor: save.isProficient ? 'var(--primary)' : 'transparent', border: '1px solid var(--text-muted)' }}></span>
-                                        {save.stat}
-                                    </span>
-                                    <span style={{ fontWeight: 'bold' }}>{formatMod(save.total)}</span>
-                                </div>
-                            ))}
-                        </div>
+                    <div data-tab="core">
+                        <SavingThrowsCard saves={saves} />
                     </div>
-
-                    {/* Skills */}
-                    <div data-tab="core" className="card">
-                        <SectionHeader title="Skills" />
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', columnGap: '1rem', rowGap: '0.25rem' }}>
-                            {skills.map(skill => (
-                                <div key={skill.name} className="skill-row">
-                                    <span style={{ display: 'flex', alignItems: 'center' }}>
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                            <span 
-                                                className="proficient-dot" 
-                                                onClick={() => handleToggleSkillProficiency(skill.name)}
-                                                style={{ 
-                                                    backgroundColor: skill.isProficient ? 'var(--primary)' : 'transparent', 
-                                                    border: '1px solid var(--text-muted)',
-                                                    cursor: 'pointer',
-                                                    transition: 'background-color 0.2s'
-                                                }}
-                                                title={skill.isProficient ? 'Click to remove proficiency' : 'Click to add proficiency'}
-                                            ></span>
-                                            {skill.hasExpertise && (
-                                                <span 
-                                                    style={{ 
-                                                        backgroundColor: 'var(--primary)', 
-                                                        color: '#fff',
-                                                        borderRadius: '50%',
-                                                        width: '0.75rem',
-                                                        height: '0.75rem',
-                                                        fontSize: '0.5rem',
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        fontWeight: 'bold',
-                                                        lineHeight: 1,
-                                                        marginLeft: '0.125rem'
-                                                    }}
-                                                    title="Expertise (double proficiency bonus)"
-                                                >E</span>
-                                            )}
-                                        </span>
-                                        {skill.name} <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginLeft: '0.25rem' }}>({skill.stat.toUpperCase()})</span>
-                                    </span>
-                                    <span style={{ fontWeight: 'bold' }}>{formatMod(skill.total)}</span>
-                                </div>
-                            ))}
-                        </div>
+                    <div data-tab="core">
+                        <SkillsCard skills={skills} onToggleProficiency={handleToggleSkillProficiency} />
                     </div>
                 </div>
 
@@ -791,70 +649,20 @@ export default function CharacterSheet() {
                     </div>
 
                     {/* Class Resources */}
-                    {(() => {
-                        // Initialize resources for existing characters that don't have them
-                        let resources = data.classResources;
-                        let didChange = false;
-                        if (!resources || Object.keys(resources).length === 0) {
-                            resources = calculateAllClassResources(classLevels, subclassMap, abilityScores);
-                            if (Object.keys(resources).length > 0) didChange = true;
-                        } else if (data.classResourcesRules !== RESOURCE_RULES_VERSION) {
-                            // One-time migration of resources stored under the 2014 rules
-                            // (e.g. unlimited Rage at 20, Ki Points) to the 2024 tables.
-                            resources = reconcileClassResources(resources, calculateAllClassResources(classLevels, subclassMap, abilityScores));
-                            didChange = true;
-                        }
-                        const needHeroic = hasResourceful(racialTraits);
-                        const hadHeroic = !!(resources && (resources as Record<string, unknown>)['Heroic Inspiration']);
-                        resources = mergeHeroicInspiration(resources || {}, needHeroic);
-                        if (needHeroic && !hadHeroic) didChange = true;
-                        const needBlessing = hasBlessingOfTheRavenQueen(racialTraits);
-                        const hadBlessing = !!(resources && (resources as Record<string, unknown>)['Blessing of the Raven Queen']);
-                        resources = mergeBlessingOfTheRavenQueen(resources || {}, needBlessing, level);
-                        if (needBlessing && !hadBlessing) didChange = true;
-                        // Mystic Arcanum / Signature Spells uses (added once the spell names are known)
-                        if (choiceSpellNames || !choiceSpellIdsKey) {
-                            const fromChoices = getChoiceResources(data.classChoices, choiceSpellNames || {});
-                            const next: typeof resources = {};
-                            for (const [name, res] of Object.entries(resources || {})) {
-                                const fromChoice = name.startsWith('Mystic Arcanum: ') || name.startsWith('Signature Spell: ');
-                                if (!fromChoice || fromChoices[name]) next[name] = res; else didChange = true;
-                            }
-                            for (const [name, res] of Object.entries(fromChoices)) {
-                                if (!next[name]) { next[name] = res; didChange = true; }
-                            }
-                            resources = next;
-                        }
-                        // Psi Warrior: remove Telekinetic Movement (now nested in Psionic Energy Dice UI)
-                        const isPsiWarrior = ['psi_warrior', 'psi warrior'].includes(subclassMap.fighter || '') && (classLevels.fighter ?? 0) >= 3;
-                        let resourcesToShow = resources;
-                        if (isPsiWarrior && resources?.['Telekinetic Movement']) {
-                            const { 'Telekinetic Movement': _, ...rest } = resources;
-                            resourcesToShow = rest;
-                            if (Object.keys(resources).length !== Object.keys(rest).length) {
-                                didChange = true;
-                            }
-                        }
-                        if (didChange && Object.keys(resources).length > 0) {
-                            const toPersist = resourcesToShow;
-                            setTimeout(() => {
-                                handleUpdateCharacter({ classResources: toPersist, classResourcesRules: RESOURCE_RULES_VERSION });
-                                api.patch(`/characters/${character.id}/data`, { classResources: toPersist, classResourcesRules: RESOURCE_RULES_VERSION })
-                                    .catch((err) => console.error('Failed to persist class resources', err));
-                            }, 0);
-                        }
-                        
-                        return (
-                            <div data-tab="combat">
-                                <ClassResourcesManager
-                                    characterId={character.id}
-                                    initialResources={resourcesToShow}
-                                    psiWarrior={isPsiWarrior}
-                                    onUpdate={(newResources) => handleUpdateCharacter({ classResources: newResources })}
-                                />
-                            </div>
-                        );
-                    })()}
+                    <div data-tab="combat">
+                        <ClassResourcesSection
+                            characterId={character.id}
+                            data={data}
+                            classLevels={classLevels}
+                            subclassMap={subclassMap}
+                            abilityScores={abilityScores}
+                            racialTraits={racialTraits}
+                            level={level}
+                            choiceSpellNames={choiceSpellNames}
+                            hasChoiceSpells={!!choiceSpellIdsKey}
+                            onUpdate={handleUpdateCharacter}
+                        />
+                    </div>
 
                     {/* Attacks */}
                     <div data-tab="combat">
@@ -940,286 +748,32 @@ export default function CharacterSheet() {
                     </div>
 
                     {/* Languages */}
-                    <div data-tab="features" className="card">
-                        <SectionHeader title="Languages" />
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {(data.languages || []).length > 0 ? (
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                    {((data.languages || []) as string[]).map((lang) => (
-                                        <div
-                                            key={lang}
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.5rem',
-                                                padding: '0.25rem 0.75rem',
-                                                backgroundColor: 'var(--surface)',
-                                                borderRadius: '4px',
-                                                border: '1px solid var(--border)'
-                                            }}
-                                        >
-                                            <span>{lang}</span>
-                                            <button
-                                                onClick={() => handleRemoveLanguage(lang)}
-                                                style={{
-                                                    background: 'none',
-                                                    border: 'none',
-                                                    color: 'var(--danger)',
-                                                    cursor: 'pointer',
-                                                    fontSize: '1rem',
-                                                    padding: 0,
-                                                    width: '1.25rem',
-                                                    height: '1.25rem',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    borderRadius: '50%',
-                                                    transition: 'background-color 0.2s'
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    e.currentTarget.style.backgroundColor = 'var(--danger)';
-                                                    e.currentTarget.style.color = '#fff';
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    e.currentTarget.style.backgroundColor = 'transparent';
-                                                    e.currentTarget.style.color = 'var(--danger)';
-                                                }}
-                                                title="Remove language"
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', fontStyle: 'italic' }}>
-                                    No languages recorded
-                                </div>
-                            )}
-                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.5rem' }}>
-                                <select
-                                    className="input"
-                                    style={{ flex: 1 }}
-                                    onChange={(e) => {
-                                        if (e.target.value) {
-                                            handleAddLanguage(e.target.value);
-                                            e.target.value = '';
-                                        }
-                                    }}
-                                    defaultValue=""
-                                >
-                                    <option value="">Add a language...</option>
-                                    {STANDARD_LANGUAGES.filter(lang => !(Array.isArray(data.languages) ? data.languages : []).includes(lang)).map((lang) => (
-                                        <option key={lang} value={lang}>{lang}</option>
-                                    ))}
-                                </select>
-                                <input
-                                    type="text"
-                                    className="input"
-                                    placeholder="Custom language..."
-                                    style={{ flex: 1 }}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            const input = e.currentTarget;
-                                            const value = input.value.trim();
-                                            if (value) {
-                                                handleAddLanguage(value);
-                                                input.value = '';
-                                            }
-                                        }
-                                    }}
-                                />
-                            </div>
-                        </div>
+                    <div data-tab="features">
+                        <LanguagesCard
+                            languages={Array.isArray(data.languages) ? data.languages : []}
+                            onAdd={handleAddLanguage}
+                            onRemove={handleRemoveLanguage}
+                        />
                     </div>
                 </div>
             </div>
-            {/* Spells Section (Full Width) */}
-            {(() => {
-                if (!hasSpellcasting) return null;
-
-                // Get primary spellcasting class, or virtual entry for subclass spellcasting, elven lineage, or Magic Initiate
-                let spellcastingClasses = characterClasses
-                    .map((c: any) => ({
-                        ...c,
-                        classInfo: (gameData.classes || []).find((gc: any) => (gc.id || '').toLowerCase() === (c.id || '').toLowerCase())
-                    }))
-                    // A multiclassed Warlock keeps its spells; SpellManager shows its Pact Magic slots separately.
-                    .filter(c => c.classInfo?.spellcaster)
-                    .sort((a, b) => b.level - a.level);
-
-                let primarySpellcastingClass = spellcastingClasses[0];
-                let primarySpellcastingAbility = primarySpellcastingClass?.classInfo?.spellcastingAbility || 'int';
-                let subclassSpellcasting: { subclassId: string; spellListClass: string; spellcastingAbility: string; casterLevelDivisor: number; classLevel?: number } | undefined;
-
-                if (!primarySpellcastingClass && casterSubclass?.subclass.spellcasting) {
-                    const { subclass: casterSub, classLevel: casterClassLevel } = casterSubclass;
-                    subclassSpellcasting = {
-                        subclassId: casterSub.id,
-                        spellListClass: casterSub.spellcasting.spellListClass,
-                        spellcastingAbility: casterSub.spellcasting.spellcastingAbility,
-                        casterLevelDivisor: casterSub.spellcasting.casterLevelDivisor,
-                        classLevel: casterClassLevel
-                    };
-                    primarySpellcastingClass = {
-                        id: casterSub.spellcasting.spellListClass,
-                        name: casterSub.name,
-                        level: casterClassLevel,
-                        classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: casterSub.spellcasting.spellcastingAbility }
-                    };
-                    primarySpellcastingAbility = casterSub.spellcasting.spellcastingAbility;
-                } else if (!primarySpellcastingClass && hasElvenLineageSpells) {
-                    // Virtual spellcasting for elven lineage only (no class spellcasting)
-                    primarySpellcastingClass = {
-                        id: 'innate',
-                        name: 'Species Spells',
-                        level,
-                        classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: 'cha' }
-                    };
-                    primarySpellcastingAbility = 'cha';
-                } else if (!primarySpellcastingClass && hasMagicInitiateFeat) {
-                    // Virtual spellcasting for Magic Initiate feat only
-                    primarySpellcastingClass = {
-                        id: 'magic_initiate',
-                        name: 'Magic Initiate',
-                        level,
-                        classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: data.magicInitiate?.ability || 'int' }
-                    };
-                    primarySpellcastingAbility = data.magicInitiate?.ability || 'int';
-                } else if (!primarySpellcastingClass) return null;
-
-                // Always-prepared subclass spells from every subclass, each gated by its own class level
-                // (already filtered here, so SpellManager compares them against the character level).
-                const grantedSubclassSpells = characterSubclasses.flatMap(({ subclass: sub, classLevel }) => {
-                    const entries: { level: number; spellId: string }[] = sub.spells?.length
-                        ? sub.spells
-                        : (SUBCLASS_BONUS_SPELLS[String(sub.id).toLowerCase().replace(/\s+/g, '_')] || []);
-                    return entries.filter(e => classLevel >= e.level);
-                });
-                
-                return (
-                    <div data-tab="spells" style={{ marginTop: '1rem' }}>
-                        <div className="card">
-                            <div className="spellcasting-header">
-                                <h2 className="heading" style={{ margin: 0, fontSize: '1.5rem' }}>Spellcasting</h2>
-                                <div className="spellcasting-stats">
-                                    <div>
-                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Ability</div>
-                                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase' }}>
-                                            {primarySpellcastingAbility}
-                                            {spellcastingClasses.length > 1 && (
-                                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
-                                                    ({spellcastingClasses.map(sc => sc.classInfo?.spellcastingAbility?.toUpperCase()).filter((v, i, a) => a.indexOf(v) === i).join('/')})
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Save DC</div>
-                                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{8 + pb + effectiveModifiers[primarySpellcastingAbility]}</div>
-                                    </div>
-                                    <div>
-                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Attack Mod</div>
-                                        <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>+{pb + effectiveModifiers[primarySpellcastingAbility]}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <SpellManager
-                                characterId={character.id}
-                                classId={character.classId || primarySpellcastingClass.id}
-                                level={level}
-                                subclassSpellcasting={subclassSpellcasting}
-                                elvenLineage={(character.race || '').toLowerCase() === 'elf' ? data.elvenLineage : undefined}
-                                speciesSpells={speciesSpells}
-                                subclassSpells={grantedSubclassSpells}
-                                classFeatureSpells={getChoiceSpellIds(data.classChoices)}
-                                bonusCantrips={getBonusCantrips(data.classChoices, primarySpellcastingClass.id)}
-                                subclassClassLevel={level}
-                                magicInitiate={hasMagicInitiateFeat ? data.magicInitiate : undefined}
-                                onMagicInitiateUpdate={(magicInitiate) => {
-                                    handleUpdateCharacter({ magicInitiate });
-                                    api.patch(`/characters/${character.id}/data`, { magicInitiate })
-                                        .catch((err) => {
-                                            console.error('Failed to persist Magic Initiate', err);
-                                            toast.error(describeError("Couldn't save Magic Initiate choices", err));
-                                        });
-                                }}
-                                magicInitiateSpell1Used={hasMagicInitiateFeat && data.magicInitiate?.spell1 ? (data.magicInitiateSpell1Used ?? 1) : 1}
-                                onMagicInitiateSlotChange={hasMagicInitiateFeat && data.magicInitiate?.spell1 ? async (used: number) => {
-                                    try {
-                                        const updated = await api.patch(`/characters/${character.id}/magic-initiate-spell-used`, { used });
-                                        setCharacter(updated);
-                                    } catch (err) {
-                                        console.error('Failed to update Magic Initiate spell slot', err);
-                                        toast.error(describeError("Couldn't update your Magic Initiate spell", err));
-                                    }
-                                } : undefined}
-                                initialSpells={Array.isArray(data.spells) ? data.spells : []}
-                                initialSlotsUsed={data.spellSlotsUsed || {}}
-                                initialPactSlotsUsed={Number(data.pactSlotsUsed) || 0}
-                                spellcastingAbility={primarySpellcastingAbility}
-                                preparedCaster={primarySpellcastingClass.classInfo?.preparedCaster || false}
-                                spellbook={
-                                    (primarySpellcastingClass.id === 'wizard' || primarySpellcastingClass.id === 'Wizard')
-                                        ? (data.spellbook ?? (Array.isArray(data.spells) ? data.spells : []).filter((s: any) => s.level > 0).map((s: any) => s.id))
-                                        : undefined
-                                }
-                                abilityScores={effectiveAbilityScores}
-                                classes={data.classes}
-                                allClasses={gameData.classes || []}
-                                onUpdate={(updates) => {
-                                    handleUpdateCharacter(updates);
-                                    // Spells are saved by their own endpoints; slot usage is saved here so it survives a reload.
-                                    const slotUpdates: Partial<CharacterData> = {};
-                                    if (updates.spellSlotsUsed !== undefined) slotUpdates.spellSlotsUsed = updates.spellSlotsUsed;
-                                    if (updates.pactSlotsUsed !== undefined) slotUpdates.pactSlotsUsed = updates.pactSlotsUsed;
-                                    if (Object.keys(slotUpdates).length > 0) {
-                                        api.patch(`/characters/${character.id}/data`, slotUpdates)
-                                            .catch((err) => {
-                                                console.error('Failed to save spell slots', err);
-                                                toast.error(describeError("Couldn't save spell slot usage", err));
-                                            });
-                                    }
-                                }}
-                                existingActions={Array.isArray(data.actions) ? data.actions : []}
-                                onCreateAction={async (action) => {
-                                    try {
-                                        const updatedChar = await api.post(`/characters/${character.id}/actions`, { action });
-                                        setCharacter((prev: any) => ({
-                                            ...updatedChar,
-                                            data: {
-                                                ...updatedChar.data,
-                                                spellSlotsUsed: prev?.data?.spellSlotsUsed ?? updatedChar.data?.spellSlotsUsed ?? {}
-                                            }
-                                        }));
-                                    } catch (err) {
-                                        console.error('Failed to create action', err);
-                                        throw err;
-                                    }
-                                }}
-                                onDeleteAction={async (index, name) => {
-                                    try {
-                                        const updatedChar = await api.delete(`/characters/${character.id}/actions`, {
-                                            data: { index, name }
-                                        });
-                                        setCharacter((prev: any) => ({
-                                            ...updatedChar,
-                                            data: {
-                                                ...updatedChar.data,
-                                                spellSlotsUsed: prev?.data?.spellSlotsUsed ?? updatedChar.data?.spellSlotsUsed ?? {}
-                                            }
-                                        }));
-                                    } catch (err) {
-                                        console.error('Failed to delete action', err);
-                                        throw err;
-                                    }
-                                }}
-                            />
-                        </div>
-                    </div>
-                );
-            })()}
+            {spellcasting && (
+                <div data-tab="spells" style={{ marginTop: 'var(--space-4)' }}>
+                    <SpellcastingSection
+                        character={character}
+                        setup={spellcasting}
+                        level={level}
+                        proficiencyBonus={pb}
+                        modifiers={effectiveModifiers}
+                        abilityScores={effectiveAbilityScores}
+                        gameClasses={gameData.classes || []}
+                        speciesSpells={speciesSpells}
+                        hasMagicInitiateFeat={hasMagicInitiateFeat}
+                        setCharacter={setCharacter}
+                        onUpdate={handleUpdateCharacter}
+                    />
+                </div>
+            )}
             </div>
 
             <SheetTabs

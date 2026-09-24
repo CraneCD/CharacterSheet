@@ -871,11 +871,169 @@ button {
 
 .proficient-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  flex: 0 0 auto;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  border: 1px solid var(--text-muted);
+  background-color: transparent;
+  margin-right: 0.5rem;
+}
+
+.proficient-dot.is-proficient {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+/* Skill proficiency toggle: same dot, bigger target */
+.proficient-toggle {
+  width: 0.875rem;
+  height: 0.875rem;
+  padding: 0;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.proficient-toggle:hover {
+  border-color: var(--primary);
+}
+
+.stat-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stat-list-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.stat-list-name abbr {
+  text-decoration: none;
+  color: var(--text-muted);
+}
+
+.stat-list-total {
+  font-weight: 700;
+}
+
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  column-gap: var(--space-4);
+  row-gap: var(--space-1);
+}
+
+.skill-stat {
+  margin-left: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.expertise-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.875rem;
+  height: 0.875rem;
   border-radius: 50%;
   background-color: var(--primary);
-  margin-right: 0.5rem;
+  color: var(--primary-contrast);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ability-score-cell {
+  width: 3rem;
+  text-align: center;
+}
+
+.ability-abbr {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ability-mod {
+  width: 3rem;
+  padding: var(--space-1) 0;
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  text-align: center;
+}
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+}
+
+.chip-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--error);
+  font-size: var(--font-size-md);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.chip-remove:hover {
+  background-color: var(--error);
+  color: #ffffff;
+}
+
+.empty-note {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.languages-add {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+}
+
+.languages-add > .input,
+.languages-custom {
+  flex: 1 1 12rem;
+}
+
+.languages-add .input {
+  margin: 0;
+}
+
+.languages-custom {
+  display: flex;
+  gap: var(--space-2);
 }
 
 .health-box {
@@ -1866,7 +2024,18 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 2rem;
+  margin: 0;
   text-align: center;
+}
+
+.spellcasting-stats dd {
+  margin: 0;
+}
+
+.spellcasting-ability {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--primary);
 }
 
 @media (max-width: 640px) {
