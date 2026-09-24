@@ -11,9 +11,14 @@ interface AbilityScores {
     cha: number;
 }
 
+export type AbilityMethod = 'standard' | 'pointBuy' | 'manual';
+
 interface StepAbilitiesProps {
     initialScores?: AbilityScores;
+    /** The method chosen on an earlier visit; omit on the first visit to start fresh. */
+    method?: AbilityMethod;
     onUpdate: (scores: AbilityScores) => void;
+    onMethodChange?: (method: AbilityMethod) => void;
 }
 
 const ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const;
@@ -21,49 +26,52 @@ const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8];
 const POINT_BUY_COSTS: { [key: number]: number } = {
     8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9
 };
+const POINT_BUY_BUDGET = 27;
 
-export default function StepAbilities({ initialScores, onUpdate }: StepAbilitiesProps) {
-    const [method, setMethod] = useState<'standard' | 'pointBuy' | 'manual'>('standard');
-    const [scores, setScores] = useState<AbilityScores>(initialScores || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 });
+/** Starting scores when switching to a method (manual keeps whatever is there). */
+function startingScores(method: AbilityMethod, current: AbilityScores): AbilityScores {
+    if (method === 'pointBuy') return { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 };
+    if (method === 'standard') return { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 };
+    return current;
+}
 
-    // Standard Array State
-    const [assignedStandard, setAssignedStandard] = useState<{ [key: string]: number | null }>({
-        str: null, dex: null, con: null, int: null, wis: null, cha: null
-    });
-
-    // Point Buy State
-    const [pointsRemaining, setPointsRemaining] = useState(27);
+export default function StepAbilities({ initialScores, method: savedMethod, onUpdate, onMethodChange }: StepAbilitiesProps) {
+    const defaults = initialScores || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+    const [method, setMethod] = useState<AbilityMethod>(savedMethod ?? 'standard');
+    // Coming back to this step (or resuming a draft) keeps the scores; a first visit starts the default method fresh
+    const [scores, setScores] = useState<AbilityScores>(() => savedMethod ? defaults : startingScores('standard', defaults));
 
     // Manual input editing state
     const [editingScores, setEditingScores] = useState<{ [key: string]: string }>({});
 
-    // Initialize point buy if needed
     useEffect(() => {
-        // Clear editing state when switching methods
-        setEditingScores({});
-        
-        if (method === 'pointBuy') {
-            // Reset to base 8s
-            const baseScores = { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 };
-            setScores(baseScores);
-            setPointsRemaining(27);
-            onUpdate(baseScores);
-        } else if (method === 'standard') {
-            // Reset standard array
-            setAssignedStandard({ str: null, dex: null, con: null, int: null, wis: null, cha: null });
-            const zeroScores = { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 };
-            setScores(zeroScores);
-            onUpdate(zeroScores);
+        if (!savedMethod) {
+            onUpdate(scores);
+            onMethodChange?.(method);
         }
-    }, [method]);
+        // First visit only: publish the fresh starting scores and method
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const changeMethod = (next: AbilityMethod) => {
+        if (next === method) return;
+        const nextScores = startingScores(next, scores);
+        setMethod(next);
+        setEditingScores({});
+        setScores(nextScores);
+        onUpdate(nextScores);
+        onMethodChange?.(next);
+    };
+
+    // Derived from the scores, so they survive leaving and returning to the step
+    const assignedStandard: { [key: string]: number | null } = Object.fromEntries(
+        ABILITIES.map(a => [a, method === 'standard' && STANDARD_ARRAY.includes(scores[a]) ? scores[a] : null])
+    );
+    const pointsRemaining = POINT_BUY_BUDGET - ABILITIES.reduce((sum, a) => sum + (POINT_BUY_COSTS[scores[a]] ?? 0), 0);
 
     const handleStandardAssign = (ability: string, value: string) => {
-        const val = parseInt(value);
+        const val = value === '' ? 0 : parseInt(value);
         if (isNaN(val)) return;
-
-        const newAssigned = { ...assignedStandard, [ability]: val };
-        setAssignedStandard(newAssigned);
-
         const newScores = { ...scores, [ability]: val };
         setScores(newScores);
         onUpdate(newScores);
@@ -81,7 +89,6 @@ export default function StepAbilities({ initialScores, onUpdate }: StepAbilities
 
         if (pointsRemaining - costDiff < 0) return;
 
-        setPointsRemaining(pointsRemaining - costDiff);
         const newScores = { ...scores, [ability]: newScore };
         setScores(newScores);
         onUpdate(newScores);
@@ -107,20 +114,23 @@ export default function StepAbilities({ initialScores, onUpdate }: StepAbilities
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
                 <button
                     className={`btn ${method === 'standard' ? '' : 'btn-ghost'}`}
-                    onClick={() => setMethod('standard')}
+                    onClick={() => changeMethod('standard')}
+                    aria-pressed={method === 'standard'}
                 >
                     Standard Array
                 </button>
                 <button
                     className={`btn ${method === 'pointBuy' ? '' : 'btn-ghost'}`}
-                    onClick={() => setMethod('pointBuy')}
+                    onClick={() => changeMethod('pointBuy')}
+                    aria-pressed={method === 'pointBuy'}
                 >
                     Point Buy
                 </button>
                 <button
                     data-testid="method-manual"
                     className={`btn ${method === 'manual' ? '' : 'btn-ghost'}`}
-                    onClick={() => setMethod('manual')}
+                    onClick={() => changeMethod('manual')}
+                    aria-pressed={method === 'manual'}
                 >
                     Manual / Rolled
                 </button>

@@ -6,6 +6,7 @@ jest.mock('../lib/prisma', () => ({
     prisma: {
         character: {
             findUnique: jest.fn(),
+            findMany: jest.fn(),
             update: jest.fn(),
         },
         referenceItem: {
@@ -46,6 +47,23 @@ beforeEach(() => {
         ...ownedCharacter({}),
         ...args.data,
     }));
+});
+
+describe('GET /characters', () => {
+    it('returns only the portrait and HP summary from each sheet', async () => {
+        (prisma.character.findMany as jest.Mock).mockResolvedValue([
+            { id: 'a', name: 'A', race: 'Elf', class: 'Wizard', level: 2, updatedAt: '2026-01-01T00:00:00.000Z',
+              data: { portrait: 'data:image/png;base64,x', hp: { current: 7, max: 12, temp: 0, deathSaves: { successes: 1, failures: 0 } }, spells: [{ id: 'fireball' }] } },
+            { id: 'b', name: 'B', race: 'Dwarf', class: 'Cleric', level: 1, updatedAt: '2026-01-02T00:00:00.000Z', data: {} },
+        ]);
+
+        const res = await request(app).get('/characters').set('Authorization', `Bearer ${token}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body[0].data).toEqual({ portrait: 'data:image/png;base64,x', hp: { current: 7, max: 12, temp: 0 } });
+        expect(res.body[0].updatedAt).toBe('2026-01-01T00:00:00.000Z');
+        expect(res.body[1].data).toEqual({});
+    });
 });
 
 describe('PATCH /characters/:id/data', () => {

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Race } from '@/lib/types';
 import { RACE_TRAITS } from '@/lib/wizardReference';
+import { selectableProps } from '@/app/components/ui/selectable';
 
 interface StepRaceProps {
     selectedRaceId?: string;
@@ -69,12 +70,12 @@ export default function StepRace({ selectedRaceId, onSelect }: StepRaceProps) {
                                     key={race.id}
                                     data-testid={`race-${race.id}`}
                                     className={`card ${isSelected ? 'highlight' : ''}`}
+                                    {...selectableProps(isSelected, () => onSelect(race))}
                                     style={{
                                         cursor: 'pointer',
                                         border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
                                         backgroundColor: isSelected ? 'var(--surface-highlight)' : 'var(--surface)'
                                     }}
-                                    onClick={() => onSelect(race)}
                                 >
                                     <h3 style={{ fontWeight: 'bold', fontSize: '1.25rem', marginBottom: '0.5rem' }}>{race.name}</h3>
                                     <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>{race.description}</p>

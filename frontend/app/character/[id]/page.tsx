@@ -20,6 +20,7 @@ import { LongRestDialog, ShortRestDialog } from './components/RestDialogs';
 import SheetTabs, { SheetTabId } from './components/SheetTabs';
 import { getHpStatus } from '@/lib/hp';
 import { planLongRest, planShortRest, RestContext } from '@/lib/rest';
+import { downloadCharacterJson } from '@/lib/characterTransfer';
 import { CharacterData, CharacterItem, CharacterFeature } from '@/lib/types';
 import { mergeHeroicInspiration, mergeBlessingOfTheRavenQueen, reconcileClassResources, RESOURCE_RULES_VERSION } from '@/lib/classResources';
 import { 
@@ -490,15 +491,7 @@ export default function CharacterSheet() {
         { id: 'features', label: 'Features' },
     ];
 
-    const exportJson = () => {
-        const blob = new Blob([JSON.stringify(character, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${(character.name || 'character').replace(/\s+/g, '_').toLowerCase()}.json`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 0);
-    };
+    const exportJson = () => downloadCharacterJson(character);
 
     // One rest flow for the whole sheet (HP, Hit Dice, spell slots, class resources)
     const restContext: RestContext = {
