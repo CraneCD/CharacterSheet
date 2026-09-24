@@ -81,10 +81,12 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Which part of your turn a casting time uses. "1 reaction, which you take when ..." is a reaction. */
 export function castingTimeToTiming(castingTime: string): ActionTiming {
-    const time = (castingTime || '').toLowerCase();
-    if (time.includes('bonus action')) return 'bonus';
-    if (time.includes('reaction')) return 'reaction';
-    if (/^\s*1 action\b/.test(time) || time === 'action') return 'action';
+    // Normalise case and any whitespace (admin-edited text can carry non-breaking spaces)
+    const time = String(castingTime || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    if (/\bbonus action\b/.test(time)) return 'bonus';
+    if (/\breaction\b/.test(time)) return 'reaction';
+    // "1 action", "Action", "One action", "Magic action", "1 action or Ritual"
+    if (/\baction\b/.test(time)) return 'action';
     return 'other';
 }
 
