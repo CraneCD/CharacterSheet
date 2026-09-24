@@ -2826,3 +2826,194 @@ button {
   position: relative;
   margin-top: -0.2em;
 }
+
+/* ---------- Tap to roll ---------- */
+/* Zero specificity so each call site (.ability-mod, .stat-list-total, ...) keeps its own type */
+:where(.roll-button) {
+  display: inline-block;
+  padding: 0 var(--space-1);
+  border: 1px dashed transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.roll-button:hover {
+  border-color: var(--primary);
+  background-color: var(--primary-soft);
+  color: var(--primary);
+}
+
+.roll-button:active {
+  transform: translateY(1px);
+}
+
+.dice-tray {
+  position: fixed;
+  left: var(--space-4);
+  bottom: var(--space-4);
+  z-index: calc(var(--z-toast) - 1);
+  width: min(340px, calc(100vw - 2rem));
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+  animation: dice-tray-in 200ms ease-out;
+}
+
+.dice-tray.is-crit {
+  border-color: var(--primary-strong);
+  box-shadow: 0 0 0 1px var(--primary-strong), 0 0 32px -4px var(--primary-strong), var(--shadow-lg);
+}
+
+.dice-tray.is-fumble {
+  border-color: var(--error);
+}
+
+.dice-tray-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.dice-tray-die {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  color: var(--primary);
+}
+
+.dice-tray-die svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  animation: dice-tumble 650ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+/* Sits in the d20's centre triangle, haloed so the facet lines don't cut through it */
+.dice-tray-face {
+  position: relative;
+  margin-top: 0.4rem;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 3px var(--surface-raised), 0 0 3px var(--surface-raised), 0 0 6px var(--surface-raised);
+}
+
+.is-fumble .dice-tray-die {
+  animation: dice-shake 320ms ease;
+}
+
+.dice-tray-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  line-height: 1.25;
+}
+
+.dice-tray-total {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.dice-tray-math {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dice-tray-note {
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--primary);
+}
+
+.is-fumble .dice-tray-note {
+  color: var(--error);
+}
+
+.dice-tray-close {
+  align-self: start;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--text-muted);
+  font-size: var(--font-size-xl);
+  line-height: 1;
+}
+
+.dice-tray-close:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.dice-tray-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.dice-tray-log {
+  margin: 0;
+  padding: var(--space-2) 0 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes dice-tray-in {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes dice-tumble {
+  0% { transform: rotate(-220deg) scale(0.55); }
+  70% { transform: rotate(18deg) scale(1.08); }
+  100% { transform: rotate(0) scale(1); }
+}
+
+@keyframes dice-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@media screen and (max-width: 767px) {
+  .dice-tray {
+    left: var(--space-3);
+    right: var(--space-3);
+    width: auto;
+  }
+
+  /* Above the section tabs */
+  body:has(.sheet-tabs) .dice-tray {
+    bottom: calc(4.25rem + env(safe-area-inset-bottom));
+  }
+
+  .dice-tray-log {
+    display: none;
+  }
+}

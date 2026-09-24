@@ -38,6 +38,7 @@ import { getChoiceSkillBonuses, getChoiceSpellIds, getWeaponMasteries } from '@/
 import { Button, ConfirmDialog, describeError, EditableStat, Menu, Stat, useToast } from '@/app/components/ui';
 import { getSpellcastingSetup } from '@/lib/spellcastingSetup';
 import AcShield from './components/sections/AcShield';
+import { DiceProvider, RollButton } from '@/app/components/dice/DiceTray';
 import AbilityScoresCard from './components/sections/AbilityScoresCard';
 import SavingThrowsCard from './components/sections/SavingThrowsCard';
 import SkillsCard from './components/sections/SkillsCard';
@@ -472,6 +473,7 @@ export default function CharacterSheet() {
     };
 
     return (
+        <DiceProvider>
         <div className="sheet" style={{ marginBottom: '2rem', ...classColorStyle(primaryClass) }}>
             {/* Header */}
             <div className="sheet-header">
@@ -543,7 +545,7 @@ export default function CharacterSheet() {
                         onReset={speedStat.overridden ? () => persistData({ speed: null }, "Couldn't reset speed") : undefined}
                         resetLabel={`Reset speed to ${speedStat.calculated} ft.`}
                     />
-                    <Stat label="Initiative" value={formatMod(effectiveModifiers.dex)} />
+                    <Stat label="Initiative" value={<RollButton label="Initiative" modifier={effectiveModifiers.dex}>{formatMod(effectiveModifiers.dex)}</RollButton>} />
                     <EditableStat
                         label="AC"
                         value={ac}
@@ -803,6 +805,7 @@ export default function CharacterSheet() {
                 }}
             />
         </div>
+        </DiceProvider>
     );
 }
 

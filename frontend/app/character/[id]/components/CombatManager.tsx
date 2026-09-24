@@ -2,6 +2,7 @@
 
 import { memo } from 'react';
 import { CharacterItem } from '@/lib/types';
+import { RollButton } from '@/app/components/dice/DiceTray';
 
 interface CombatManagerProps {
     equipment: (string | CharacterItem)[];
@@ -106,7 +107,14 @@ function CombatManager({ equipment, strMod, dexMod, profBonus, fightingStyles = 
                             </div>
                             <div style={{ textAlign: 'right', flex: '0 0 auto' }}>
                                 <div style={{ fontWeight: 'bold', fontSize: '1.125rem' }}>
-                                    {sign}{toHit} <span style={{ fontSize: '0.875rem', fontWeight: 'normal', color: 'var(--text-muted)' }}>to hit</span>
+                                    <RollButton
+                                        label={`${weapon.name} attack`}
+                                        modifier={toHit}
+                                        damage={{ expression: weapon.damage || '1d4', modifier: damageMod }}
+                                    >
+                                        {sign}{toHit}
+                                    </RollButton>{' '}
+                                    <span style={{ fontSize: '0.875rem', fontWeight: 'normal', color: 'var(--text-muted)' }}>to hit</span>
                                 </div>
                                 <div style={{ fontSize: '0.875rem' }}>
                                     {weapon.damage || '1d4'} {damageMod !== 0 && `${dmgSign}${damageMod}`}

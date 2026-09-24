@@ -1,6 +1,7 @@
 'use client';
 
 import { EditableNumber, SectionHeader } from '@/app/components/ui';
+import { RollButton } from '@/app/components/dice/DiceTray';
 import { ABILITIES, ABILITY_NAMES, formatMod } from './format';
 
 interface AbilityScoresCardProps {
@@ -22,9 +23,9 @@ export default function AbilityScoresCard({ scores, modifiers, onChange }: Abili
                 {ABILITIES.map((ability) => (
                     <div key={ability} className={ability === best ? 'ability-gem is-best' : 'ability-gem'}>
                         <div className="ability-abbr" aria-hidden="true">{ability}</div>
-                        <div className="ability-mod" aria-label={`${ABILITY_NAMES[ability]} modifier ${formatMod(modifiers[ability])}`}>
+                        <RollButton label={`${ABILITY_NAMES[ability]} check`} modifier={modifiers[ability]} className="ability-mod">
                             {formatMod(modifiers[ability])}
-                        </div>
+                        </RollButton>
                         <EditableNumber
                             label={`${ABILITY_NAMES[ability]} score`}
                             value={scores[ability]}

@@ -1,4 +1,5 @@
 import { SectionHeader } from '@/app/components/ui';
+import { RollButton } from '@/app/components/dice/DiceTray';
 import { ABILITY_NAMES, formatMod } from './format';
 
 interface SavingThrowsCardProps {
@@ -17,7 +18,9 @@ export default function SavingThrowsCard({ saves }: SavingThrowsCardProps) {
                             <abbr title={ABILITY_NAMES[save.stat]}>{save.stat.toUpperCase()}</abbr>
                             {save.isProficient && <span className="visually-hidden"> (proficient)</span>}
                         </span>
-                        <span className="stat-list-total">{formatMod(save.total)}</span>
+                        <RollButton label={`${ABILITY_NAMES[save.stat]} save`} modifier={save.total} className="stat-list-total">
+                            {formatMod(save.total)}
+                        </RollButton>
                     </li>
                 ))}
             </ul>
