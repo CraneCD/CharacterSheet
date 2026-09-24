@@ -1,47 +1,67 @@
 /*
- * Design tokens. Components should use these instead of literal values.
+ * Design tokens ("Dusk & Candlelight"). Components should use these instead of literal values.
  * Colors are redefined per theme below; everything else is theme-independent.
  */
 :root {
   color-scheme: dark;
 
-  /* Color (dark theme is the default).
-   * --primary is for text, borders and accents; --primary-strong is the fill behind
-   * white text (buttons, badges). Same split for --error / --error-strong.
+  /* Color: "Dusk" (dark) is the default, "Daybreak" is the light theme.
+   * --primary (candle gold) is for text, borders and accents; --primary-strong is the
+   * gold fill, always with --primary-contrast (dark ink) text on it.
+   * --error is for text; --error-strong is the fill behind white text.
    * Pairs meet WCAG AA (4.5:1 text, 3:1 UI) in both themes. */
-  --primary: #8b93f9;
-  --primary-strong: #4f46e5;
-  --primary-hover: #4338ca;
-  --primary-contrast: #ffffff;
-  --primary-soft: rgba(139, 147, 249, 0.12);
-  --accent: #a855f7;
-  --background: #0f172a;
-  --surface: #1e293b;
-  --surface-raised: #273449;
-  --surface-sunken: rgba(0, 0, 0, 0.2);
+  --primary: #f5b942;
+  --primary-strong: #f5b942;
+  --primary-hover: #ffcb66;
+  --primary-contrast: #2a1a05;
+  --primary-soft: rgba(245, 185, 66, 0.13);
+  --accent: #7ee0d0;
+  /* Magic and temporary HP */
+  --arcane: #7ee0d0;
+  --arcane-soft: rgba(126, 224, 208, 0.12);
+  --background: #1d1627;
+  --surface: #2a2136;
+  --surface-raised: #362a45;
+  --surface-sunken: rgba(8, 4, 14, 0.28);
   /* Selected cards (follows --primary-soft in every theme) */
   --surface-highlight: var(--primary-soft);
-  --text: #f8fafc;
-  --text-muted: #94a3b8;
-  --border: #334155;
-  --border-strong: #64748b;
+  --text: #f4ede1;
+  --text-muted: #bdb2cc;
+  --border: #463a57;
+  --border-strong: #85759c;
   --input-border: var(--border-strong);
-  --error: #f87171;
-  --error-strong: #dc2626;
-  --error-hover: #b91c1c;
-  --error-soft: rgba(248, 113, 113, 0.1);
-  --success: #22c55e;
-  --success-soft: rgba(34, 197, 94, 0.12);
-  --warning: #f59e0b;
-  --warning-soft: rgba(245, 158, 11, 0.12);
-  --overlay: rgba(0, 0, 0, 0.75);
-  --skeleton: rgba(148, 163, 184, 0.14);
-  --skeleton-shine: rgba(148, 163, 184, 0.26);
+  --error: #ff8a7c;
+  --error-strong: #c2382a;
+  --error-hover: #a52d21;
+  --error-soft: rgba(255, 122, 107, 0.12);
+  --success: #7fe09a;
+  --success-soft: rgba(127, 224, 154, 0.12);
+  --warning: #ffb066;
+  --warning-soft: rgba(255, 176, 102, 0.12);
+  --overlay: rgba(12, 8, 18, 0.78);
+  --skeleton: rgba(189, 178, 204, 0.12);
+  --skeleton-shine: rgba(189, 178, 204, 0.24);
+  --glow: rgba(245, 185, 66, 0.09);
   --coin-pp: #e5e4e2;
   --coin-gp: #ffd700;
   --coin-ep: #c9b037;
   --coin-sp: #c0c0c0;
-  --coin-cp: #b87333;
+  --coin-cp: #d08a52;
+
+  /* One hue per class (portrait ring, class badge, best ability). See lib/classColors.ts. */
+  --class-barbarian: #ff7a5c;
+  --class-bard: #ff7fc3;
+  --class-cleric: #ffd66b;
+  --class-druid: #7ed98c;
+  --class-fighter: #e0a468;
+  --class-monk: #6fd0f0;
+  --class-paladin: #9fb0ff;
+  --class-ranger: #5fc9a0;
+  --class-rogue: #b4bdc9;
+  --class-sorcerer: #ff9a55;
+  --class-warlock: #c291ff;
+  --class-wizard: #6f9bff;
+  --class-color: var(--primary);
 
   /* Spacing (4px base) */
   --space-1: 0.25rem;
@@ -54,13 +74,15 @@
   --space-12: 3rem;
 
   /* Radius */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
+  --radius-sm: 0.3rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.875rem;
   --radius-full: 9999px;
 
-  /* Type scale */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  /* Type: Alegreya SC for names and titles, Alegreya Sans for everything else.
+   * The --font-*-face variables come from next/font in app/layout.tsx. */
+  --font-sans: var(--font-body-face, 'Alegreya Sans'), 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-display-face, 'Alegreya SC'), Georgia, 'Times New Roman', serif;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-md: 1rem;
@@ -71,9 +93,9 @@
   --line-height: 1.5;
 
   /* Elevation */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 16px -8px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 40px -12px rgba(0, 0, 0, 0.6);
 
   /* Focus */
   --focus-ring-color: var(--primary);
@@ -86,85 +108,121 @@
   --transition-fast: 150ms ease;
 }
 
-/* Light theme: follows the OS unless the user picked a theme (data-theme on <html>). */
+/* "Daybreak" light theme: follows the OS unless the user picked a theme (data-theme on <html>). */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     color-scheme: light;
-    --primary: #4f46e5;
-    --primary-strong: #4f46e5;
-    --primary-hover: #4338ca;
-    --primary-soft: rgba(79, 70, 229, 0.1);
-    --accent: #9333ea;
-    --background: #f8fafc;
+    --primary: #8a5a00;
+    --primary-strong: #f5b942;
+    --primary-hover: #e8a826;
+    --primary-soft: rgba(245, 185, 66, 0.2);
+    --accent: #0f7d70;
+    --arcane: #0f7d70;
+    --arcane-soft: rgba(15, 125, 112, 0.1);
+    --background: #f6f3fa;
     --surface: #ffffff;
-    --surface-raised: #f1f5f9;
-    --surface-sunken: #f1f5f9;
-    --text: #0f172a;
-    --text-muted: #475569;
-    --border: #cbd5e1;
-    --border-strong: #6b7280;
-    --error: #b91c1c;
-    --error-strong: #b91c1c;
-    --error-hover: #991b1b;
-    --error-soft: rgba(185, 28, 28, 0.08);
-    --success: #15803d;
-    --success-soft: rgba(21, 128, 61, 0.1);
-    --warning: #92400e;
-    --warning-soft: rgba(146, 64, 14, 0.1);
-    --overlay: rgba(15, 23, 42, 0.5);
-    --skeleton: rgba(100, 116, 139, 0.14);
-    --skeleton-shine: rgba(100, 116, 139, 0.24);
+    --surface-raised: #efe9f6;
+    --surface-sunken: #f1ecf7;
+    --text: #261c33;
+    --text-muted: #5b4f6d;
+    --border: #ddd3ea;
+    --border-strong: #85779a;
+    --error: #b83224;
+    --error-strong: #b83224;
+    --error-hover: #962719;
+    --error-soft: rgba(184, 50, 36, 0.08);
+    --success: #1b7a3d;
+    --success-soft: rgba(27, 122, 61, 0.1);
+    --warning: #8f4f00;
+    --warning-soft: rgba(143, 79, 0, 0.1);
+    --overlay: rgba(38, 28, 51, 0.5);
+    --skeleton: rgba(91, 79, 109, 0.12);
+    --skeleton-shine: rgba(91, 79, 109, 0.22);
+    --glow: rgba(245, 185, 66, 0.16);
     --coin-pp: #64748b;
     --coin-gp: #a16207;
     --coin-ep: #854d0e;
     --coin-sp: #6b7280;
     --coin-cp: #9a3412;
-    --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08);
-    --shadow-lg: 0 20px 25px -5px rgba(15, 23, 42, 0.15);
+    --class-barbarian: #b3351a;
+    --class-bard: #b8237a;
+    --class-cleric: #785c00;
+    --class-druid: #1e7133;
+    --class-fighter: #8f5520;
+    --class-monk: #0b6886;
+    --class-paladin: #3b52c9;
+    --class-ranger: #176c4e;
+    --class-rogue: #4a5563;
+    --class-sorcerer: #a2480b;
+    --class-warlock: #7a3fd1;
+    --class-wizard: #2f5fd6;
+    --shadow-sm: 0 1px 2px rgba(38, 28, 51, 0.08);
+    --shadow-md: 0 6px 16px -8px rgba(38, 28, 51, 0.18);
+    --shadow-lg: 0 20px 40px -12px rgba(38, 28, 51, 0.25);
   }
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --primary: #4f46e5;
-  --primary-strong: #4f46e5;
-  --primary-hover: #4338ca;
-  --primary-soft: rgba(79, 70, 229, 0.1);
-  --accent: #9333ea;
-  --background: #f8fafc;
+  --primary: #8a5a00;
+  --primary-strong: #f5b942;
+  --primary-hover: #e8a826;
+  --primary-soft: rgba(245, 185, 66, 0.2);
+  --accent: #0f7d70;
+  --arcane: #0f7d70;
+  --arcane-soft: rgba(15, 125, 112, 0.1);
+  --background: #f6f3fa;
   --surface: #ffffff;
-  --surface-raised: #f1f5f9;
-  --surface-sunken: #f1f5f9;
-  --text: #0f172a;
-  --text-muted: #475569;
-  --border: #cbd5e1;
-  --border-strong: #6b7280;
-  --error: #b91c1c;
-  --error-strong: #b91c1c;
-  --error-hover: #991b1b;
-  --error-soft: rgba(185, 28, 28, 0.08);
-  --success: #15803d;
-  --success-soft: rgba(21, 128, 61, 0.1);
-  --warning: #92400e;
-  --warning-soft: rgba(146, 64, 14, 0.1);
-  --overlay: rgba(15, 23, 42, 0.5);
-  --skeleton: rgba(100, 116, 139, 0.14);
-  --skeleton-shine: rgba(100, 116, 139, 0.24);
+  --surface-raised: #efe9f6;
+  --surface-sunken: #f1ecf7;
+  --text: #261c33;
+  --text-muted: #5b4f6d;
+  --border: #ddd3ea;
+  --border-strong: #85779a;
+  --error: #b83224;
+  --error-strong: #b83224;
+  --error-hover: #962719;
+  --error-soft: rgba(184, 50, 36, 0.08);
+  --success: #1b7a3d;
+  --success-soft: rgba(27, 122, 61, 0.1);
+  --warning: #8f4f00;
+  --warning-soft: rgba(143, 79, 0, 0.1);
+  --overlay: rgba(38, 28, 51, 0.5);
+  --skeleton: rgba(91, 79, 109, 0.12);
+  --skeleton-shine: rgba(91, 79, 109, 0.22);
+  --glow: rgba(245, 185, 66, 0.16);
   --coin-pp: #64748b;
   --coin-gp: #a16207;
   --coin-ep: #854d0e;
   --coin-sp: #6b7280;
   --coin-cp: #9a3412;
-  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 20px 25px -5px rgba(15, 23, 42, 0.15);
+  --class-barbarian: #b3351a;
+  --class-bard: #b8237a;
+  --class-cleric: #785c00;
+  --class-druid: #1e7133;
+  --class-fighter: #8f5520;
+  --class-monk: #0b6886;
+  --class-paladin: #3b52c9;
+  --class-ranger: #176c4e;
+  --class-rogue: #4a5563;
+  --class-sorcerer: #a2480b;
+  --class-warlock: #7a3fd1;
+  --class-wizard: #2f5fd6;
+  --shadow-sm: 0 1px 2px rgba(38, 28, 51, 0.08);
+  --shadow-md: 0 6px 16px -8px rgba(38, 28, 51, 0.18);
+  --shadow-lg: 0 20px 40px -12px rgba(38, 28, 51, 0.25);
 }
 
 body {
   margin: 0;
   padding: 0;
-  background-color: var(--background);
+  /* A faint candle glow at the top of every page */
+  background: radial-gradient(ellipse 90% 420px at 12% -120px, var(--glow), transparent 70%) no-repeat, var(--background);
   color: var(--text);
   font-family: var(--font-sans);
+  /* Alegreya Sans has a small x-height; match the system-font sizes the layout was built with */
+  font-size-adjust: 0.5;
+  font-variant-numeric: lining-nums;
   overflow-wrap: break-word;
   word-break: break-word;
 }
@@ -425,10 +483,14 @@ button {
 }
 
 .heading {
+  font-family: var(--font-display);
   font-size: 1.875rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
   margin-bottom: 1.5rem;
   color: var(--text);
+  text-wrap: balance;
 }
 
 @media (max-width: 768px) {
@@ -457,9 +519,27 @@ button {
 }
 
 .nav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
   font-size: var(--font-size-2xl);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--primary);
+}
+
+.nav-brand:hover {
+  text-decoration: none;
+}
+
+.nav-brand-icon {
+  width: 1.1em;
+  height: 1.1em;
+  transition: transform 400ms ease;
+}
+
+.nav-brand:hover .nav-brand-icon {
+  transform: rotate(72deg);
 }
 
 .nav-links {
@@ -523,8 +603,8 @@ button {
   color: var(--text-muted);
   text-transform: uppercase;
   font-size: var(--font-size-sm);
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-weight: 800;
+  letter-spacing: 0.09em;
 }
 
 /* Skeleton loading placeholders */
@@ -1970,11 +2050,12 @@ button {
 
 .landing-title {
   margin: 0 0 var(--space-4);
+  font-family: var(--font-display);
   font-size: clamp(2.25rem, 8vw, 4rem);
-  background: linear-gradient(to right, var(--primary), var(--accent));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  text-wrap: balance;
 }
 
 .landing-lead {
@@ -2393,7 +2474,10 @@ button {
     --input-border: #bbbbbb;
     --primary: #000000;
     --primary-strong: #000000;
+    --primary-contrast: #ffffff;
     --primary-soft: transparent;
+    --arcane: #000000;
+    --class-color: #000000;
     --success: #000000;
     --warning: #000000;
     --error: #000000;
@@ -2411,7 +2495,7 @@ button {
   }
 
   body {
-    background-color: white;
+    background: #ffffff;
     color: black;
   }
 
