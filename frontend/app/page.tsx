@@ -8,7 +8,7 @@ import spells from '../public/landing/spells.jpg';
 const FEATURES = [
     {
         title: 'Built for the table',
-        text: 'Take damage and heal in one tap, with temporary HP and death saves handled for you. Short and Long Rests restore exactly what the 2024 rules say.',
+        text: 'Tap any modifier to roll it, with advantage, disadvantage and damage one tap away. Take damage and heal in one tap, and let Short and Long Rests restore exactly what the 2024 rules say.',
     },
     {
         title: '2024 rules, start to finish',
@@ -45,7 +45,7 @@ export default function Home() {
             <section className="landing-shots" aria-label="Screenshots">
                 <Image
                     src={sheetDesktop}
-                    alt="Character sheet for a level 5 elf wizard: ability scores, hit points with damage and heal controls, hit dice and class resources."
+                    alt="Character sheet for a level 5 elf wizard: ability scores as gems, hit points with damage and heal controls, AC in a shield, and a dice tray showing an Arcana roll of 24."
                     className="landing-shot landing-shot-desktop"
                     sizes="(max-width: 900px) 100vw, 900px"
                     priority

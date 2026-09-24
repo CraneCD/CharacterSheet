@@ -35,9 +35,9 @@ export default function LoginPage() {
     };
 
     return (
-        <div style={{ maxWidth: '400px', margin: '4rem auto' }}>
+        <div>
             <div className="card">
-                <h1 className="heading" style={{ textAlign: 'center' }}>Welcome back</h1>
+                <h1 className="heading">Welcome back</h1>
                 {error && <div className="form-error" role="alert">{error}</div>}
                 <form onSubmit={handleSubmit}>
                     <TextField

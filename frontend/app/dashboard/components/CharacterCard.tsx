@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { Menu } from '@/app/components/ui';
+import { CharacterToken, Menu } from '@/app/components/ui';
+import { classColorStyle } from '@/lib/classColors';
 import { getHpStatus } from '@/lib/hp';
 import { displayName } from '@/lib/characterTransfer';
 import { formatRelativeTime } from '@/lib/relativeTime';
@@ -29,16 +30,15 @@ export default function CharacterCard({ character, onExport, onDelete }: Charact
     const edited = character.updatedAt ? formatRelativeTime(character.updatedAt) : '';
 
     return (
-        <article className={`card character-card hp-${status}`}>
+        <article className={`card character-card hp-${status}`} style={classColorStyle(character.class)}>
             <Link href={`/character/${character.id}`} className="character-card-link">
-                <div className="character-card-portrait">
-                    {character.data?.portrait ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={character.data.portrait} alt="" />
-                    ) : (
-                        <span aria-hidden="true">{(character.name || '?').trim().charAt(0).toUpperCase()}</span>
-                    )}
-                </div>
+                <CharacterToken
+                    name={character.name || '?'}
+                    portrait={character.data?.portrait}
+                    classId={character.class}
+                    level={character.level}
+                    size="md"
+                />
                 <div className="character-card-body">
                     <h2 className="character-card-name">{character.name}</h2>
                     <p className="character-card-meta">
