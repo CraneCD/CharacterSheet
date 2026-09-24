@@ -8,7 +8,6 @@ import HitDiceManager from './components/HitDiceManager';
 import EquipmentManager from './components/EquipmentManager';
 import LevelUpWizard from './components/LevelUpWizard';
 import ActionsCard from './components/ActionsCard';
-import NotepadManager from './components/NotepadManager';
 import PortraitUpload from './components/PortraitUpload';
 import FeatureManager from './components/FeatureManager';
 import CurrencyManager from './components/CurrencyManager';
@@ -42,7 +41,13 @@ import { DiceProvider, RollButton } from '@/app/components/dice/DiceTray';
 import AbilityScoresCard from './components/sections/AbilityScoresCard';
 import SavingThrowsCard from './components/sections/SavingThrowsCard';
 import SkillsCard from './components/sections/SkillsCard';
-import LanguagesCard from './components/sections/LanguagesCard';
+import SensesCard from './components/sections/SensesCard';
+import ProficienciesCard from './components/sections/ProficienciesCard';
+import ConditionsCard from './components/sections/ConditionsCard';
+import NotesCard from './components/sections/NotesCard';
+import { useCoreColumnFit } from './useCoreColumnFit';
+import { normalizeConditions, speedWithConditions } from '@/lib/conditions';
+import { darkvisionRange, passiveScores, traitResistances } from '@/lib/senses';
 import ClassResourcesSection from './components/sections/ClassResourcesSection';
 import SpellcastingSection from './components/sections/SpellcastingSection';
 
@@ -63,12 +68,13 @@ export default function CharacterSheet() {
     const [showLevelUp, setShowLevelUp] = useState(false);
     const [showLevelDownConfirm, setShowLevelDownConfirm] = useState(false);
     const [isLevelingDown, setIsLevelingDown] = useState(false);
-    const [showNotepad, setShowNotepad] = useState(false);
     const [restDialog, setRestDialog] = useState<'short' | 'long' | null>(null);
     const [resting, setResting] = useState(false);
     // Phone layout shows one section at a time (see SheetTabs)
     const [mobileTab, setMobileTab] = useState<SheetTabId>('combat');
     const sheetBodyRef = useRef<HTMLDivElement>(null);
+    // Collapses the new left-column cards when the other columns are shorter
+    const coreFit = useCoreColumnFit(character?.id);
     // Spell names for class-choice spells (Mystic Arcanum, Signature Spells), loaded only when needed
     const [choiceSpellNames, setChoiceSpellNames] = useState<Record<string, string> | null>(null);
     // Spells you can cast and slots left, reported by the spell list for the Actions card
@@ -231,6 +237,10 @@ export default function CharacterSheet() {
     // Store speedBonus for display
     const speedBonusDisplay = speedBonus;
 
+    // Conditions and Exhaustion change rolls (dice tray) and Speed
+    const activeConditions = normalizeConditions(data.conditions, data.exhaustion);
+    const speedNow = speedWithConditions(speed, activeConditions);
+
     // Saving Throws - include feature-granted proficiencies
     const savingThrowProficiencies = getSavingThrowProficienciesFromFeatures(
         allFeatures,
@@ -294,6 +304,12 @@ export default function CharacterSheet() {
 
     // Weapons chosen for Weapon Mastery (null for characters from before the choice existed)
     const masteryWeapons = getWeaponMasteries(data.classChoices);
+
+    // Exact trait text only (a lineage-specific trait must not fall back to the generic lineage table)
+    const traitTexts = (racialTraits || []).map((name: string) => ({ name, description: gameData.traits?.[name]?.description }));
+    const toolProficiencies: string[] = Array.isArray(data.toolProficiencies)
+        ? data.toolProficiencies
+        : [...(charClass.toolProficiencies || []), ...(background.toolProficiencies || [])];
 
     const staticFeatureEntries = [
         ...(masteryWeapons && masteryWeapons.length > 0 ? [{
@@ -490,7 +506,7 @@ export default function CharacterSheet() {
     };
 
     return (
-        <DiceProvider>
+        <DiceProvider conditions={activeConditions}>
         <div className="sheet" style={{ marginBottom: '2rem', ...classColorStyle(primaryClass) }}>
             {/* Header */}
             <div className="sheet-header">
@@ -517,7 +533,6 @@ export default function CharacterSheet() {
                                 label="⋯"
                                 ariaLabel="More actions"
                                 items={[
-                                    { label: 'Notepad', onSelect: () => setShowNotepad(true) },
                                     { label: 'Export JSON', onSelect: exportJson },
                                     { label: 'Print / PDF', onSelect: () => window.print() },
                                     ...(character.level > 1 ? [{
@@ -553,8 +568,8 @@ export default function CharacterSheet() {
                     <EditableStat
                         label="Speed"
                         value={baseSpeed}
-                        display={`${speed} ft.`}
-                        sublabel={speedBonusDisplay > 0 ? `(+${speedBonusDisplay} from features)` : undefined}
+                        display={`${speedNow.speed} ft.`}
+                        sublabel={speedNow.reason ? `(${speedNow.reason})` : speedBonusDisplay > 0 ? `(+${speedBonusDisplay} from features)` : undefined}
                         description={speedStat.overridden ? `Set manually. Species default: ${speedStat.calculated} ft.` : undefined}
                         min={0}
                         max={200}
@@ -562,7 +577,7 @@ export default function CharacterSheet() {
                         onReset={speedStat.overridden ? () => persistData({ speed: null }, "Couldn't reset speed") : undefined}
                         resetLabel={`Reset speed to ${speedStat.calculated} ft.`}
                     />
-                    <Stat label="Initiative" value={<RollButton label="Initiative" modifier={effectiveModifiers.dex}>{formatMod(effectiveModifiers.dex)}</RollButton>} />
+                    <Stat label="Initiative" value={<RollButton label="Initiative" modifier={effectiveModifiers.dex} kind="initiative" ability="dex">{formatMod(effectiveModifiers.dex)}</RollButton>} />
                     <EditableStat
                         label="AC"
                         value={ac}
@@ -578,24 +593,6 @@ export default function CharacterSheet() {
                     />
                 </div>
             </div>
-
-            {showNotepad && (
-                <NotepadManager
-                    initialPages={Array.isArray(data.notepad?.pages) ? data.notepad!.pages : ['']}
-                    onClose={async (pages) => {
-                        setShowNotepad(false);
-                        const updates = { notepad: { pages } };
-                        // Keep the notes on the page even if saving fails, so nothing typed is lost
-                        handleUpdateCharacter(updates);
-                        try {
-                            await api.patch(`/characters/${character.id}/data`, updates);
-                        } catch (err) {
-                            console.error('Failed to save notepad', err);
-                            toast.error(describeError("Couldn't save your notes. Open and close the notepad to retry", err));
-                        }
-                    }}
-                />
-            )}
 
             {showLevelUp && (
                 <LevelUpWizard
@@ -650,7 +647,7 @@ export default function CharacterSheet() {
             )}
 
             <div className="sheet-body" data-active-tab={mobileTab} ref={sheetBodyRef}>
-            <div className="sheet-grid">
+            <div className="sheet-grid" ref={coreFit.gridRef}>
                 {/* Left Column: Core Stats */}
                 <div className="sheet-column">
                     <div data-tab="core">
@@ -662,6 +659,49 @@ export default function CharacterSheet() {
                     <div data-tab="core">
                         <SkillsCard skills={skills} onToggleProficiency={handleToggleSkillProficiency} />
                     </div>
+                    <div data-tab="core">
+                        <SensesCard
+                            passives={passiveScores(skills)}
+                            darkvision={darkvisionRange(traitTexts)}
+                            resistances={traitResistances(traitTexts)}
+                            collapsed={coreFit.isCollapsed('senses')}
+                            autoCollapsed={coreFit.isAutoCollapsed('senses')}
+                            onToggle={() => coreFit.toggle('senses')}
+                        />
+                    </div>
+                    <div data-tab="core">
+                        <ProficienciesCard
+                            armor={charClass.armorProficiencies || []}
+                            weapons={charClass.weaponProficiencies || []}
+                            tools={toolProficiencies}
+                            languages={Array.isArray(data.languages) ? data.languages : []}
+                            onAddLanguage={handleAddLanguage}
+                            onRemoveLanguage={handleRemoveLanguage}
+                            collapsed={coreFit.isCollapsed('proficiencies')}
+                            autoCollapsed={coreFit.isAutoCollapsed('proficiencies')}
+                            onToggle={() => coreFit.toggle('proficiencies')}
+                        />
+                    </div>
+                    <div data-tab="core">
+                        <ConditionsCard
+                            active={activeConditions}
+                            onChange={(next) => persistData({ conditions: next.conditions, exhaustion: next.exhaustion }, "Couldn't update conditions")}
+                            collapsed={coreFit.isCollapsed('conditions')}
+                            autoCollapsed={coreFit.isAutoCollapsed('conditions')}
+                            onToggle={() => coreFit.toggle('conditions')}
+                        />
+                    </div>
+                    {/* Notes stretches to end the column level with the others */}
+                    <div data-tab="core" className="sheet-column-fill">
+                        <NotesCard
+                            pages={Array.isArray(data.notepad?.pages) ? data.notepad!.pages : ['']}
+                            onSave={async (pages) => (await persistData({ notepad: { pages } }, "Couldn't save your notes")) !== undefined}
+                            collapsed={coreFit.isCollapsed('notes')}
+                            autoCollapsed={coreFit.isAutoCollapsed('notes')}
+                            onToggle={() => coreFit.toggle('notes')}
+                            className="no-print"
+                        />
+                    </div>
                 </div>
 
                 {/* Middle Column: Combat & Resources */}
@@ -671,6 +711,7 @@ export default function CharacterSheet() {
                         <HPManager
                             characterId={character.id}
                             initialHP={data.hp || { current: 0, max: 0, temp: 0 }}
+                            conditions={activeConditions}
                             onUpdate={(newHP) => handleUpdateCharacter({ hp: newHP })}
                         />
                     </div>
@@ -764,14 +805,6 @@ export default function CharacterSheet() {
                         />
                     </div>
 
-                    {/* Languages */}
-                    <div data-tab="features">
-                        <LanguagesCard
-                            languages={Array.isArray(data.languages) ? data.languages : []}
-                            onAdd={handleAddLanguage}
-                            onRemove={handleRemoveLanguage}
-                        />
-                    </div>
                 </div>
             </div>
             {spellcasting && (

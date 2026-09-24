@@ -84,6 +84,7 @@ function ActionRowItem({ row, castable, open, onToggle, onRemove }: {
                         <RollButton
                             label={`${row.name} attack`}
                             modifier={row.toHit}
+                            kind="attack"
                             damage={effect?.kind === 'damage' ? { expression: effect.dice, modifier: effect.modifier } : undefined}
                             className="action-hit"
                         >

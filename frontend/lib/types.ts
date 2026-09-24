@@ -143,8 +143,12 @@ export interface CharacterData {
     currency?: Currency;
     classes?: { [classId: string]: number }; // Multiclass support: { 'fighter': 5, 'wizard': 3 } means Fighter 5 / Wizard 3
     fightingStyles?: string[]; // e.g. ['archery', 'defense'] – IDs from fighting-styles reference
-    /** Notepad with pages; saves on close. */
+    /** Notes card pages; saved as you type. */
     notepad?: { pages: string[] };
+    /** Active conditions by name ("Poisoned", ...); see lib/conditions */
+    conditions?: string[];
+    /** Exhaustion level 0-6 */
+    exhaustion?: number;
     /** Character portrait as data URL (base64 image); null once removed. */
     portrait?: string | null;
 }

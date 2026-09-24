@@ -4,12 +4,15 @@ import { useState, useEffect, memo, useId, useRef } from 'react';
 import { api } from '@/lib/api';
 import { HP } from '@/lib/types';
 import { applyDamage, applyHealing, applyTempHp, getHpStatus, HpStatus } from '@/lib/hp';
+import { ActiveConditions } from '@/lib/conditions';
 import { Button, SectionHeader, TextField, useOptimisticSave, useToast } from '@/app/components/ui';
 
 interface HPManagerProps {
     characterId: string;
     initialHP: HP;
     onUpdate: (newHP: HP) => void;
+    /** Active conditions, shown as badges under the HP numbers */
+    conditions?: ActiveConditions;
 }
 
 const STATUS_LABELS: Partial<Record<HpStatus, string>> = {
@@ -24,7 +27,7 @@ function toNumber(value: string): number {
     return Number.isFinite(n) ? Math.max(0, n) : 0;
 }
 
-function HPManager({ characterId, initialHP, onUpdate }: HPManagerProps) {
+function HPManager({ characterId, initialHP, onUpdate, conditions }: HPManagerProps) {
     const toast = useToast();
     const save = useOptimisticSave();
     const amountId = useId();
@@ -201,6 +204,13 @@ function HPManager({ characterId, initialHP, onUpdate }: HPManagerProps) {
                     <span className={`hp-status hp-status-${status}`}>{stable ? 'Stable' : STATUS_LABELS[status]}</span>
                 )}
             </div>
+
+            {conditions && (conditions.conditions.length > 0 || conditions.exhaustion > 0) && (
+                <div className="hp-conditions" role="group" aria-label="Active conditions">
+                    {conditions.conditions.map((name) => <span key={name} className="condition-badge">{name}</span>)}
+                    {conditions.exhaustion > 0 && <span className="condition-badge">Exhaustion {conditions.exhaustion}</span>}
+                </div>
+            )}
 
             <div
                 className="hp-bar"
