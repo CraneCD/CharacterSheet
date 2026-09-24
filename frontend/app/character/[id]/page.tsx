@@ -74,7 +74,7 @@ export default function CharacterSheet() {
     const [mobileTab, setMobileTab] = useState<SheetTabId>('combat');
     const sheetBodyRef = useRef<HTMLDivElement>(null);
     // Collapses the new left-column cards when the other columns are shorter
-    const coreFit = useCoreColumnFit(character?.id);
+    const { gridRef: coreGridRef, isCollapsed: isCoreCollapsed, isAutoCollapsed: isCoreAutoCollapsed, toggle: toggleCoreCard } = useCoreColumnFit(character?.id);
     // Spell names for class-choice spells (Mystic Arcanum, Signature Spells), loaded only when needed
     const [choiceSpellNames, setChoiceSpellNames] = useState<Record<string, string> | null>(null);
     // Spells you can cast and slots left, reported by the spell list for the Actions card
@@ -647,7 +647,7 @@ export default function CharacterSheet() {
             )}
 
             <div className="sheet-body" data-active-tab={mobileTab} ref={sheetBodyRef}>
-            <div className="sheet-grid" ref={coreFit.gridRef}>
+            <div className="sheet-grid" ref={coreGridRef}>
                 {/* Left Column: Core Stats */}
                 <div className="sheet-column">
                     <div data-tab="core">
@@ -664,9 +664,9 @@ export default function CharacterSheet() {
                             passives={passiveScores(skills)}
                             darkvision={darkvisionRange(traitTexts)}
                             resistances={traitResistances(traitTexts)}
-                            collapsed={coreFit.isCollapsed('senses')}
-                            autoCollapsed={coreFit.isAutoCollapsed('senses')}
-                            onToggle={() => coreFit.toggle('senses')}
+                            collapsed={isCoreCollapsed('senses')}
+                            autoCollapsed={isCoreAutoCollapsed('senses')}
+                            onToggle={() => toggleCoreCard('senses')}
                         />
                     </div>
                     <div data-tab="core">
@@ -677,18 +677,18 @@ export default function CharacterSheet() {
                             languages={Array.isArray(data.languages) ? data.languages : []}
                             onAddLanguage={handleAddLanguage}
                             onRemoveLanguage={handleRemoveLanguage}
-                            collapsed={coreFit.isCollapsed('proficiencies')}
-                            autoCollapsed={coreFit.isAutoCollapsed('proficiencies')}
-                            onToggle={() => coreFit.toggle('proficiencies')}
+                            collapsed={isCoreCollapsed('proficiencies')}
+                            autoCollapsed={isCoreAutoCollapsed('proficiencies')}
+                            onToggle={() => toggleCoreCard('proficiencies')}
                         />
                     </div>
                     <div data-tab="core">
                         <ConditionsCard
                             active={activeConditions}
                             onChange={(next) => persistData({ conditions: next.conditions, exhaustion: next.exhaustion }, "Couldn't update conditions")}
-                            collapsed={coreFit.isCollapsed('conditions')}
-                            autoCollapsed={coreFit.isAutoCollapsed('conditions')}
-                            onToggle={() => coreFit.toggle('conditions')}
+                            collapsed={isCoreCollapsed('conditions')}
+                            autoCollapsed={isCoreAutoCollapsed('conditions')}
+                            onToggle={() => toggleCoreCard('conditions')}
                         />
                     </div>
                     {/* Notes stretches to end the column level with the others */}
@@ -696,9 +696,9 @@ export default function CharacterSheet() {
                         <NotesCard
                             pages={Array.isArray(data.notepad?.pages) ? data.notepad!.pages : ['']}
                             onSave={async (pages) => (await persistData({ notepad: { pages } }, "Couldn't save your notes")) !== undefined}
-                            collapsed={coreFit.isCollapsed('notes')}
-                            autoCollapsed={coreFit.isAutoCollapsed('notes')}
-                            onToggle={() => coreFit.toggle('notes')}
+                            collapsed={isCoreCollapsed('notes')}
+                            autoCollapsed={isCoreAutoCollapsed('notes')}
+                            onToggle={() => toggleCoreCard('notes')}
                             className="no-print"
                         />
                     </div>

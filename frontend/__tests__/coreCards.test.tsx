@@ -190,15 +190,15 @@ describe('useCoreColumnFit', () => {
     afterEach(() => jest.restoreAllMocks());
 
     function Sheet({ middle }: { middle: number }) {
-        const fit = useCoreColumnFit('char-1');
+        const { gridRef, isCollapsed, isAutoCollapsed, toggle } = useCoreColumnFit('char-1');
         const card = (id: CoreCardId) => (
-            <section data-card={id} data-core-card={id} className={fit.isCollapsed(id) ? 'card is-collapsed' : 'card'}>
-                <button type="button" aria-label={id} aria-expanded={!fit.isCollapsed(id)} onClick={() => fit.toggle(id)} />
-                {fit.isAutoCollapsed(id) && <span>{id} auto</span>}
+            <section data-card={id} data-core-card={id} className={isCollapsed(id) ? 'card is-collapsed' : 'card'}>
+                <button type="button" aria-label={id} aria-expanded={!isCollapsed(id)} onClick={() => toggle(id)} />
+                {isAutoCollapsed(id) && <span>{id} auto</span>}
             </section>
         );
         return (
-            <div ref={fit.gridRef} style={{ display: 'grid', gridTemplateColumns: '260px 1fr 1fr' }}>
+            <div ref={gridRef} style={{ display: 'grid', gridTemplateColumns: '260px 1fr 1fr' }}>
                 <div className="sheet-column" data-column="left">
                     <section data-card="skills" className="card" />
                     {card('senses')}{card('proficiencies')}{card('conditions')}{card('notes')}
