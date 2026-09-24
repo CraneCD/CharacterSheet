@@ -41,7 +41,7 @@ export default function SkillsCard({ skills, onToggleProficiency }: SkillsCardPr
                             {skill.name}
                             <span className="skill-stat">({skill.stat.toUpperCase()})</span>
                         </span>
-                        <RollButton label={skill.name} modifier={skill.total} className="stat-list-total">
+                        <RollButton label={skill.name} modifier={skill.total} kind="check" ability={skill.stat} className="stat-list-total">
                             {formatMod(skill.total)}
                         </RollButton>
                     </li>

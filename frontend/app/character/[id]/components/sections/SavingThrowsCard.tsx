@@ -18,7 +18,7 @@ export default function SavingThrowsCard({ saves }: SavingThrowsCardProps) {
                             <abbr title={ABILITY_NAMES[save.stat]}>{save.stat.toUpperCase()}</abbr>
                             {save.isProficient && <span className="visually-hidden"> (proficient)</span>}
                         </span>
-                        <RollButton label={`${ABILITY_NAMES[save.stat]} save`} modifier={save.total} className="stat-list-total">
+                        <RollButton label={`${ABILITY_NAMES[save.stat]} save`} modifier={save.total} kind="save" ability={save.stat} className="stat-list-total">
                             {formatMod(save.total)}
                         </RollButton>
                     </li>

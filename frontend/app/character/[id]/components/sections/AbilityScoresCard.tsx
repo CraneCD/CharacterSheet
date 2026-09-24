@@ -23,7 +23,7 @@ export default function AbilityScoresCard({ scores, modifiers, onChange }: Abili
                 {ABILITIES.map((ability) => (
                     <div key={ability} className={ability === best ? 'ability-gem is-best' : 'ability-gem'}>
                         <div className="ability-abbr" aria-hidden="true">{ability}</div>
-                        <RollButton label={`${ABILITY_NAMES[ability]} check`} modifier={modifiers[ability]} className="ability-mod">
+                        <RollButton label={`${ABILITY_NAMES[ability]} check`} modifier={modifiers[ability]} kind="check" ability={ability} className="ability-mod">
                             {formatMod(modifiers[ability])}
                         </RollButton>
                         <EditableNumber

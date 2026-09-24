@@ -16,6 +16,10 @@ import AbilityScoresCard from '@/app/character/[id]/components/sections/AbilityS
 import SkillsCard from '@/app/character/[id]/components/sections/SkillsCard';
 import SavingThrowsCard from '@/app/character/[id]/components/sections/SavingThrowsCard';
 import LanguagesCard from '@/app/character/[id]/components/sections/LanguagesCard';
+import SensesCard from '@/app/character/[id]/components/sections/SensesCard';
+import ProficienciesCard from '@/app/character/[id]/components/sections/ProficienciesCard';
+import ConditionsCard from '@/app/character/[id]/components/sections/ConditionsCard';
+import NotesCard from '@/app/character/[id]/components/sections/NotesCard';
 import SpellFilterBar from '@/app/character/[id]/components/SpellFilterBar';
 import SlotPips from '@/app/character/[id]/components/SlotPips';
 import { ShortRestDialog } from '@/app/character/[id]/components/RestDialogs';
@@ -68,6 +72,20 @@ describe('accessibility (axe)', () => {
                 <LanguagesCard languages={['Common']} onAdd={() => {}} onRemove={() => {}} />
                 <SpellFilterBar filters={EMPTY_SPELL_FILTERS} onChange={() => {}} levels={[0, 1]} schools={['Evocation']} shown={2} total={2} />
                 <SlotPips label="Level 1 spell slots" total={3} used={1} onChange={() => {}} />
+            </main>
+        );
+        await expectNoViolations(container);
+    });
+
+    it('left-column cards, open and collapsed', async () => {
+        const toggle = { onToggle: () => {} };
+        const { container } = render(
+            <main>
+                <HPManager characterId="c" initialHP={{ current: 8, max: 20, temp: 0 }} onUpdate={() => {}} conditions={{ conditions: ['Prone'], exhaustion: 1 }} />
+                <SensesCard passives={{ perception: 13, investigation: 10, insight: 13 }} darkvision={60} resistances={[{ type: 'Fire', source: 'Hellish Resistance' }]} collapsed={false} {...toggle} />
+                <ProficienciesCard armor={['Light armor']} weapons={['Simple weapons']} tools={[]} languages={['Common']} onAddLanguage={() => {}} onRemoveLanguage={() => {}} collapsed autoCollapsed {...toggle} />
+                <ConditionsCard active={{ conditions: ['Poisoned'], exhaustion: 2 }} onChange={() => {}} collapsed={false} {...toggle} />
+                <NotesCard pages={['Session one']} onSave={async () => true} collapsed={false} {...toggle} />
             </main>
         );
         await expectNoViolations(container);

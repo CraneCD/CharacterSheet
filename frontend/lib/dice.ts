@@ -17,6 +17,12 @@ export interface D20Result {
     natural: number;
     modifier: number;
     total: number;
+    /** Subtracted after the modifier (Exhaustion) */
+    penalty?: number;
+    /** Why the roll changed (conditions), shown in the tray */
+    notes?: string[];
+    /** The condition that made this roll fail without rolling */
+    autoFail?: string;
 }
 
 export interface DamageResult {
@@ -32,10 +38,15 @@ export interface DamageResult {
 
 export type RollResult = D20Result | DamageResult;
 
-export function rollD20(label: string, modifier: number, mode: RollMode = 'normal', random: Random = Math.random): D20Result {
+export function rollD20(label: string, modifier: number, mode: RollMode = 'normal', random: Random = Math.random, penalty = 0): D20Result {
     const rolls = mode === 'normal' ? [rollDie(20, random)] : [rollDie(20, random), rollDie(20, random)];
     const natural = mode === 'advantage' ? Math.max(...rolls) : mode === 'disadvantage' ? Math.min(...rolls) : rolls[0];
-    return { kind: 'd20', label, mode, rolls, natural, modifier, total: natural + modifier };
+    return { kind: 'd20', label, mode, rolls, natural, modifier, total: natural + modifier - penalty, ...(penalty ? { penalty } : {}) };
+}
+
+/** A save that fails without rolling (e.g. a Dexterity save while Stunned). */
+export function autoFailedD20(label: string, modifier: number, condition: string): D20Result {
+    return { kind: 'd20', label, mode: 'normal', rolls: [], natural: 0, modifier, total: 0, autoFail: condition };
 }
 
 export interface DiceTerm {
@@ -91,8 +102,9 @@ export function formatBonus(n: number): string {
 export function describeRoll(result: RollResult): string {
     const mod = result.modifier === 0 ? '' : ` ${result.modifier > 0 ? '+' : '−'} ${Math.abs(result.modifier)}`;
     if (result.kind === 'd20') {
+        if (result.autoFail) return `No roll: ${result.autoFail}`;
         const dice = result.rolls.length > 1 ? `d20 (${result.rolls.join(', ')})` : `d20 ${result.natural}`;
-        return `${dice}${mod}`;
+        return `${dice}${mod}${result.penalty ? ` − ${result.penalty}` : ''}`;
     }
     return `${result.expression}: ${result.rolls.join(' + ') || '0'}${mod}`;
 }
@@ -100,6 +112,7 @@ export function describeRoll(result: RollResult): string {
 /** One line for screen readers and the roll log. */
 export function announceRoll(result: RollResult): string {
     if (result.kind === 'd20') {
+        if (result.autoFail) return `${result.label}: automatic failure (${result.autoFail})`;
         const mode = result.mode === 'normal' ? '' : ` with ${result.mode}`;
         const note = result.natural === 20 ? ', natural 20' : result.natural === 1 ? ', natural 1' : '';
         return `${result.label}${mode}: ${result.total}${note}`;

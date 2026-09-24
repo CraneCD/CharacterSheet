@@ -10,7 +10,8 @@ interface LanguagesCardProps {
     onRemove: (language: string) => void;
 }
 
-export default function LanguagesCard({ languages, onAdd, onRemove }: LanguagesCardProps) {
+/** Languages as removable chips, with a standard-language picker and a custom field. */
+export function LanguagesEditor({ languages, onAdd, onRemove }: LanguagesCardProps) {
     const [custom, setCustom] = useState('');
     const id = useId();
     const available = STANDARD_LANGUAGES.filter((lang) => !languages.includes(lang));
@@ -23,8 +24,7 @@ export default function LanguagesCard({ languages, onAdd, onRemove }: LanguagesC
     };
 
     return (
-        <div className="card">
-            <SectionHeader title="Languages" />
+        <div className="languages-editor">
             {languages.length > 0 ? (
                 <ul className="chip-list">
                     {languages.map((lang) => (
@@ -77,6 +77,15 @@ export default function LanguagesCard({ languages, onAdd, onRemove }: LanguagesC
                     <Button type="submit" variant="secondary" disabled={!custom.trim()}>Add</Button>
                 </form>
             </div>
+        </div>
+    );
+}
+
+export default function LanguagesCard(props: LanguagesCardProps) {
+    return (
+        <div className="card">
+            <SectionHeader title="Languages" />
+            <LanguagesEditor {...props} />
         </div>
     );
 }
