@@ -101,9 +101,23 @@ describe('Modal', () => {
         expect(document.body.style.overflow).toBe('');
     });
 
-    it('keeps focus on a child that autofocuses', () => {
-        render(<Modal ariaLabel="D" onClose={() => {}}><input aria-label="Name" autoFocus /></Modal>);
+    it('keeps focus on a child that autofocuses, and still returns it to the opener', () => {
+        function Harness() {
+            const [open, setOpen] = useState(false);
+            return (
+                <>
+                    <button onClick={() => setOpen(true)}>Open</button>
+                    {open && <Modal ariaLabel="D" onClose={() => setOpen(false)}><input aria-label="Name" autoFocus /></Modal>}
+                </>
+            );
+        }
+        render(<Harness />);
+        const opener = screen.getByRole('button', { name: 'Open' });
+        opener.focus();
+        fireEvent.click(opener);
         expect(screen.getByLabelText('Name')).toHaveFocus();
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(opener).toHaveFocus();
     });
 
     it('only closes the top modal on Escape when nested', () => {

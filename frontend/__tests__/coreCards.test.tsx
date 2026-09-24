@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { useState } from 'react';
 import { DiceProvider, RollButton } from '@/app/components/dice/DiceTray';
@@ -161,6 +161,31 @@ describe('NotesCard', () => {
         await act(async () => {});
         expect(onSave).toHaveBeenLastCalledWith(['Lost?']);
         expect(screen.getByText('Saved')).toBeInTheDocument();
+    });
+
+    it('opens the pages in a larger view that shares the same text and saves on close', async () => {
+        const onSave = jest.fn().mockResolvedValue(true);
+        renderNotes(onSave, ['One', 'Two']);
+        fireEvent.click(screen.getByRole('tab', { name: 'Page 2' }));
+        const expand = screen.getByRole('button', { name: 'Open notes in a larger view' });
+        expand.focus();
+        fireEvent.click(expand);
+
+        const dialog = screen.getByRole('dialog', { name: 'Notes' });
+        const big = within(dialog).getByLabelText('Notes, page 2');
+        expect(big).toHaveValue('Two');
+        expect(big).toHaveFocus();
+        fireEvent.change(big, { target: { value: 'Two, rewritten' } });
+        fireEvent.click(within(dialog).getByRole('tab', { name: 'Page 1' }));
+        expect(within(dialog).getByLabelText('Notes, page 1')).toHaveValue('One');
+
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+        await act(async () => {});
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(onSave).toHaveBeenCalledWith(['One', 'Two, rewritten']);
+        // The card follows the page chosen in the larger view
+        expect(screen.getByLabelText('Notes, page 1')).toHaveValue('One');
+        expect(expand).toHaveFocus();
     });
 
     it('asks before deleting a page with text', () => {
