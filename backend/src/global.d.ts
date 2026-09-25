@@ -17,3 +17,10 @@ declare var console: {
     warn(...args: any[]): void;
     info(...args: any[]): void;
 };
+
+// Render installs with NODE_ENV=production, which skips @types/node (the
+// lockfile marks it dev-only), so Node built-ins the build imports need a
+// declaration here. Keep these to what the code uses.
+declare module 'crypto' {
+    export function randomInt(max: number): number;
+}
