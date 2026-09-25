@@ -11,6 +11,7 @@ import { feats } from '../data/feats';
 import { baseItems } from '../data/baseItems';
 import { traits } from '../data/traits';
 import { fightingStyles } from '../data/fightingStyles';
+import { monsters } from '../data/monsters';
 import { uniqueSlug } from '../utils/slug';
 import { ReferenceType } from './referenceTypes';
 
@@ -30,6 +31,7 @@ export function buildReferenceRows(): ReferenceRow[] {
     for (const sc of subclasses) rows.push({ type: 'subclass', key: sc.id, data: sc });
     for (const f of feats) rows.push({ type: 'feat', key: f.id, data: f });
     for (const fs of fightingStyles) rows.push({ type: 'fightingStyle', key: fs.id, data: fs });
+    for (const m of monsters) rows.push({ type: 'monster', key: m.id, data: m });
 
     // classFeatures.ts is a map keyed by classId -> ClassFeature[]; each
     // class's whole feature list is one ReferenceItem row.

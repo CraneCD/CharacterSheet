@@ -162,6 +162,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
                 level: true,
                 updatedAt: true,
                 data: true,
+                campaign: { select: { id: true, name: true } },
             }
         });
         // The dashboard cards only show the portrait and HP from `data`; strip
@@ -194,16 +195,23 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
 
         const character = await prisma.character.findUnique({
             where: { id: characterId },
+            include: { campaign: { select: { id: true, name: true, dmId: true } } },
         });
 
         if (!character) {
             return res.status(404).json({ error: 'Character not found' });
         }
 
-        // Check ownership or public/campaign access (simplified for MVP: ownership only)
-        if (character.userId !== userId && !character.isPublic) {
+        // The owner edits; the DM of the character's campaign (or anyone, for a
+        // public character) gets a read-only view. Write routes stay owner-only.
+        const isOwner = character.userId === userId;
+        const isCampaignDm = character.campaign?.dmId === userId;
+        if (!isOwner && !isCampaignDm && !character.isPublic) {
             return res.status(403).json({ error: 'Access denied' });
         }
+        const access = isOwner ? 'owner' : isCampaignDm ? 'dm' : 'public';
+        const { campaign: campaignRow, ...characterFields } = character;
+        const campaign = campaignRow ? { id: campaignRow.id, name: campaignRow.name } : null;
 
         // Initialize hit dice for existing characters that don't have it
         const data = character.data as any;
@@ -238,9 +246,9 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         }
 
         // Persist any back-filled defaults so this initialization runs once
-        // per character rather than on every read. (Values are derived from
-        // the character itself, so a public viewer triggering the write is fine.)
-        if (dataChanged) {
+        // per character rather than on every read. Only the owner's reads
+        // write: viewers get the same defaults without touching the sheet.
+        if (dataChanged && isOwner) {
             await prisma.character.update({
                 where: { id: characterId },
                 data: { data }
@@ -248,7 +256,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
         }
 
         // Return character with potentially initialized hit dice and resources
-        const result = { ...character, data };
+        const result = { ...characterFields, data, campaign, access };
         res.json(result);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch character' });

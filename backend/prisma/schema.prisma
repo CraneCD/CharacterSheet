@@ -10,85 +10,140 @@ datasource db {
 }
 
 model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
-  passwordHash String
-  name         String?
-  isAdmin      Boolean    @default(false)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  characters   Character[]
-  campaigns    Campaign[] // Campaigns this user DMs
+  id                  String           @id @default(uuid())
+  email               String           @unique
+  passwordHash        String
+  name                String?
+  isAdmin             Boolean          @default(false)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  characters          Character[]
+  campaigns           Campaign[] // Campaigns this user DMs
   campaignMemberships CampaignMember[]
-  items        Item[]     // Homebrew items created by this user
+  items               Item[] // Homebrew items created by this user
+  monsters            Monster[] // Custom monsters for this user's encounters
 }
 
 model Character {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  campaignId  String?
-  campaign    Campaign? @relation(fields: [campaignId], references: [id])
-  
-  name        String
-  race        String
-  class       String
-  level       Int      @default(1)
-  
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  campaignId String?
+  // A character is in at most one campaign; deleting the campaign frees it.
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  name  String
+  race  String
+  class String
+  level Int    @default(1)
+
   // Core Stats (JSON for flexibility in MVP)
   // Includes: abilityScores, skills, combatStats (HP, AC), features, spells, equipment
-  data        Json
-  
-  isPublic    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  data Json
+
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([campaignId])
 }
 
 model Campaign {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   dmId        String
-  dm          User     @relation(fields: [dmId], references: [id])
+  dm          User    @relation(fields: [dmId], references: [id])
   name        String
   description String?
-  joinCode    String   @unique // Simple code for players to join
-  
-  characters  Character[]
-  members     CampaignMember[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  joinCode    String  @unique // Simple code for players to join
+  notes       String? // DM-only notes (NPCs, plot threads, ...)
+
+  characters Character[]
+  members    CampaignMember[]
+  encounters Encounter[]
+  sessions   CampaignSession[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([dmId])
 }
 
 model CampaignMember {
-  id          String   @id @default(uuid())
-  campaignId  String
-  campaign    Campaign @relation(fields: [campaignId], references: [id])
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  
-  joinedAt    DateTime @default(now())
+  id         String   @id @default(uuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+
+  joinedAt DateTime @default(now())
 
   @@unique([campaignId, userId])
   @@index([campaignId])
   @@index([userId])
 }
 
+// A fight the DM plans and runs. `data` holds the combatants (party members
+// by characterId, monsters with their own HP), round and whose turn it is;
+// see frontend/lib/initiative.ts. At most one encounter per campaign is
+// `active`, and players see a trimmed view of it.
+model Encounter {
+  id         String   @id @default(uuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  name       String
+  status     String   @default("planned") // planned | active | completed
+  data       Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId])
+}
+
+// Session log: the recap is shared with the players, dmNotes is not.
+model CampaignSession {
+  id         String    @id @default(uuid())
+  campaignId String
+  campaign   Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  title      String
+  playedOn   DateTime?
+  recap      String    @default("")
+  dmNotes    String    @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId])
+}
+
+// A DM's own stat blocks (homebrew or reskinned), usable in any of their
+// campaigns. Same shape as the SRD monsters in ReferenceItem (type
+// "monster"); see backend/src/lib/monsterSchema.ts.
+model Monster {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name    String
+  data    Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
 model Item {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   name        String
   description String
-  properties  Json?    // Damage, weight, cost, etc.
-  isHomebrew  Boolean  @default(false)
-  ownerId     String?  // If homebrew, who created it
-  owner       User?    @relation(fields: [ownerId], references: [id])
+  properties  Json? // Damage, weight, cost, etc.
+  isHomebrew  Boolean @default(false)
+  ownerId     String? // If homebrew, who created it
+  owner       User?   @relation(fields: [ownerId], references: [id])
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Admin-editable game reference data (spells, races, classes, backgrounds,

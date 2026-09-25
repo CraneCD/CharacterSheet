@@ -10,6 +10,7 @@ export const REFERENCE_TYPES = [
     'baseItem',
     'trait',
     'fightingStyle',
+    'monster',
 ] as const;
 
 export type ReferenceType = typeof REFERENCE_TYPES[number];

@@ -170,4 +170,18 @@ router.get('/fighting-styles', async (req, res) => {
     res.json(await listOf('fightingStyle'));
 });
 
+// SRD monster stat blocks (for the DM's bestiary and encounters)
+router.get('/monsters', async (req, res) => {
+    res.json(await listOf('monster'));
+});
+
+router.get('/monsters/:id', async (req, res) => {
+    const monsters = await listOf('monster');
+    const monster = monsters.find(m => m.id === req.params.id);
+    if (!monster) {
+        return res.status(404).json({ error: 'Monster not found' });
+    }
+    res.json(monster);
+});
+
 export default router;
