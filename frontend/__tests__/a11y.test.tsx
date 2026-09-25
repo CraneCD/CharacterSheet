@@ -36,6 +36,7 @@ import BestiaryPanel from '@/app/campaigns/[id]/components/BestiaryPanel';
 import SessionsPanel from '@/app/campaigns/[id]/components/SessionsPanel';
 import LootPanel from '@/app/campaigns/[id]/components/LootPanel';
 import ImportPrepDialog from '@/app/campaigns/components/ImportPrepDialog';
+import GiveLootDialog from '@/app/campaigns/[id]/components/GiveLootDialog';
 
 expect.extend(toHaveNoViolations);
 
@@ -220,6 +221,16 @@ describe('accessibility (axe)', () => {
             await expectNoViolations(container);
             fireEvent.click(screen.getByRole('button', { name: '+ Add item' }));
             await expectNoViolations();
+        });
+
+        it('give loot dialogs: one item, a stack, and coins', async () => {
+            const base = { id: 'i1', campaignId: 'camp-1', name: 'Potion', description: '', rarity: '', quantity: 1, value: '', revealed: true, heldBy: null, createdAt: '', updatedAt: '' };
+            const recipients = [{ id: 'char-1', name: 'Ireena' }, { id: 'char-2', name: 'Ismark' }];
+            for (const item of [base, { ...base, quantity: 4 }, { ...base, coins: { gp: 30, sp: 4 } }]) {
+                const { unmount } = render(<ToastProvider><GiveLootDialog campaignId="camp-1" item={item} recipients={recipients} partySize={2} isDm onClose={() => {}} onGiven={() => {}} /></ToastProvider>);
+                await expectNoViolations();
+                unmount();
+            }
         });
 
         it('prep import dialog with a preview', async () => {

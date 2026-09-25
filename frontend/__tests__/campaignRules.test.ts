@@ -9,6 +9,7 @@ import {
     parseBonusList, parseSaves, rollMonsterHp, xpForCr,
 } from '@/lib/monsters';
 import { describePrepCounts, parsePrepFile, prepFileName } from '@/lib/campaignPrep';
+import { coinsLeft, evenCoinShare, formatCoins, listNames, normalizeCoins, splitEvenly } from '@/lib/loot';
 import { buildDerivedStats, derivedStatsChanged, formatJoinCode, formatSessionDate, partyStats, PartyMemberDm } from '@/lib/campaigns';
 
 const goblin: Monster = {
@@ -214,5 +215,26 @@ describe('campaign prep files', () => {
     it('names downloads after the campaign', () => {
         expect(prepFileName('The Shattered Obelisk!')).toBe('the_shattered_obelisk.prep.json');
         expect(prepFileName('   ')).toBe('campaign.prep.json');
+    });
+});
+
+describe('loot helpers', () => {
+    it('reads and formats coin piles', () => {
+        expect(normalizeCoins({ gp: 350, sp: 0, cp: 2.7, junk: 5 })).toEqual({ gp: 350, cp: 2 });
+        expect(normalizeCoins({ gp: 0 })).toBeNull();
+        expect(formatCoins({ cp: 304, pp: 56, gp: 1350 })).toBe('56 pp, 1,350 gp, 304 cp');
+        expect(formatCoins(null)).toBe('');
+    });
+
+    it('splits evenly and says what is left over', () => {
+        expect(splitEvenly(7, 3)).toEqual({ share: 2, left: 1 });
+        expect(splitEvenly(2, 0)).toEqual({ share: 0, left: 2 });
+        expect(evenCoinShare({ pp: 56, gp: 350, sp: 189, cp: 3 }, 4)).toEqual({ pp: 14, gp: 87, sp: 47 });
+        expect(coinsLeft({ gp: 10, sp: 5 }, [{ gp: 4 }, { gp: 7, sp: 1 }])).toEqual({ pp: 0, gp: -1, ep: 0, sp: 4, cp: 0 });
+    });
+
+    it('lists names', () => {
+        expect(listNames(['Aria'])).toBe('Aria');
+        expect(listNames(['Aria', 'Borin', 'Cade'])).toBe('Aria, Borin and Cade');
     });
 });

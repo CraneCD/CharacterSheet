@@ -4,6 +4,7 @@ import { prisma } from './prisma';
 import { monsterSchema } from './monsterSchema';
 import { withUniqueJoinCode } from './campaignAccess';
 import { itemFields } from './itemSchema';
+import { normalizeCoins } from './lootDelivery';
 
 // A campaign's prep as a file: DM notes, planned sessions, encounters (with
 // the custom monsters they use) and loot. DMs export a campaign to reuse or
@@ -138,6 +139,7 @@ export async function exportPrep(campaignId: string) {
             quantity: i.quantity,
             value: i.value,
             dmNotes: i.dmNotes,
+            ...(normalizeCoins(i.coins) ? { coins: normalizeCoins(i.coins)! } : {}),
             revealed: false,
         })),
     };
@@ -199,7 +201,10 @@ export function planImport(prep: CampaignPrep, campaignId: string, dmId: string,
         shared: s.shared ?? false,
     }));
 
-    const items = prep.items.map((item, i) => ({ ...item, campaignId, name: item.name, revealed: item.revealed ?? false, ...stamp(i) }));
+    const items = prep.items.map(({ coins, ...item }, i) => {
+        const pile = normalizeCoins(coins);
+        return { ...item, ...(pile ? { coins: pile } : {}), campaignId, name: item.name, revealed: item.revealed ?? false, ...stamp(i) };
+    });
 
     return { monsters, encounters, sessions, items };
 }

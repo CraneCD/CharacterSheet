@@ -103,6 +103,13 @@ describe('planImport', () => {
         expect(plan.items[0]).toMatchObject({ campaignId: 'camp-9', name: 'Potion of Healing', quantity: 2, revealed: false });
     });
 
+    it('carries coins, dropping empty amounts', () => {
+        const withCoins = prepSchema.parse({ ...prep, items: [{ name: 'Vault Coins', coins: { gp: 350, sp: 0 } }, { name: 'Rope', coins: { gp: 0 } }] });
+        const planned = planImport(withCoins, 'camp-9', 'dm-9');
+        expect(planned.items[0]).toMatchObject({ name: 'Vault Coins', coins: { gp: 350 } });
+        expect(planned.items[1]).not.toHaveProperty('coins');
+    });
+
     it('keeps the file order: rows are stamped a millisecond apart', () => {
         const twoOfEach = prepSchema.parse({ ...prep, sessions: [...prep.sessions, { title: 'Chapter 2' }], items: [...prep.items, { name: 'Rope' }] });
         const now = new Date('2026-09-25T12:00:00.000Z');

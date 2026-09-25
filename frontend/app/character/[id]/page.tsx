@@ -52,6 +52,7 @@ import { darkvisionRange, passiveScores, traitResistances } from '@/lib/senses';
 import ClassResourcesSection from './components/sections/ClassResourcesSection';
 import CampaignPickerDialog from './components/CampaignPickerDialog';
 import DerivedStatsSync from './DerivedStatsSync';
+import LootSync from './LootSync';
 import { ReadOnlyRegion, SheetReadOnlyProvider } from './SheetReadOnly';
 import { buildDerivedStats } from '@/lib/campaigns';
 import SpellcastingSection from './components/sections/SpellcastingSection';
@@ -544,12 +545,22 @@ export default function CharacterSheet() {
                     {campaign && <Link href={`/campaigns/${campaign.id}`} className="btn btn-secondary btn-sm">Back to {campaign.name}</Link>}
                 </div>
             ) : (
-                <DerivedStatsSync
-                    characterId={character.id}
-                    stats={derivedStats}
-                    saved={data.derivedStats}
-                    onSaved={(stats) => handleUpdateCharacter({ derivedStats: stats })}
-                />
+                <>
+                    <DerivedStatsSync
+                        characterId={character.id}
+                        stats={derivedStats}
+                        saved={data.derivedStats}
+                        onSaved={(stats) => handleUpdateCharacter({ derivedStats: stats })}
+                    />
+                    {campaign && (
+                        <LootSync
+                            characterId={character.id}
+                            equipment={Array.isArray(data.equipment) ? data.equipment : []}
+                            currency={data.currency}
+                            onChange={handleUpdateCharacter}
+                        />
+                    )}
+                </>
             )}
             {/* Header */}
             <div className="sheet-header">
