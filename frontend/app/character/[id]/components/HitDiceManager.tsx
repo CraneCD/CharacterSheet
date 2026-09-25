@@ -3,6 +3,7 @@
 import { memo } from 'react';
 import { HitDice } from '@/lib/types';
 import { Button, SectionHeader } from '@/app/components/ui';
+import { useSheetReadOnly } from '../SheetReadOnly';
 
 interface HitDiceManagerProps {
     hitDice: HitDice | undefined;
@@ -12,6 +13,7 @@ interface HitDiceManagerProps {
 
 /** Hit Dice at a glance; spending happens in the Short Rest dialog and a Long Rest restores them. */
 function HitDiceManager({ hitDice: stored, onShortRest }: HitDiceManagerProps) {
+    const readOnly = useSheetReadOnly();
     const hitDice = stored || { total: 1, spent: 0, dieType: 8 };
     const available = Math.max(0, hitDice.total - hitDice.spent);
 
@@ -29,9 +31,11 @@ function HitDiceManager({ hitDice: stored, onShortRest }: HitDiceManagerProps) {
                             : 'All available'}
                     </div>
                 </div>
-                <Button variant="secondary" className="no-print" onClick={onShortRest} disabled={available <= 0}>
-                    Spend on a Short Rest…
-                </Button>
+                {!readOnly && (
+                    <Button variant="secondary" className="no-print" onClick={onShortRest} disabled={available <= 0}>
+                        Spend on a Short Rest…
+                    </Button>
+                )}
             </div>
         </div>
     );

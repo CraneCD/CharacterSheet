@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/app/components/ui';
+import { useSheetReadOnly } from '../../SheetReadOnly';
 
 export const MAX_NAME_LENGTH = 200;
 
@@ -18,6 +19,7 @@ interface CharacterNameProps {
 
 /** The character's name as the sheet's heading, with a pencil button to rename it in place. */
 export default function CharacterName({ name, onRename }: CharacterNameProps) {
+    const readOnly = useSheetReadOnly();
     const [draft, setDraft] = useState<string | null>(null);
     const [returnFocus, setReturnFocus] = useState(false);
     const editButton = useRef<HTMLButtonElement>(null);
@@ -40,7 +42,7 @@ export default function CharacterName({ name, onRename }: CharacterNameProps) {
         return (
             <div className="sheet-name">
                 <h1 className="heading sheet-name-text">{name}</h1>
-                <Button
+                {!readOnly && <Button
                     ref={editButton}
                     variant="ghost"
                     size="sm"
@@ -52,7 +54,7 @@ export default function CharacterName({ name, onRename }: CharacterNameProps) {
                     <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                         <path d="M11.2 2.3a1.5 1.5 0 0 1 2.1 2.1L5.5 12.2 2.5 13l.8-3z" />
                     </svg>
-                </Button>
+                </Button>}
             </div>
         );
     }

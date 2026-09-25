@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, memo } from 'react';
 import { api } from '@/lib/api';
 import { CharacterFeature } from '@/lib/types';
 import { describeError, useToast } from '@/app/components/ui';
+import { useSheetReadOnly } from '../SheetReadOnly';
 
 /** Collapsed list height when the card has no extra room (a taller column elsewhere lets it grow). */
 const COLLAPSED_HEIGHT = 520;
@@ -23,6 +24,7 @@ interface FeatureManagerProps {
 
 function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onUpdate }: FeatureManagerProps) {
     const toast = useToast();
+    const readOnly = useSheetReadOnly();
     const [features, setFeatures] = useState<CharacterFeature[]>(initialFeatures || []);
     const [isAdding, setIsAdding] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
@@ -124,13 +126,15 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
         <div className="card">
             <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                 Features & Traits
-                <button
-                    className="btn"
-                    style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
-                    onClick={() => setIsAdding(true)}
-                >
-                    + Add Trait
-                </button>
+                {!readOnly && (
+                    <button
+                        className="btn"
+                        style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
+                        onClick={() => setIsAdding(true)}
+                    >
+                        + Add Trait
+                    </button>
+                )}
             </h3>
 
             {isAdding && (
@@ -206,14 +210,16 @@ function FeatureManager({ characterId, initialFeatures, staticFeatures = [], onU
                                 <span style={{ fontWeight: 'bold', fontSize: '1rem' }}>{feature.name}</span>
                                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{feature.source}</span>
-                                    <button
-                                        className="btn btn-ghost"
-                                        style={{ color: 'var(--text-muted)', fontSize: '1.25rem', lineHeight: 1, padding: '0 0.25rem' }}
-                                        onClick={() => handleRemove(i)}
-                                        title="Remove"
-                                    >
-                                        &times;
-                                    </button>
+                                    {!readOnly && (
+                                        <button
+                                            className="btn btn-ghost"
+                                            style={{ color: 'var(--text-muted)', fontSize: '1.25rem', lineHeight: 1, padding: '0 0.25rem' }}
+                                            onClick={() => handleRemove(i)}
+                                            title="Remove"
+                                        >
+                                            &times;
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                             <div style={{ fontSize: '0.875rem', whiteSpace: 'pre-wrap' }}>

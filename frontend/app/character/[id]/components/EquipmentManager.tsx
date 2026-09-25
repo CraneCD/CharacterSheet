@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { CharacterItem, ItemCategory } from '@/lib/types';
 import { describeError, Modal, useToast } from '@/app/components/ui';
+import { useSheetReadOnly } from '../SheetReadOnly';
 
 interface EquipmentManagerProps {
     characterId: string;
@@ -28,6 +29,7 @@ export default function EquipmentManager({
     onCreateAction,
 }: EquipmentManagerProps) {
     const toast = useToast();
+    const readOnly = useSheetReadOnly();
     const [equipment, setEquipment] = useState<(string | CharacterItem)[]>(initialEquipment || []);
     const [baseItems, setBaseItems] = useState<CharacterItem[]>([]);
     // Full base-item reference list, keyed by id, used only to overlay live
@@ -324,13 +326,15 @@ export default function EquipmentManager({
         <div className="card">
             <h3 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 Equipment
-                <button
-                    className="btn"
-                    style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
-                    onClick={() => setIsAdding(true)}
-                >
-                    + Add Item
-                </button>
+                {!readOnly && (
+                    <button
+                        className="btn"
+                        style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
+                        onClick={() => setIsAdding(true)}
+                    >
+                        + Add Item
+                    </button>
+                )}
             </h3>
 
             {isAdding && (
@@ -490,6 +494,7 @@ export default function EquipmentManager({
                                                             <input
                                                                 type="checkbox"
                                                                 checked={!!itemObj.equipped}
+                                                                disabled={readOnly}
                                                                 onChange={() => handleEquipToggle(actualIndex, itemObj)}
                                                                 title="Equipped?"
                                                             />
@@ -507,7 +512,7 @@ export default function EquipmentManager({
                                                         </span>
                                                     </div>
                                                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                                        {itemObj.category === 'magic-item' && (
+                                                        {itemObj.category === 'magic-item' && !readOnly && (
                                                             <>
                                                                 <button
                                                                     className="btn btn-secondary"
@@ -532,16 +537,18 @@ export default function EquipmentManager({
                                                             style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
                                                             onClick={() => setExpandedIndex(isItemExpanded ? null : actualIndex)}
                                                         >
-                                                            {isItemExpanded ? 'Collapse' : 'Edit'}
+                                                            {isItemExpanded ? 'Collapse' : readOnly ? 'Details' : 'Edit'}
                                                         </button>
-                                                        <button
-                                                            className="btn btn-ghost"
-                                                            style={{ color: 'var(--text-muted)', fontSize: '1.25rem', lineHeight: 1, padding: '0 0.5rem' }}
-                                                            onClick={() => handleRemove(actualIndex)}
-                                                            title="Remove"
-                                                        >
-                                                            &times;
-                                                        </button>
+                                                        {!readOnly && (
+                                                            <button
+                                                                className="btn btn-ghost"
+                                                                style={{ color: 'var(--text-muted)', fontSize: '1.25rem', lineHeight: 1, padding: '0 0.5rem' }}
+                                                                onClick={() => handleRemove(actualIndex)}
+                                                                title="Remove"
+                                                            >
+                                                                &times;
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
 
@@ -552,6 +559,7 @@ export default function EquipmentManager({
                                                                 {itemObj.description}
                                                             </div>
                                                         )}
+                                                        <fieldset className="plain-fieldset" disabled={readOnly}>
                                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
                                                             <div>
                                                                 <label htmlFor="equipmentmanager-quantity" style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Quantity</label>
@@ -655,6 +663,7 @@ export default function EquipmentManager({
                                                                 </div>
                                                             </div>
                                                         )}
+                                                        </fieldset>
                                                     </div>
                                                 )}
                                             </li>

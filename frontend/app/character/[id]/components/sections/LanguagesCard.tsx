@@ -3,6 +3,7 @@
 import { useId, useState } from 'react';
 import { Button, SectionHeader } from '@/app/components/ui';
 import { STANDARD_LANGUAGES } from '@/lib/wizardReference';
+import { useSheetReadOnly } from '../../SheetReadOnly';
 
 interface LanguagesCardProps {
     languages: string[];
@@ -12,6 +13,7 @@ interface LanguagesCardProps {
 
 /** Languages as removable chips, with a standard-language picker and a custom field. */
 export function LanguagesEditor({ languages, onAdd, onRemove }: LanguagesCardProps) {
+    const readOnly = useSheetReadOnly();
     const [custom, setCustom] = useState('');
     const id = useId();
     const available = STANDARD_LANGUAGES.filter((lang) => !languages.includes(lang));
@@ -30,7 +32,7 @@ export function LanguagesEditor({ languages, onAdd, onRemove }: LanguagesCardPro
                     {languages.map((lang) => (
                         <li key={lang} className="chip">
                             <span>{lang}</span>
-                            <button
+                            {!readOnly && <button
                                 type="button"
                                 className="chip-remove"
                                 onClick={() => onRemove(lang)}
@@ -38,14 +40,14 @@ export function LanguagesEditor({ languages, onAdd, onRemove }: LanguagesCardPro
                                 title="Remove language"
                             >
                                 &times;
-                            </button>
+                            </button>}
                         </li>
                     ))}
                 </ul>
             ) : (
                 <p className="empty-note">No languages recorded</p>
             )}
-            <div className="languages-add">
+            {!readOnly && <div className="languages-add">
                 <label className="visually-hidden" htmlFor={`${id}-standard`}>Add a standard language</label>
                 <select
                     id={`${id}-standard`}
@@ -76,7 +78,7 @@ export function LanguagesEditor({ languages, onAdd, onRemove }: LanguagesCardPro
                     />
                     <Button type="submit" variant="secondary" disabled={!custom.trim()}>Add</Button>
                 </form>
-            </div>
+            </div>}
         </div>
     );
 }

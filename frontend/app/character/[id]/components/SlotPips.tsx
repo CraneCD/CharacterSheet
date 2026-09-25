@@ -1,5 +1,7 @@
 'use client';
 
+import { useSheetReadOnly } from '../SheetReadOnly';
+
 interface SlotPipsProps {
     /** e.g. "Level 2 spell slots" or "Pact Magic slots". */
     label: string;
@@ -15,6 +17,7 @@ interface SlotPipsProps {
  * Each pip is a button, so slots can be tracked from the keyboard.
  */
 export default function SlotPips({ label, total, used, onChange, testIdPrefix }: SlotPipsProps) {
+    const readOnly = useSheetReadOnly();
     return (
         <div className="slot-pips" role="group" aria-label={`${label}: ${total - used} of ${total} left`}>
             {Array.from({ length: total }, (_, i) => {
@@ -28,6 +31,7 @@ export default function SlotPips({ label, total, used, onChange, testIdPrefix }:
                         aria-label={`Slot ${i + 1}${isUsed ? ', used' : ''}`}
                         title={isUsed ? 'Used (click to free the last used slot)' : 'Available (click to use)'}
                         data-testid={testIdPrefix ? `${testIdPrefix}-${i}` : undefined}
+                        disabled={readOnly}
                         onClick={() => onChange(isUsed && i === used - 1 ? i : i + 1)}
                     />
                 );

@@ -50,6 +50,10 @@ import { useCoreColumnFit } from './useCoreColumnFit';
 import { normalizeConditions, speedWithConditions } from '@/lib/conditions';
 import { darkvisionRange, passiveScores, traitResistances } from '@/lib/senses';
 import ClassResourcesSection from './components/sections/ClassResourcesSection';
+import CampaignPickerDialog from './components/CampaignPickerDialog';
+import DerivedStatsSync from './DerivedStatsSync';
+import { ReadOnlyRegion, SheetReadOnlyProvider } from './SheetReadOnly';
+import { buildDerivedStats } from '@/lib/campaigns';
 import SpellcastingSection from './components/sections/SpellcastingSection';
 
 export default function CharacterSheet() {
@@ -72,6 +76,7 @@ export default function CharacterSheet() {
     const [isLevelingDown, setIsLevelingDown] = useState(false);
     const [restDialog, setRestDialog] = useState<'short' | 'long' | null>(null);
     const [resting, setResting] = useState(false);
+    const [choosingCampaign, setChoosingCampaign] = useState(false);
     // Phone layout shows one section at a time (see SheetTabs)
     const [mobileTab, setMobileTab] = useState<SheetTabId>('combat');
     const sheetBodyRef = useRef<HTMLDivElement>(null);
@@ -119,6 +124,9 @@ export default function CharacterSheet() {
     const primaryClass = (character.class || character.classId || 'fighter').toLowerCase?.() || 'fighter';
     const level = character.level ?? 1;
     const characterName = character.name ?? 'Unknown';
+    // The DM of the character's campaign (or anyone, for a public sheet) sees it read-only
+    const readOnly = !!character.access && character.access !== 'owner';
+    const campaign: { id: string; name: string } | null = character.campaign ?? null;
     const renameCharacter = (name: string) => {
         const previous = character.name;
         void optimisticSave({
@@ -517,9 +525,32 @@ export default function CharacterSheet() {
         }
     };
 
+    const passives = passiveScores(skills);
+    const derivedStats = buildDerivedStats({
+        ac,
+        speed: speedNow.speed,
+        initiative: effectiveModifiers.dex,
+        passives,
+        spellSaveDc: spellNumbers?.dc,
+    });
+
     return (
+        <SheetReadOnlyProvider value={readOnly}>
         <DiceProvider conditions={activeConditions}>
         <div className="sheet" style={{ marginBottom: '2rem', ...classColorStyle(primaryClass) }}>
+            {readOnly ? (
+                <div className="sheet-readonly-banner no-print" role="status">
+                    <span>You&apos;re viewing <strong>{characterName}</strong> as the DM. Only its player can change it.</span>
+                    {campaign && <Link href={`/campaigns/${campaign.id}`} className="btn btn-secondary btn-sm">Back to {campaign.name}</Link>}
+                </div>
+            ) : (
+                <DerivedStatsSync
+                    characterId={character.id}
+                    stats={derivedStats}
+                    saved={data.derivedStats}
+                    onSaved={(stats) => handleUpdateCharacter({ derivedStats: stats })}
+                />
+            )}
             {/* Header */}
             <div className="sheet-header">
                 <div style={{ flex: '1 1 auto', minWidth: 0, maxWidth: '100%', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
@@ -528,26 +559,34 @@ export default function CharacterSheet() {
                         name={characterName}
                         classId={primaryClass}
                         level={level}
+                        disabled={readOnly}
                         onUpdate={async (dataUrl) => {
                             // null (not undefined) so removal survives JSON serialization
                             await persistData({ portrait: dataUrl }, "Couldn't save portrait");
                         }}
                     />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <Link href="/dashboard" className="no-print" style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'inline-block' }}>&larr; My Characters</Link>
+                        {readOnly && campaign ? (
+                            <Link href={`/campaigns/${campaign.id}`} className="no-print" style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'inline-block' }}>&larr; {campaign.name}</Link>
+                        ) : (
+                            <Link href="/dashboard" className="no-print" style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'inline-block' }}>&larr; My Characters</Link>
+                        )}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                             <CharacterName name={characterName} onRename={renameCharacter} />
                         <div className="sheet-actions no-print">
-                            <Button variant="secondary" size="sm" onClick={() => setRestDialog('short')}>Short Rest</Button>
-                            <Button variant="secondary" size="sm" onClick={() => setRestDialog('long')}>Long Rest</Button>
-                            <Button size="sm" onClick={() => setShowLevelUp(true)}>Level Up</Button>
+                            {!readOnly && <>
+                                <Button variant="secondary" size="sm" onClick={() => setRestDialog('short')}>Short Rest</Button>
+                                <Button variant="secondary" size="sm" onClick={() => setRestDialog('long')}>Long Rest</Button>
+                                <Button size="sm" onClick={() => setShowLevelUp(true)}>Level Up</Button>
+                            </>}
                             <Menu
                                 label="⋯"
                                 ariaLabel="More actions"
                                 items={[
                                     { label: 'Export JSON', onSelect: exportJson },
                                     { label: 'Print / PDF', onSelect: () => window.print() },
-                                    ...(character.level > 1 ? [{
+                                    ...(!readOnly ? [{ label: campaign ? 'Change campaign…' : 'Add to a campaign…', onSelect: () => setChoosingCampaign(true) }] : []),
+                                    ...(character.level > 1 && !readOnly ? [{
                                         label: isLevelingDown ? 'Leveling down…' : 'Level Down…',
                                         onSelect: () => setShowLevelDownConfirm(true),
                                         danger: true,
@@ -562,6 +601,9 @@ export default function CharacterSheet() {
                             <span>Level {level} {race.name}</span>
                             <span className="class-badge">{classNameDisplay}</span>
                             {background.name && <span>{background.name}</span>}
+                            {campaign && (
+                                <Link href={`/campaigns/${campaign.id}`} className="campaign-badge no-print">{campaign.name}</Link>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -577,7 +619,9 @@ export default function CharacterSheet() {
                     />
                     <Stat label="Prof Bonus" value={`+${pb}`} />
                     {/* Edits the base speed; feature bonuses are added on top */}
-                    <EditableStat
+                    {readOnly ? (
+                        <Stat label="Speed" value={`${speedNow.speed} ft.`} sublabel={speedNow.reason ? `(${speedNow.reason})` : undefined} />
+                    ) : <EditableStat
                         label="Speed"
                         value={baseSpeed}
                         display={`${speedNow.speed} ft.`}
@@ -588,9 +632,11 @@ export default function CharacterSheet() {
                         onSave={(value) => persistData({ speed: overrideToStore(value, speedStat.calculated) }, "Couldn't update speed")}
                         onReset={speedStat.overridden ? () => persistData({ speed: null }, "Couldn't reset speed") : undefined}
                         resetLabel={`Reset speed to ${speedStat.calculated} ft.`}
-                    />
+                    />}
                     <Stat label="Initiative" value={<RollButton label="Initiative" modifier={effectiveModifiers.dex} kind="initiative" ability="dex">{formatMod(effectiveModifiers.dex)}</RollButton>} />
-                    <EditableStat
+                    {readOnly ? (
+                        <Stat label="AC" value={<AcShield value={ac} />} highlight />
+                    ) : <EditableStat
                         label="AC"
                         value={ac}
                         display={<AcShield value={ac} />}
@@ -602,7 +648,7 @@ export default function CharacterSheet() {
                         onSave={(value) => persistData({ ac: overrideToStore(value, calculatedAC) }, "Couldn't update AC")}
                         onReset={acStat.overridden ? () => persistData({ ac: null }, "Couldn't reset AC") : undefined}
                         resetLabel={`Reset AC to calculated ${calculatedAC}`}
-                    />
+                    />}
                 </div>
             </div>
 
@@ -673,7 +719,7 @@ export default function CharacterSheet() {
                     </div>
                     <div data-tab="core">
                         <SensesCard
-                            passives={passiveScores(skills)}
+                            passives={passives}
                             darkvision={darkvisionRange(traitTexts)}
                             resistances={traitResistances(traitTexts)}
                             collapsed={isCoreCollapsed('senses')}
@@ -703,8 +749,8 @@ export default function CharacterSheet() {
                             onToggle={() => toggleCoreCard('conditions')}
                         />
                     </div>
-                    {/* Notes stretches to end the column level with the others */}
-                    <div data-tab="core" className="sheet-column-fill">
+                    {/* Notes stretches to end the column level with the others; they're the player's own */}
+                    {!readOnly && <div data-tab="core" className="sheet-column-fill">
                         <NotesCard
                             pages={Array.isArray(data.notepad?.pages) ? data.notepad!.pages : ['']}
                             onSave={async (pages) => (await persistData({ notepad: { pages } }, "Couldn't save your notes")) !== undefined}
@@ -713,7 +759,7 @@ export default function CharacterSheet() {
                             onToggle={() => toggleCoreCard('notes')}
                             className="no-print"
                         />
-                    </div>
+                    </div>}
                 </div>
 
                 {/* Middle Column: Combat & Resources */}
@@ -738,6 +784,7 @@ export default function CharacterSheet() {
 
                     {/* Class Resources */}
                     <div data-tab="combat">
+                        <ReadOnlyRegion>
                         <ClassResourcesSection
                             characterId={character.id}
                             data={data}
@@ -750,6 +797,7 @@ export default function CharacterSheet() {
                             hasChoiceSpells={!!choiceSpellIdsKey}
                             onUpdate={handleUpdateCharacter}
                         />
+                        </ReadOnlyRegion>
                     </div>
 
                     {/* Actions: attacks, spells, features and custom actions by timing */}
@@ -800,11 +848,13 @@ export default function CharacterSheet() {
 
                     {/* Currency */}
                     <div data-tab="gear">
-                        <CurrencyManager
-                            characterId={character.id}
-                            initialCurrency={data.currency}
-                            onUpdate={(currency) => handleUpdateCharacter({ currency })}
-                        />
+                        <ReadOnlyRegion>
+                            <CurrencyManager
+                                characterId={character.id}
+                                initialCurrency={data.currency}
+                                onUpdate={(currency) => handleUpdateCharacter({ currency })}
+                            />
+                        </ReadOnlyRegion>
                     </div>
 
                     {/* Features & Traits */}
@@ -849,8 +899,22 @@ export default function CharacterSheet() {
                     if (body && body.getBoundingClientRect().top < 0) body.scrollIntoView({ block: 'start' });
                 }}
             />
+            {choosingCampaign && (
+                <CampaignPickerDialog
+                    characterName={characterName}
+                    characterId={character.id}
+                    currentCampaignId={campaign?.id ?? null}
+                    onClose={() => setChoosingCampaign(false)}
+                    onSaved={(next) => {
+                        setCharacter((prev: any) => ({ ...prev, campaign: next, campaignId: next?.id ?? null }));
+                        setChoosingCampaign(false);
+                        toast.success(next ? `${characterName} is now in ${next.name}.` : `${characterName} left the campaign.`);
+                    }}
+                />
+            )}
         </div>
         </DiceProvider>
+        </SheetReadOnlyProvider>
     );
 }
 

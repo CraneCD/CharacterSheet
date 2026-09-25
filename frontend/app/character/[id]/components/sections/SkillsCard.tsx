@@ -3,6 +3,7 @@
 import { SectionHeader } from '@/app/components/ui';
 import { RollButton } from '@/app/components/dice/DiceTray';
 import { formatMod } from './format';
+import { useSheetReadOnly } from '../../SheetReadOnly';
 
 export interface SkillRow {
     name: string;
@@ -18,6 +19,7 @@ interface SkillsCardProps {
 }
 
 export default function SkillsCard({ skills, onToggleProficiency }: SkillsCardProps) {
+    const readOnly = useSheetReadOnly();
     return (
         <div className="card">
             <SectionHeader title="Skills" />
@@ -30,7 +32,8 @@ export default function SkillsCard({ skills, onToggleProficiency }: SkillsCardPr
                                 className={skill.isProficient ? 'proficient-dot proficient-toggle is-proficient' : 'proficient-dot proficient-toggle'}
                                 aria-pressed={skill.isProficient}
                                 aria-label={`${skill.name} proficiency`}
-                                title={skill.isProficient ? 'Remove proficiency' : 'Add proficiency'}
+                                title={readOnly ? (skill.isProficient ? 'Proficient' : undefined) : skill.isProficient ? 'Remove proficiency' : 'Add proficiency'}
+                                disabled={readOnly}
                                 onClick={() => onToggleProficiency(skill.name)}
                             />
                             {skill.hasExpertise && (
