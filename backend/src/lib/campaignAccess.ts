@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import { randomInt } from 'crypto';
 import express from 'express';
 import { Campaign } from '@prisma/client';
 import { prisma } from './prisma';
@@ -44,7 +44,7 @@ export const JOIN_CODE_LENGTH = 6;
 
 export function generateJoinCode(): string {
     let code = '';
-    for (let i = 0; i < JOIN_CODE_LENGTH; i++) code += CODE_ALPHABET[crypto.randomInt(CODE_ALPHABET.length)];
+    for (let i = 0; i < JOIN_CODE_LENGTH; i++) code += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
     return code;
 }
 
