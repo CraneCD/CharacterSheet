@@ -94,6 +94,25 @@ export interface CampaignSessionEntry {
     playedOn: string | null;
     recap: string;
     dmNotes?: string;
+    /** DM only: false while the session is hidden from players */
+    shared?: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+/** A loot item (CampaignItem). Players only get revealed ones, without dmNotes. */
+export interface CampaignItemEntry {
+    id: string;
+    campaignId: string;
+    name: string;
+    description: string;
+    rarity: string;
+    quantity: number;
+    value: string;
+    revealed: boolean;
+    /** Character id, or null for the party / not found yet */
+    heldBy: string | null;
+    dmNotes?: string;
     createdAt: string;
     updatedAt: string;
 }

@@ -8,6 +8,8 @@ import { CampaignSummary } from '@/lib/campaigns';
 import { Button, D20Icon, describeError, Skeleton, useToast } from '@/app/components/ui';
 import CreateCampaignDialog from './components/CreateCampaignDialog';
 import JoinCampaignDialog from './components/JoinCampaignDialog';
+import ImportPrepDialog from './components/ImportPrepDialog';
+import { describePrepCounts } from '@/lib/campaignPrep';
 
 function CampaignCard({ campaign }: { campaign: CampaignSummary }) {
     const players = campaign.memberCount === 1 ? '1 player' : `${campaign.memberCount} players`;
@@ -34,7 +36,7 @@ export default function CampaignsPage() {
     const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
-    const [dialog, setDialog] = useState<'create' | 'join' | null>(null);
+    const [dialog, setDialog] = useState<'create' | 'join' | 'import' | null>(null);
     const router = useRouter();
     const toast = useToast();
 
@@ -57,6 +59,7 @@ export default function CampaignsPage() {
                 <h1 className="heading" style={{ marginBottom: 0 }}>Campaigns</h1>
                 <div className="page-header-actions">
                     <Button variant="secondary" onClick={() => setDialog('join')}>Join with a code</Button>
+                    <Button variant="secondary" onClick={() => setDialog('import')}>From a prep file</Button>
                     <Button onClick={() => setDialog('create')}>New campaign</Button>
                 </div>
             </div>
@@ -114,6 +117,16 @@ export default function CampaignsPage() {
                     onClose={() => setDialog(null)}
                     onCreated={(campaign) => {
                         toast.success(`Created "${campaign.name}". Share the join code with your players.`);
+                        router.push(`/campaigns/${campaign.id}`);
+                    }}
+                />
+            )}
+            {dialog === 'import' && (
+                <ImportPrepDialog
+                    onClose={() => setDialog(null)}
+                    onImported={({ campaign, counts }) => {
+                        if (!campaign) return;
+                        toast.success(`Created "${campaign.name}" with ${describePrepCounts(counts)}.`);
                         router.push(`/campaigns/${campaign.id}`);
                     }}
                 />

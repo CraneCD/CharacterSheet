@@ -6,6 +6,8 @@ import { displayUserName, getCampaignRole, loadCampaign, normalizeJoinCode, with
 import { basicCharacterView, dmCharacterView, playerEncounterView } from '../lib/campaignViews';
 import encounterRoutes from './encounters';
 import sessionRoutes from './sessions';
+import itemRoutes from './items';
+import { exportPrep, importAsNewCampaign, importIntoCampaign, prepSchema } from '../lib/campaignPrep';
 
 const router = express.Router();
 
@@ -134,6 +136,17 @@ router.post('/join', async (req: AuthRequest, res) => {
     }
 });
 
+// Start a new campaign (you're its DM) from a prep file
+router.post('/import', async (req: AuthRequest, res) => {
+    const parsed = prepSchema.safeParse(req.body);
+    if (!parsed.success) return sendValidationError(res, parsed.error);
+    try {
+        res.status(201).json(await importAsNewCampaign(parsed.data, req.user!.id));
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to import the campaign' });
+    }
+});
+
 // Move one of your characters into a campaign you're in, or out of its campaign (campaignId: null)
 router.put('/assign-character', async (req: AuthRequest, res) => {
     const parsed = z.object({ characterId: z.string().max(64), campaignId: z.string().max(64).nullable() }).safeParse(req.body);
@@ -253,7 +266,32 @@ router.delete('/:id/members/:userId', async (req: AuthRequest, res) => {
     }
 });
 
+// Download the campaign's prep (notes, sessions, encounters, custom monsters, loot)
+router.get('/:id/prep', async (req: AuthRequest, res) => {
+    try {
+        const loaded = await loadCampaign(req, res, { dmOnly: true });
+        if (!loaded) return;
+        res.json(await exportPrep(loaded.campaign.id));
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to export the campaign' });
+    }
+});
+
+// Add a prep file's content to this campaign
+router.post('/:id/prep', async (req: AuthRequest, res) => {
+    const parsed = prepSchema.safeParse(req.body);
+    if (!parsed.success) return sendValidationError(res, parsed.error);
+    try {
+        const loaded = await loadCampaign(req, res, { dmOnly: true });
+        if (!loaded) return;
+        res.json(await importIntoCampaign(parsed.data, loaded.campaign, req.user!.id));
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to import into the campaign' });
+    }
+});
+
 router.use('/:id/encounters', encounterRoutes);
 router.use('/:id/sessions', sessionRoutes);
+router.use('/:id/items', itemRoutes);
 
 export default router;

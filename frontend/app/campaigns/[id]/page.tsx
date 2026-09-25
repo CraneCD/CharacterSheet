@@ -17,10 +17,14 @@ import BestiaryPanel from './components/BestiaryPanel';
 import PlayerEncounterCard from './components/PlayerEncounterCard';
 import BringCharacterDialog from './components/BringCharacterDialog';
 import EditCampaignDialog from './components/EditCampaignDialog';
+import LootPanel from './components/LootPanel';
+import ImportPrepDialog from '../components/ImportPrepDialog';
+import { describePrepCounts, downloadPrep } from '@/lib/campaignPrep';
 
-type TabId = 'party' | 'sessions' | 'encounters' | 'bestiary' | 'notes';
-const DM_TABS: TabId[] = ['party', 'sessions', 'encounters', 'bestiary', 'notes'];
-const TAB_LABELS: Record<TabId, string> = { party: 'Party', sessions: 'Sessions', encounters: 'Encounters', bestiary: 'Bestiary', notes: 'Notes' };
+type TabId = 'party' | 'sessions' | 'encounters' | 'loot' | 'bestiary' | 'notes';
+const DM_TABS: TabId[] = ['party', 'sessions', 'encounters', 'loot', 'bestiary', 'notes'];
+const PLAYER_TABS: TabId[] = ['party', 'sessions', 'loot'];
+const TAB_LABELS: Record<TabId, string> = { party: 'Party', sessions: 'Sessions', encounters: 'Encounters', loot: 'Loot', bestiary: 'Bestiary', notes: 'Notes' };
 
 /** Party HP and turn order refresh on their own: quickly while a fight is on. */
 const POLL_MS = 30_000;
@@ -34,12 +38,14 @@ export default function CampaignPage() {
     const [loadError, setLoadError] = useState('');
     const [notFound, setNotFound] = useState(false);
     const [tab, setTab] = useState<TabId>('party');
-    const [dialog, setDialog] = useState<'edit' | 'delete' | 'leave' | 'bring' | null>(null);
+    const [dialog, setDialog] = useState<'edit' | 'delete' | 'leave' | 'bring' | 'import' | null>(null);
+    // Remounts the tabs' panels after an import so they load the new content
+    const [importCount, setImportCount] = useState(0);
     const [removing, setRemoving] = useState<{ userId: string; name: string } | null>(null);
     const [busy, setBusy] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
 
-    const refresh = useCallback(() => {
+    const refresh = useCallback(() => (
         api.get(`/campaigns/${id}`)
             .then((c: CampaignDetail) => {
                 setCampaign(c);
@@ -48,8 +54,8 @@ export default function CampaignPage() {
             .catch((err) => {
                 if (err instanceof ApiError && err.status === 404) setNotFound(true);
                 else setLoadError(describeError("Couldn't load this campaign", err));
-            });
-    }, [id]);
+            })
+    ), [id]);
 
     useEffect(() => {
         setUserId(getStoredUserId());
@@ -90,7 +96,7 @@ export default function CampaignPage() {
     }
 
     const isDm = campaign.role === 'dm';
-    const tabs: TabItem<TabId>[] = (isDm ? DM_TABS : (['party', 'sessions'] as TabId[])).map((t) => ({ id: t, label: TAB_LABELS[t] }));
+    const tabs: TabItem<TabId>[] = (isDm ? DM_TABS : PLAYER_TABS).map((t) => ({ id: t, label: TAB_LABELS[t] }));
     const activeTab = tabs.some((t) => t.id === tab) ? tab : 'party';
 
     const deleteCampaign = async () => {
@@ -126,6 +132,14 @@ export default function CampaignPage() {
 
     const active = campaign.activeEncounter;
 
+    const exportPrep = async () => {
+        try {
+            downloadPrep(await api.get(`/campaigns/${campaign.id}/prep`));
+        } catch (err) {
+            toast.error(describeError("Couldn't export the campaign", err));
+        }
+    };
+
     return (
         <div className="campaign-page">
             <div className="page-header">
@@ -151,6 +165,8 @@ export default function CampaignPage() {
                         items={isDm
                             ? [
                                 { label: 'Edit details…', onSelect: () => setDialog('edit') },
+                                { label: 'Export prep', onSelect: exportPrep, separatorBefore: true },
+                                { label: 'Import prep…', onSelect: () => setDialog('import') },
                                 { label: 'Delete campaign…', onSelect: () => setDialog('delete'), danger: true, separatorBefore: true },
                             ]
                             : [
@@ -165,7 +181,7 @@ export default function CampaignPage() {
 
             <Tabs tabs={tabs} active={activeTab} onChange={selectTab} label="Campaign sections" idPrefix="campaign" />
 
-            <div {...tabPanelProps('campaign', activeTab)} className="campaign-panel">
+            <div {...tabPanelProps('campaign', activeTab)} className="campaign-panel" key={importCount}>
                 {activeTab === 'party' && (
                     <div className={isDm && campaign.joinCode ? 'campaign-party-layout' : undefined}>
                         <PartyPanel
@@ -185,6 +201,7 @@ export default function CampaignPage() {
                 )}
                 {activeTab === 'sessions' && <SessionsPanel campaignId={campaign.id} isDm={isDm} />}
                 {activeTab === 'encounters' && isDm && <EncountersPanel campaignId={campaign.id} party={campaign.party} />}
+                {activeTab === 'loot' && <LootPanel campaignId={campaign.id} isDm={isDm} party={campaign.party} />}
                 {activeTab === 'bestiary' && isDm && <BestiaryPanel />}
                 {activeTab === 'notes' && isDm && (
                     <NotesPanel
@@ -204,6 +221,18 @@ export default function CampaignPage() {
                     onSaved={(update) => {
                         setCampaign((c) => (c ? { ...c, ...update } : c));
                         setDialog(null);
+                    }}
+                />
+            )}
+            {dialog === 'import' && (
+                <ImportPrepDialog
+                    into={{ id: campaign.id, name: campaign.name }}
+                    onClose={() => setDialog(null)}
+                    onImported={({ counts }) => {
+                        setDialog(null);
+                        toast.success(`Imported ${describePrepCounts(counts)}.`);
+                        // Remount the panels once the merged notes etc. have arrived
+                        void refresh().then(() => setImportCount((n) => n + 1));
                     }}
                 />
             )}

@@ -16,6 +16,7 @@ interface SessionDraft {
     playedOn: string;
     recap: string;
     dmNotes: string;
+    shared: boolean;
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -40,7 +41,7 @@ function SessionForm({ draft, sessionNumber, onClose, onSaved, campaignId }: {
         }
         setSaving(true);
         setError('');
-        const body = { title: value.title.trim(), playedOn: value.playedOn || null, recap: value.recap, dmNotes: value.dmNotes };
+        const body = { title: value.title.trim(), playedOn: value.playedOn || null, recap: value.recap, dmNotes: value.dmNotes, shared: value.shared };
         try {
             const saved = value.id
                 ? await api.put(`/campaigns/${campaignId}/sessions/${value.id}`, body)
@@ -65,6 +66,10 @@ function SessionForm({ draft, sessionNumber, onClose, onSaved, campaignId }: {
                 <Field label="DM notes" hint="Only you see these: what's coming, loose threads, loot to hand out.">
                     {(p) => <textarea {...p} className="input" rows={4} maxLength={20000} value={value.dmNotes} onChange={(e) => set({ dmNotes: e.target.value })} />}
                 </Field>
+                <label className="checkbox-row">
+                    <input type="checkbox" checked={value.shared} onChange={(e) => set({ shared: e.target.checked })} />
+                    Players can see this session (its title and recap)
+                </label>
                 {error && <div className="form-error" role="alert">{error}</div>}
                 <div className="modal-footer">
                     <Button variant="secondary" onClick={onClose} disabled={saving}>Cancel</Button>
@@ -115,7 +120,7 @@ export default function SessionsPanel({ campaignId, isDm }: SessionsPanelProps) 
                 id="sessions-title"
                 as="h2"
                 actions={isDm ? (
-                    <Button size="sm" onClick={() => setEditing({ title: `Session ${count + 1}`, playedOn: today(), recap: '', dmNotes: '' })}>
+                    <Button size="sm" onClick={() => setEditing({ title: `Session ${count + 1}`, playedOn: today(), recap: '', dmNotes: '', shared: true })}>
                         + Log a session
                     </Button>
                 ) : undefined}
@@ -136,9 +141,10 @@ export default function SessionsPanel({ campaignId, isDm }: SessionsPanelProps) 
                             <div className="session-item-head">
                                 <h3 className="session-title">{s.title}</h3>
                                 {s.playedOn && <span className="session-date">{formatSessionDate(s.playedOn)}</span>}
+                                {isDm && s.shared === false && <span className="kind-badge">Hidden from players</span>}
                                 {isDm && (
                                     <span className="session-actions">
-                                        <Button variant="ghost" size="sm" onClick={() => setEditing({ id: s.id, title: s.title, playedOn: toDateInput(s.playedOn), recap: s.recap, dmNotes: s.dmNotes ?? '' })}>Edit</Button>
+                                        <Button variant="ghost" size="sm" onClick={() => setEditing({ id: s.id, title: s.title, playedOn: toDateInput(s.playedOn), recap: s.recap, dmNotes: s.dmNotes ?? '', shared: s.shared !== false })}>Edit</Button>
                                         <Button variant="ghost" size="sm" onClick={() => setDeleting(s)} aria-label={`Delete ${s.title}`}>Delete</Button>
                                     </span>
                                 )}

@@ -78,7 +78,7 @@ API errors are thrown as `ApiError` (`status` + the server's `error` text as `me
 - **Character creation:** the wizard autosaves a draft per user in `localStorage` (`frontend/lib/characterDraft.ts`); the dashboard offers to continue or discard it. Step components must restore their state from props when revisited (see `StepAbilities`). Import/export parsing and file naming live in `frontend/lib/characterTransfer.ts`.
 - **Accessibility:** tie every label to its control (`htmlFor`/`id`, or `TextField`), make clickable things buttons (see `selectableProps` for card-style choices), and keep `frontend/__tests__/a11y.test.tsx` (jest-axe) passing when adding screens.
 - **Sheet structure:** the sheet page composes cards from `app/character/[id]/components/sections`; rules math lives in `frontend/lib` (`armorClass.ts`, `spellcastingSetup.ts`, `hp.ts`, `rest.ts`, `spellFilters.ts`). Add new rules logic there with tests rather than inline in render.
-- **Campaigns:** pages live in `app/campaigns` (list → hub `[id]` with Party / Sessions / Encounters / Bestiary / Notes tabs → tracker `[id]/encounters/[encounterId]`). API shapes and the DM's party numbers are in `lib/campaigns.ts`; encounter rules in `lib/initiative.ts` (turn order, damage, XP) and `lib/encounterDifficulty.ts` (2024 XP budgets); stat block helpers in `lib/monsters.ts`. Pages refresh with `usePolling` (no websockets). Players never see another player's sheet or the DM's notes; the backend enforces this in `backend/src/lib/campaignViews.ts`.
+- **Campaigns:** pages live in `app/campaigns` (list → hub `[id]` with Party / Sessions / Encounters / Loot / Bestiary / Notes tabs → tracker `[id]/encounters/[encounterId]`). Loot items are hidden from players until `revealed`; sessions until `shared`. Prep files (`lib/campaignPrep.ts`, format `dnd55e-campaign-prep`) carry a campaign's notes, sessions, encounters, custom monsters and loot: DMs export them from the hub menu and import them as a new campaign or into one; nothing group-specific (players, characters, rolls, holders) travels. API shapes and the DM's party numbers are in `lib/campaigns.ts`; encounter rules in `lib/initiative.ts` (turn order, damage, XP) and `lib/encounterDifficulty.ts` (2024 XP budgets); stat block helpers in `lib/monsters.ts`. Pages refresh with `usePolling` (no websockets). Players never see another player's sheet or the DM's notes; the backend enforces this in `backend/src/lib/campaignViews.ts`.
 - **Read-only sheet:** the DM of a character's campaign opens the real sheet with `access: 'dm'`. `SheetReadOnlyProvider` (`app/character/[id]/SheetReadOnly.tsx`) hides edit controls: new sheet controls should check `useSheetReadOnly()` (or sit in `ReadOnlyRegion`). The owner's sheet saves `data.derivedStats` (AC, passives, spell DC) via `DerivedStatsSync` so the party view shows real numbers.
 - **Print:** `@media print` in `globals.css` lays the sheet out for paper; phone-only rules are `@media screen and (max-width: 767px)` so they never apply to print.
 - **Theme:** dark by default, light follows the OS or the nav toggle (`data-theme` on `<html>`, see `frontend/lib/theme.ts`).
@@ -92,7 +92,7 @@ API errors are thrown as `ApiError` (`status` + the server's `error` text as `me
 Routes are mounted in `backend/src/index.ts`:
 - `/api/auth` — register, login
 - `/api/characters` — CRUD; protected by `authenticateToken` middleware
-- `/api/campaigns` — CRUD, join by code, leave/remove members, `PUT /assign-character`; nested `/:id/encounters` (DM only) and `/:id/sessions`. Access checks go through `loadCampaign` in `backend/src/lib/campaignAccess.ts` (404 for campaigns you aren't in)
+- `/api/campaigns` — CRUD, join by code, leave/remove members, `PUT /assign-character`; nested `/:id/encounters` (DM only), `/:id/sessions` and `/:id/items` (loot). Prep files: `POST /import` (new campaign), `GET|POST /:id/prep` (export / import into), one transaction each, in `backend/src/lib/campaignPrep.ts`. Access checks go through `loadCampaign` in `backend/src/lib/campaignAccess.ts` (404 for campaigns you aren't in)
 - `/api/monsters` — a DM's custom monsters (same shape as SRD monsters, `backend/src/lib/monsterSchema.ts`)
 - `/api/reference` — D&D reference data (classes, races, spells, feats, monsters, ...) served from the `ReferenceItem` table (admin-editable). `backend/src/data/*.ts` is the seed/sync source: `prisma db seed` fills an empty DB, `npm run sync-reference` pushes later rules updates.
 
@@ -107,7 +107,8 @@ Routes are mounted in `backend/src/index.ts`:
 - **Campaign** — owned by a DM (User), players join via unique `joinCode`; `notes` are DM-only
 - **CampaignMember** — join table between Campaign and User
 - **Encounter** — a campaign's fight; `data` holds combatants (in turn order), `round`, `turn`; one `active` at a time
-- **CampaignSession** — session log entry (`recap` shared, `dmNotes` private)
+- **CampaignSession** — session log entry (`recap` shared, `dmNotes` private; `shared: false` hides it from players)
+- **CampaignItem** — loot: `revealed` to players or not, optionally `heldBy` a character, private `dmNotes`
 - **Monster** — a user's custom stat block
 
 ### CORS
@@ -116,5 +117,5 @@ The backend uses exact-match CORS validation (prevents subdomain bypass). Allowe
 
 ## Deployment
 
-- **Backend:** `backend/render.yaml` configures Render. Build: `cd .. && npm install && cd backend && npm run build`. Start: `npm start`. On Render (`RENDER` is set) the build ends with `prisma migrate deploy` (`backend/prisma/deploy-migrations.js`), so new migrations apply on deploy and a failed one aborts it; commit migrations with the code that needs them. Render installs production dependencies only (`@types/node` is dev-only there), so Node built-ins the build imports need a declaration in `backend/src/global.d.ts`. Reference data updates (`sync-reference`) aren't automatic: run it locally with `DATABASE_URL` pointed at production.
+- **Backend:** `backend/render.yaml` configures Render. Build: `cd .. && npm install && cd backend && npm run build`. Start: `npm start`. On Render (`RENDER` is set) the build ends with `prisma migrate deploy` (`backend/prisma/deploy-migrations.js`), so new migrations apply on deploy and a failed one aborts it; commit migrations with the code that needs them. Render installs production dependencies only (`@types/node` is dev-only there), so Node built-ins the build imports need a declaration in `backend/src/global.d.ts`, and only ES2018 APIs type-check there (no `trimEnd`, `flat`, `at`, ...: they pass locally only because `@types/node` adds them). Check with `NODE_ENV=production npm install && npm run build` in a clean checkout. Reference data updates (`sync-reference`) aren't automatic: run it locally with `DATABASE_URL` pointed at production.
 - **Frontend:** Vercel (Next.js native). Set `NEXT_PUBLIC_API_URL` to the Render backend URL.

@@ -8,6 +8,7 @@ import {
     averageRoll, crValue, filterMonsters, formatBonusList, formatSaves, Monster, monsterInitiative, monsterXp,
     parseBonusList, parseSaves, rollMonsterHp, xpForCr,
 } from '@/lib/monsters';
+import { describePrepCounts, parsePrepFile, prepFileName } from '@/lib/campaignPrep';
 import { buildDerivedStats, derivedStatsChanged, formatJoinCode, formatSessionDate, partyStats, PartyMemberDm } from '@/lib/campaigns';
 
 const goblin: Monster = {
@@ -190,5 +191,28 @@ describe('custom monster text fields', () => {
         expect(formatBonusList({ Perception: 4, Arcana: -1 })).toBe('Perception +4, Arcana -1');
         expect(parseSaves('Dex +5, wisdom +2, Luck +9')).toEqual({ dex: 5, wis: 2 });
         expect(formatSaves({ dex: 5, wis: 2 })).toBe('Dex +5, Wis +2');
+    });
+});
+
+describe('campaign prep files', () => {
+    const file = (extra: object = {}) => JSON.stringify({ format: 'dnd55e-campaign-prep', version: 1, campaign: { name: 'Obelisk' }, ...extra });
+
+    it('summarizes what a prep file will add', () => {
+        const result = parsePrepFile(file({ notes: 'Town', encounters: [{}, {}], monsters: [{}], items: [{}, {}, {}] }));
+        expect(result).toMatchObject({ ok: true, summary: { name: 'Obelisk', hasNotes: true, sessions: 0, encounters: 2, monsters: 1, items: 3 } });
+        expect(describePrepCounts({ sessions: 0, encounters: 2, monsters: 1, items: 3 })).toBe('2 encounters, 1 custom monster and 3 items');
+        expect(describePrepCounts({ sessions: 1, encounters: 0, monsters: 0, items: 0 })).toBe('1 session');
+    });
+
+    it('explains files it can’t use', () => {
+        expect(parsePrepFile('{oops')).toEqual({ ok: false, error: "This file isn't valid JSON." });
+        expect(parsePrepFile(JSON.stringify({ name: 'Tordek', race: 'dwarf', class: 'fighter' }))).toMatchObject({ ok: false, error: expect.stringContaining('character file') });
+        expect(parsePrepFile(file({ version: 7 }))).toMatchObject({ ok: false, error: expect.stringContaining('newer version') });
+        expect(parsePrepFile(file({ campaign: { name: ' ' } }))).toMatchObject({ ok: false, error: expect.stringContaining('campaign name') });
+    });
+
+    it('names downloads after the campaign', () => {
+        expect(prepFileName('The Shattered Obelisk!')).toBe('the_shattered_obelisk.prep.json');
+        expect(prepFileName('   ')).toBe('campaign.prep.json');
     });
 });

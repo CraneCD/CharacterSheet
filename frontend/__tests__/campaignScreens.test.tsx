@@ -8,6 +8,9 @@ import SkillsCard from '@/app/character/[id]/components/sections/SkillsCard';
 import { SheetReadOnlyProvider } from '@/app/character/[id]/SheetReadOnly';
 import { ToastProvider } from '@/app/components/ui/Toast';
 import { api } from '@/lib/api';
+import LootPanel from '@/app/campaigns/[id]/components/LootPanel';
+import SessionsPanel from '@/app/campaigns/[id]/components/SessionsPanel';
+import ImportPrepDialog from '@/app/campaigns/components/ImportPrepDialog';
 
 const push = jest.fn();
 jest.mock('next/navigation', () => ({
@@ -115,7 +118,7 @@ describe('campaign hub', () => {
         expect(screen.getByText('Poisoned')).toBeInTheDocument();
         expect(screen.getByText('ABC-234')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /Open Ireena's sheet/ })).toHaveAttribute('href', '/character/char-1');
-        expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Party', 'Sessions', 'Encounters', 'Bestiary', 'Notes']);
+        expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Party', 'Sessions', 'Encounters', 'Loot', 'Bestiary', 'Notes']);
     });
 
     it("shows players the party and the turn order, but not the DM's tools", async () => {
@@ -123,7 +126,7 @@ describe('campaign hub', () => {
         renderWithToasts(<CampaignPage />);
         expect(await screen.findByRole('heading', { name: 'Curse of Strahd' })).toBeInTheDocument();
         expect(screen.queryByText('ABC-234')).not.toBeInTheDocument();
-        expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Party', 'Sessions']);
+        expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Party', 'Sessions', 'Loot']);
         const order = screen.getByRole('region', { name: /In combat: Ambush/ });
         expect(within(order).getByText('Round 2')).toBeInTheDocument();
         expect(within(order).getByText('Zombie').closest('li')).toHaveAttribute('aria-current', 'step');
@@ -195,6 +198,100 @@ describe('combat tracker', () => {
             expect(last.data.combatants[1]).toMatchObject({ hp: { current: 0 }, defeated: true });
         });
         await screen.findByText('Saved');
+    });
+});
+
+describe('loot', () => {
+    const party = [{ id: 'char-1', userId: 'p1', name: 'Ireena', race: 'human', class: 'fighter', level: 3 }];
+    const ring = { id: 'i1', campaignId: 'camp-1', name: 'Ring of Warmth', description: 'Keeps you cozy', rarity: 'uncommon', quantity: 1, value: '', revealed: true, heldBy: 'char-1', dmNotes: 'From the dragon', createdAt: '', updatedAt: '' };
+    const potion = { ...ring, id: 'i2', name: 'Potion of Healing', rarity: 'common', quantity: 2, value: '50 gp', revealed: false, heldBy: null, dmNotes: '' };
+
+    it('shows the DM found and not-yet-found loot, and reveals items', async () => {
+        routeGets({ '/campaigns/camp-1/items': [ring, potion] });
+        mockApi.put.mockResolvedValue({ ...potion, revealed: true });
+        renderWithToasts(<LootPanel campaignId="camp-1" isDm party={party} />);
+        expect(await screen.findByText('Ring of Warmth')).toBeInTheDocument();
+        expect(screen.getByText('Uncommon · Held by Ireena')).toBeInTheDocument();
+        expect(screen.getByText('From the dragon')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Not found yet/ })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Reveal' }));
+        await waitFor(() => expect(mockApi.put).toHaveBeenCalledWith('/campaigns/camp-1/items/i2', { revealed: true }));
+        expect(screen.queryByRole('heading', { name: /Not found yet/ })).not.toBeInTheDocument();
+    });
+
+    it('shows players what the party has found, with no DM controls', async () => {
+        routeGets({ '/campaigns/camp-1/items': [{ ...ring, dmNotes: undefined }] });
+        renderWithToasts(<LootPanel campaignId="camp-1" isDm={false} party={party} />);
+        expect(await screen.findByText('Ring of Warmth')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Add item|Reveal|Hide/ })).not.toBeInTheDocument();
+    });
+
+    it('adds an item', async () => {
+        routeGets({ '/campaigns/camp-1/items': [] });
+        mockApi.post.mockImplementation(async (_url: string, body: any) => ({ ...potion, ...body, id: 'i9' }));
+        renderWithToasts(<LootPanel campaignId="camp-1" isDm party={party} />);
+        fireEvent.click(await screen.findByRole('button', { name: '+ Add item' }));
+        fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Bag of Holding' } });
+        fireEvent.change(screen.getByLabelText('Rarity'), { target: { value: 'uncommon' } });
+        fireEvent.change(screen.getByLabelText('Held by'), { target: { value: 'char-1' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save item' }));
+        await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith('/campaigns/camp-1/items', expect.objectContaining({ name: 'Bag of Holding', rarity: 'uncommon', heldBy: 'char-1', quantity: 1, revealed: false })));
+        expect(await screen.findByText('Bag of Holding')).toBeInTheDocument();
+    });
+});
+
+describe('session visibility', () => {
+    it('lets the DM hide a session from players', async () => {
+        routeGets({ '/campaigns/camp-1/sessions': [{ id: 's1', campaignId: 'camp-1', title: 'Chapter 2', playedOn: null, recap: '', dmNotes: 'Secret', shared: false, createdAt: '', updatedAt: '' }] });
+        mockApi.post.mockImplementation(async (_url: string, body: any) => ({ id: 's2', campaignId: 'camp-1', createdAt: '', updatedAt: '', ...body }));
+        renderWithToasts(<SessionsPanel campaignId="camp-1" isDm />);
+        expect(await screen.findByText('Hidden from players')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: '+ Log a session' }));
+        const shared = screen.getByLabelText(/Players can see this session/);
+        expect(shared).toBeChecked();
+        fireEvent.click(shared);
+        fireEvent.click(screen.getByRole('button', { name: 'Save session' }));
+        await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith('/campaigns/camp-1/sessions', expect.objectContaining({ shared: false })));
+    });
+});
+
+describe('campaign prep import', () => {
+    const prepFile = (contents: object) => {
+        const text = JSON.stringify(contents);
+        const file = new File([text], 'obelisk.prep.json', { type: 'application/json' });
+        // jsdom's File lacks text()
+        Object.defineProperty(file, 'text', { value: () => Promise.resolve(text) });
+        return file;
+    };
+    const prep = { format: 'dnd55e-campaign-prep', version: 1, campaign: { name: 'Obelisk', description: 'A shard falls' }, notes: 'Town', encounters: [{ name: 'Ambush', combatants: [] }], items: [{ name: 'Potion' }] };
+
+    it('previews a file, then creates the campaign from it', async () => {
+        mockApi.post.mockResolvedValue({ campaign: { id: 'camp-9', name: 'Obelisk' }, counts: { sessions: 0, encounters: 1, monsters: 0, items: 1 } });
+        const onImported = jest.fn();
+        renderWithToasts(<ImportPrepDialog onClose={() => {}} onImported={onImported} />);
+        fireEvent.change(screen.getByTestId('prep-file-input'), { target: { files: [prepFile(prep)] } });
+        expect(await screen.findByText('Obelisk')).toBeInTheDocument();
+        expect(screen.getByText(/Includes 1 encounter and 1 item, plus DM notes/)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Create campaign' }));
+        await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith('/campaigns/import', expect.objectContaining({ format: 'dnd55e-campaign-prep' })));
+        expect(onImported).toHaveBeenCalledWith(expect.objectContaining({ campaign: { id: 'camp-9', name: 'Obelisk' } }));
+    });
+
+    it('imports into an existing campaign', async () => {
+        mockApi.post.mockResolvedValue({ counts: { sessions: 0, encounters: 1, monsters: 0, items: 1 } });
+        renderWithToasts(<ImportPrepDialog into={{ id: 'camp-1', name: 'Strahd' }} onClose={() => {}} onImported={() => {}} />);
+        fireEvent.change(screen.getByTestId('prep-file-input'), { target: { files: [prepFile(prep)] } });
+        expect(await screen.findByText(/Adds 1 encounter and 1 item, and adds its notes after yours/)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+        await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith('/campaigns/camp-1/prep', expect.anything()));
+    });
+
+    it("explains a file it can't use and doesn't upload it", async () => {
+        renderWithToasts(<ImportPrepDialog onClose={() => {}} onImported={() => {}} />);
+        fireEvent.change(screen.getByTestId('prep-file-input'), { target: { files: [prepFile({ name: 'Tordek', race: 'dwarf', class: 'fighter' })] } });
+        expect(await screen.findByRole('alert')).toHaveTextContent('character file');
+        expect(screen.queryByRole('button', { name: 'Create campaign' })).not.toBeInTheDocument();
+        expect(mockApi.post).not.toHaveBeenCalled();
     });
 });
 

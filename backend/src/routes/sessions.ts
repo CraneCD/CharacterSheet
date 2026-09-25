@@ -5,7 +5,8 @@ import { prisma } from '../lib/prisma';
 import { loadCampaign } from '../lib/campaignAccess';
 
 // Mounted at /api/campaigns/:id/sessions (after authenticateToken). Everyone in
-// the campaign reads the log; only the DM writes it or sees dmNotes.
+// the campaign reads the shared sessions; only the DM writes them, sees
+// dmNotes, or sees sessions with `shared: false`.
 const router = express.Router({ mergeParams: true });
 
 const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a date like 2026-09-25');
@@ -15,6 +16,7 @@ const sessionSchema = z.object({
     playedOn: dateOnly.nullable().optional(),
     recap: z.string().max(20000).optional(),
     dmNotes: z.string().max(20000).optional(),
+    shared: z.boolean().optional(),
 });
 
 function sendValidationError(res: express.Response, error: z.ZodError) {
@@ -28,12 +30,12 @@ router.get('/', async (req: AuthRequest, res) => {
     try {
         const loaded = await loadCampaign(req, res);
         if (!loaded) return;
+        const isDm = loaded.role === 'dm';
         const sessions = await prisma.campaignSession.findMany({
-            where: { campaignId: loaded.campaign.id },
+            where: { campaignId: loaded.campaign.id, ...(isDm ? {} : { shared: true }) },
             orderBy: [{ playedOn: { sort: 'desc', nulls: 'first' } }, { createdAt: 'desc' }],
         });
-        const isDm = loaded.role === 'dm';
-        res.json(sessions.map(({ dmNotes, ...s }) => (isDm ? { ...s, dmNotes } : s)));
+        res.json(sessions.map(({ dmNotes, shared, ...s }) => (isDm ? { ...s, dmNotes, shared } : s)));
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch sessions' });
     }
@@ -45,9 +47,9 @@ router.post('/', async (req: AuthRequest, res) => {
     try {
         const loaded = await loadCampaign(req, res, { dmOnly: true });
         if (!loaded) return;
-        const { title, recap, dmNotes, playedOn } = parsed.data;
+        const { title, recap, dmNotes, playedOn, shared } = parsed.data;
         const session = await prisma.campaignSession.create({
-            data: { campaignId: loaded.campaign.id, title, recap, dmNotes, playedOn: toDate(playedOn) ?? null },
+            data: { campaignId: loaded.campaign.id, title, recap, dmNotes, shared, playedOn: toDate(playedOn) ?? null },
         });
         res.status(201).json(session);
     } catch (error) {

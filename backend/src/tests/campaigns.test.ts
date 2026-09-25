@@ -265,8 +265,11 @@ describe('sessions', () => {
         mock(prisma.campaignSession.findMany).mockResolvedValue([{ id: 's1', campaignId: 'camp-1', title: 'One', recap: 'We met', dmNotes: 'Twist next week' }]);
         const asPlayer = await request(app).get('/campaigns/camp-1/sessions').set('Authorization', PLAYER);
         expect(asPlayer.body[0]).toEqual({ id: 's1', campaignId: 'camp-1', title: 'One', recap: 'We met' });
+        // Players only get sessions the DM shared
+        expect(mock(prisma.campaignSession.findMany).mock.calls[0][0].where).toEqual({ campaignId: 'camp-1', shared: true });
         const asDm = await request(app).get('/campaigns/camp-1/sessions').set('Authorization', DM);
         expect(asDm.body[0].dmNotes).toBe('Twist next week');
+        expect(mock(prisma.campaignSession.findMany).mock.calls[1][0].where).toEqual({ campaignId: 'camp-1' });
     });
 
     it('are written by the DM only', async () => {
