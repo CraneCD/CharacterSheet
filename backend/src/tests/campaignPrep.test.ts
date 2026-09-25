@@ -102,6 +102,15 @@ describe('planImport', () => {
         expect(plan.sessions[0]).toMatchObject({ campaignId: 'camp-9', title: 'Chapter 1', shared: false, recap: '' });
         expect(plan.items[0]).toMatchObject({ campaignId: 'camp-9', name: 'Potion of Healing', quantity: 2, revealed: false });
     });
+
+    it('keeps the file order: rows are stamped a millisecond apart', () => {
+        const twoOfEach = prepSchema.parse({ ...prep, sessions: [...prep.sessions, { title: 'Chapter 2' }], items: [...prep.items, { name: 'Rope' }] });
+        const now = new Date('2026-09-25T12:00:00.000Z');
+        const planned = planImport(twoOfEach, 'camp-9', 'dm-9', now);
+        expect(planned.sessions.map((s) => s.createdAt.toISOString())).toEqual(['2026-09-25T12:00:00.000Z', '2026-09-25T12:00:00.001Z']);
+        expect(planned.items[1].createdAt.getTime() - planned.items[0].createdAt.getTime()).toBe(1);
+        expect(planned.encounters[0]).toMatchObject({ createdAt: now, updatedAt: now });
+    });
 });
 
 describe('prep routes', () => {
