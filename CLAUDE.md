@@ -17,7 +17,7 @@ npm test              # Run tests across all workspaces
 **Backend (`/backend`):**
 ```bash
 npm run dev                              # Run with nodemon
-npm run build                            # prisma generate && tsc --skipLibCheck
+npm run build                            # prisma generate && tsc --skipLibCheck (+ prisma migrate deploy on Render)
 npm run prisma:migrate                   # Run Prisma migrations
 npm run sync-reference                   # Dry run: diff src/data against the ReferenceItem table
 npm run sync-reference -- --apply        # Push rules updates (skips admin-edited rows)
@@ -116,5 +116,5 @@ The backend uses exact-match CORS validation (prevents subdomain bypass). Allowe
 
 ## Deployment
 
-- **Backend:** `backend/render.yaml` configures Render. Build: `cd .. && npm install && cd backend && npm run build`. Start: `npm start`.
+- **Backend:** `backend/render.yaml` configures Render. Build: `cd .. && npm install && cd backend && npm run build`. Start: `npm start`. On Render (`RENDER` is set) the build ends with `prisma migrate deploy` (`backend/prisma/deploy-migrations.js`), so new migrations apply on deploy and a failed one aborts it; commit migrations with the code that needs them. Render installs production dependencies only (`@types/node` is dev-only there), so Node built-ins the build imports need a declaration in `backend/src/global.d.ts`. Reference data updates (`sync-reference`) aren't automatic: run it locally with `DATABASE_URL` pointed at production.
 - **Frontend:** Vercel (Next.js native). Set `NEXT_PUBLIC_API_URL` to the Render backend URL.
