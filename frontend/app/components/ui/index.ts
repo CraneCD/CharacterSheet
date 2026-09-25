@@ -16,3 +16,5 @@ export type { MenuItem } from './Menu';
 export { selectableProps } from './selectable';
 export { default as D20Icon } from './D20Icon';
 export { default as CharacterToken } from './CharacterToken';
+export { default as Tabs, tabPanelProps } from './Tabs';
+export type { TabItem } from './Tabs';

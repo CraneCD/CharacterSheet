@@ -16,12 +16,12 @@ describe('AppShell', () => {
         pathname = '/dashboard';
     });
 
-    it('shows the main nav on signed-in pages, without the unbuilt Campaigns page', () => {
+    it('shows the main nav on signed-in pages', () => {
         render(<AppShell><p>Page</p></AppShell>);
         const nav = screen.getByRole('navigation', { name: 'Main' });
         expect(nav).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'My Characters' })).toHaveAttribute('aria-current', 'page');
-        expect(screen.queryByRole('link', { name: /campaigns/i })).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Campaigns' })).not.toHaveAttribute('aria-current');
         expect(screen.queryByRole('link', { name: 'Admin' })).not.toBeInTheDocument();
         expect(screen.getByText('Page')).toBeInTheDocument();
     });
@@ -32,6 +32,13 @@ describe('AppShell', () => {
         render(<AppShell><p>Sheet</p></AppShell>);
         expect(screen.getByRole('link', { name: 'My Characters' })).toHaveAttribute('aria-current', 'page');
         expect(screen.getByRole('link', { name: 'Admin' })).not.toHaveAttribute('aria-current');
+    });
+
+    it('marks Campaigns current on campaign and encounter pages', () => {
+        pathname = '/campaigns/abc/encounters/xyz';
+        render(<AppShell><p>Encounter</p></AppShell>);
+        expect(screen.getByRole('link', { name: 'Campaigns' })).toHaveAttribute('aria-current', 'page');
+        expect(screen.getByRole('link', { name: 'My Characters' })).not.toHaveAttribute('aria-current');
     });
 
     it('hides the nav on public pages', () => {

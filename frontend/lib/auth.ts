@@ -39,3 +39,15 @@ export function isStoredUserAdmin(): boolean {
         return false;
     }
 }
+
+/** The signed-in user's id, from the user stored at login (for "You" labels; the server decides access). */
+export function getStoredUserId(): string | null {
+    if (typeof window === 'undefined') return null;
+    try {
+        const raw = localStorage.getItem('user');
+        const user = raw ? JSON.parse(raw) : null;
+        return typeof user?.id === 'string' ? user.id : null;
+    } catch {
+        return null;
+    }
+}

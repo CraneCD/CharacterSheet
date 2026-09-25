@@ -13,6 +13,7 @@ export const REFERENCE_TYPES = [
     'baseItem',
     'trait',
     'fightingStyle',
+    'monster',
 ] as const;
 
 export type ReferenceType = typeof REFERENCE_TYPES[number];
@@ -28,6 +29,7 @@ export const TYPE_LABELS: Record<ReferenceType, string> = {
     baseItem: 'Items',
     trait: 'Traits',
     fightingStyle: 'Fighting Styles',
+    monster: 'Monsters',
 };
 
 export type FieldKind = 'text' | 'textarea' | 'number' | 'boolean' | 'stringArray' | 'select';
@@ -124,5 +126,23 @@ export const FIELD_CONFIGS: Record<ReferenceType, FieldConfig[]> = {
     fightingStyle: [
         { key: 'name', label: 'Name', kind: 'text' },
         { key: 'description', label: 'Description', kind: 'textarea' },
+    ],
+    // Abilities, saves, skills and the trait/action lists go in the JSON box
+    // (same shape as backend/src/lib/monsterSchema.ts).
+    monster: [
+        { key: 'name', label: 'Name', kind: 'text' },
+        { key: 'cr', label: 'Challenge Rating (0, 1/8, 1/4, 1/2, 1-30)', kind: 'text' },
+        { key: 'size', label: 'Size', kind: 'text' },
+        { key: 'type', label: 'Type (e.g. Undead, Fey (Goblinoid))', kind: 'text' },
+        { key: 'alignment', label: 'Alignment', kind: 'text' },
+        { key: 'ac', label: 'Armor Class', kind: 'number' },
+        { key: 'hp', label: 'Hit Points (average)', kind: 'number' },
+        { key: 'hitDice', label: 'Hit Dice (e.g. 3d6+3)', kind: 'text' },
+        { key: 'speed', label: 'Speed', kind: 'text' },
+        { key: 'initiative', label: 'Initiative modifier', kind: 'number' },
+        { key: 'senses', label: 'Senses', kind: 'text' },
+        { key: 'passivePerception', label: 'Passive Perception', kind: 'number' },
+        { key: 'languages', label: 'Languages', kind: 'text' },
+        { key: 'legacy', label: 'Legacy (hidden from pickers)', kind: 'boolean' },
     ],
 };

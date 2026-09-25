@@ -15,6 +15,7 @@ export interface CharacterSummary {
     level: number;
     updatedAt?: string;
     data?: { portrait?: string; hp?: { current: number; max: number; temp: number } };
+    campaign?: { id: string; name: string } | null;
 }
 
 interface CharacterCardProps {
@@ -54,6 +55,7 @@ export default function CharacterCard({ character, onExport, onDelete }: Charact
                             </span>
                         </div>
                     )}
+                    {character.campaign && <p className="character-card-campaign">In {character.campaign.name}</p>}
                     {edited && <p className="character-card-edited">Edited {edited}</p>}
                 </div>
             </Link>

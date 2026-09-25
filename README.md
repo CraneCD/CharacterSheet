@@ -36,7 +36,13 @@ A modern web application for creating and managing D&D 5.5e (One D&D) characters
       npx prisma migrate dev --name init
       ```
 
-3.  **Load Reference Data** (spells, species, classes, backgrounds, feats, items)
+    - On an existing database (e.g. production), apply new migrations with:
+      ```bash
+      cd backend
+      npx prisma migrate deploy
+      ```
+
+3.  **Load Reference Data** (spells, species, classes, backgrounds, feats, items, monsters)
     ```bash
     cd backend
     npx prisma db seed          # first time: fills an empty database
@@ -62,7 +68,14 @@ A modern web application for creating and managing D&D 5.5e (One D&D) characters
 ## Features Implemented (MVP)
 - **Auth**: Register, Login (JWT).
 - **Characters**: Create, List, View Sheet (Basic Stats).
-- **Campaigns**: Create, Join via Code.
+- **Campaigns**: create one as its DM or join with a code; each character plays in one campaign at a time
+  (move it from its sheet, or leave the campaign). The DM sees the party's HP, AC, passives and conditions
+  (refreshing on their own) and can open players' sheets read-only; players see who's in the party but not
+  each other's sheets.
+- **DM tools**: session log (recaps for players, private DM notes), campaign notes, a bestiary of SRD 5.2
+  monsters plus your own custom stat blocks, an encounter builder with 2024 XP budgets (Low / Moderate / High),
+  and a combat tracker (initiative, rounds, monster HP and conditions, tap-to-roll stat blocks). Players follow
+  the running fight's turn order from the campaign page.
 - **UI**: Premium Dark Theme, Responsive Layout.
 
 ## Testing

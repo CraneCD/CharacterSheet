@@ -12,6 +12,11 @@ function isCharactersPath(pathname: string): boolean {
     return pathname === '/dashboard' || pathname === '/create' || pathname.startsWith('/character/');
 }
 
+/** Campaign list, hubs and encounters. */
+function isCampaignsPath(pathname: string): boolean {
+    return pathname === '/campaigns' || pathname.startsWith('/campaigns/');
+}
+
 function NavLink({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
     return (
         <Link href={href} className="nav-link" aria-current={active ? 'page' : undefined}>
@@ -35,6 +40,7 @@ export function AppNav() {
             <Link href="/dashboard" className="nav-brand"><D20Icon className="nav-brand-icon" />D&amp;D 5.5e</Link>
             <div className="nav-links">
                 <NavLink href="/dashboard" active={isCharactersPath(pathname)}>My Characters</NavLink>
+                <NavLink href="/campaigns" active={isCampaignsPath(pathname)}>Campaigns</NavLink>
                 {isAdmin && <NavLink href="/admin" active={isAdminPath(pathname)}>Admin</NavLink>}
                 <span className="nav-divider" aria-hidden="true" />
                 <ThemeToggle />
