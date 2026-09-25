@@ -10,6 +10,7 @@ import {
 } from '@/lib/actionRows';
 import { Button, describeError, Field, SectionHeader, TextField, useToast } from '@/app/components/ui';
 import { EffectRollButton, RollButton } from '@/app/components/dice/DiceTray';
+import { useSheetReadOnly } from '../SheetReadOnly';
 
 interface ActionsCardProps {
     characterId: string;
@@ -140,6 +141,7 @@ export default function ActionsCard({
     const [tab, setTab] = useState<ActionTiming>('action');
     const [open, setOpen] = useState<Record<string, boolean>>({});
     const [basicOpen, setBasicOpen] = useState<number | null>(null);
+    const readOnly = useSheetReadOnly();
     const [adding, setAdding] = useState(false);
     const [draft, setDraft] = useState<{ name: string; type: ActionTiming; description: string }>({ name: '', type: 'action', description: '' });
     const [saving, setSaving] = useState(false);
@@ -223,11 +225,11 @@ export default function ActionsCard({
         <div className="card actions-card">
             <SectionHeader
                 title="Actions"
-                actions={
+                actions={readOnly ? undefined : (
                     <Button variant="secondary" size="sm" onClick={() => setAdding((a) => !a)} aria-expanded={adding}>
                         + Custom
                     </Button>
-                }
+                )}
             />
 
             {adding && (
@@ -305,7 +307,7 @@ export default function ActionsCard({
                                         castable={castable}
                                         open={!!open[row.key]}
                                         onToggle={() => setOpen((o) => ({ ...o, [row.key]: !o[row.key] }))}
-                                        onRemove={row.storedIndex !== undefined ? () => removeAction(row.storedIndex!) : undefined}
+                                        onRemove={row.storedIndex !== undefined && !readOnly ? () => removeAction(row.storedIndex!) : undefined}
                                     />
                                 ))}
                             </ul>

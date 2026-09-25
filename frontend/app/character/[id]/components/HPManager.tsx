@@ -6,6 +6,7 @@ import { HP } from '@/lib/types';
 import { applyDamage, applyHealing, applyTempHp, getHpStatus, HpStatus } from '@/lib/hp';
 import { ActiveConditions } from '@/lib/conditions';
 import { Button, SectionHeader, TextField, useOptimisticSave, useToast } from '@/app/components/ui';
+import { useSheetReadOnly } from '../SheetReadOnly';
 
 interface HPManagerProps {
     characterId: string;
@@ -31,6 +32,7 @@ function HPManager({ characterId, initialHP, onUpdate, conditions }: HPManagerPr
     const toast = useToast();
     const save = useOptimisticSave();
     const amountId = useId();
+    const readOnly = useSheetReadOnly();
     const [hp, setHp] = useState<HP>(initialHP || { current: 0, max: 0, temp: 0 });
     const [amount, setAmount] = useState('');
     const [critical, setCritical] = useState(false);
@@ -187,11 +189,11 @@ function HPManager({ characterId, initialHP, onUpdate, conditions }: HPManagerPr
         <div className={`card hp-card hp-${status}`}>
             <SectionHeader
                 title="Hit Points"
-                actions={
+                actions={readOnly ? undefined : (
                     <Button variant="ghost" size="sm" onClick={startEditing} aria-label="Edit hit points">
                         ✎ Edit
                     </Button>
-                }
+                )}
             />
 
             <div className="hp-summary">
@@ -225,7 +227,7 @@ function HPManager({ characterId, initialHP, onUpdate, conditions }: HPManagerPr
                 {tempPercent > 0 && <div className="hp-bar-temp" style={{ width: `${tempPercent}%` }} />}
             </div>
 
-            <div className="hp-controls no-print">
+            {!readOnly && <div className="hp-controls no-print">
                 <label className="visually-hidden" htmlFor={amountId}>Amount</label>
                 <input
                     id={amountId}
@@ -243,8 +245,8 @@ function HPManager({ characterId, initialHP, onUpdate, conditions }: HPManagerPr
                 <Button variant="ghost" onClick={handleTempHp} disabled={value <= 0} title="Set temporary hit points">
                     Temp HP
                 </Button>
-            </div>
-            {isDown && (
+            </div>}
+            {isDown && !readOnly && (
                 <label className="hp-critical-toggle no-print">
                     <input type="checkbox" checked={critical} onChange={(e) => setCritical(e.target.checked)} />
                     Critical hit (2 death save failures)
@@ -266,6 +268,7 @@ function HPManager({ characterId, initialHP, onUpdate, conditions }: HPManagerPr
                                     className={`death-save-box death-save-${type}`}
                                     aria-pressed={deathSaves[type] >= k}
                                     aria-label={`${type === 'successes' ? 'Success' : 'Failure'} ${k}`}
+                                    disabled={readOnly}
                                     onClick={() => handleDeathSave(type, k)}
                                 />
                             ))}

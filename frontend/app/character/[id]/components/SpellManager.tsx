@@ -9,6 +9,7 @@ import { getSlotsForClass, getPactMagic, THIRD_CASTER_SPELLS_KNOWN, getThirdCast
 import SpellDetailsModal from './SpellDetailsModal';
 import MagicInitiateConfigModal from './MagicInitiateConfigModal';
 import { ConfirmDialog, describeError, Modal, useToast } from '@/app/components/ui';
+import { useSheetReadOnly } from '../SheetReadOnly';
 import SpellFilterBar from './SpellFilterBar';
 import SlotPips from './SlotPips';
 import type { CastableSummary } from '@/lib/actionRows';
@@ -72,6 +73,7 @@ interface SpellManagerProps {
 }
 
 export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, initialPactSlotsUsed = 0, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel, subclassSpells, classFeatureSpells = [], bonusCantrips = 0, speciesSpells, magicInitiate, onMagicInitiateUpdate, magicInitiateSpell1Used = 1, onMagicInitiateSlotChange, onCastableChange }: SpellManagerProps) {
+    const readOnly = useSheetReadOnly();
     const toast = useToast();
     const [mySpells, setMySpells] = useState<CharacterSpell[]>(Array.isArray(initialSpells) ? initialSpells : []);
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
@@ -705,16 +707,18 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     </h3>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                         {!mi?.class ? (
-                            <button className="btn" onClick={() => setMagicInitiateModalOpen(true)} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>
-                                Set up Magic Initiate
-                            </button>
+                            !readOnly && (
+                                <button className="btn" onClick={() => setMagicInitiateModalOpen(true)} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>
+                                    Set up Magic Initiate
+                                </button>
+                            )
                         ) : (
                             <>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                                         Ability: {(spellcastingAbility || 'int').toUpperCase()}
                                     </span>
-                                    {mi?.spell1 && onMagicInitiateSlotChange && (
+                                    {mi?.spell1 && onMagicInitiateSlotChange && !readOnly && (
                                         <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
                                             <span style={{ fontSize: '0.75rem' }}>1st-level slot:</span>
                                             <div
@@ -734,9 +738,11 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                         </div>
                                     )}
                                 </div>
-                                <button className="btn btn-secondary" onClick={() => setMagicInitiateModalOpen(true)} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>
-                                    Change spells
-                                </button>
+                                {!readOnly && (
+                                    <button className="btn btn-secondary" onClick={() => setMagicInitiateModalOpen(true)} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>
+                                        Change spells
+                                    </button>
+                                )}
                             </>
                         )}
                     </div>
@@ -794,6 +800,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     )}
                 </h3>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', justifyContent: 'flex-end' }}>
+                    {!readOnly && (<>
                     {!preparedCaster && !isInnateOnly && (
                         <button
                             className="btn"
@@ -841,6 +848,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                             </button>
                         </>
                     )}
+                    </>)}
                 </div>
             </div>
 
@@ -1191,7 +1199,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                                 View
                                             </button>
                                         )}
-                                        {spell.level > 0 && !isElvenLineageSpell && !isSubclassBonusSpell && (
+                                        {spell.level > 0 && !isElvenLineageSpell && !isSubclassBonusSpell && !readOnly && (
                                             <button
                                                 className={`btn ${spellPrepared ? '' : 'btn-secondary'} btn-sm`}
                                                 onClick={() => {
@@ -1213,7 +1221,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                         {(spell.level > 0 && (isElvenLineageSpell || isSubclassBonusSpell)) && (
                                             <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 'bold' }}>Always prepared</span>
                                         )}
-                                        {!preparedCaster && !isElvenLineageSpell && !isSubclassBonusSpell && (
+                                        {!preparedCaster && !isElvenLineageSpell && !isSubclassBonusSpell && !readOnly && (
                                             <button
                                                 type="button"
                                                 className="btn btn-ghost btn-sm btn-text-danger"
@@ -1229,7 +1237,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                                 &times;
                                             </button>
                                         )}
-                                        {isWizardSpellbook && spell.level > 0 && !isElvenLineageSpell && !isSubclassBonusSpell && (
+                                        {isWizardSpellbook && spell.level > 0 && !isElvenLineageSpell && !isSubclassBonusSpell && !readOnly && (
                                             <button
                                                 type="button"
                                                 className="btn btn-ghost btn-sm btn-text-danger"
@@ -1259,9 +1267,11 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                         <h4 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 'bold', margin: 0 }}>
                             Magic Initiate ({MAGIC_INITIATE_CLASSES.find(c => c.id === magicInitiate.class)?.name ?? magicInitiate.class})
                         </h4>
-                        <button className="btn btn-secondary btn-sm" onClick={() => setMagicInitiateModalOpen(true)}>
-                            Change spells
-                        </button>
+                        {!readOnly && (
+                            <button className="btn btn-secondary btn-sm" onClick={() => setMagicInitiateModalOpen(true)}>
+                                Change spells
+                            </button>
+                        )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>

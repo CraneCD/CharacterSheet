@@ -27,15 +27,23 @@ import WizardStepper from '@/app/create/components/WizardStepper';
 import StepAbilities from '@/app/create/components/StepAbilities';
 import { EMPTY_SPELL_FILTERS } from '@/lib/spellFilters';
 import { api } from '@/lib/api';
+import CampaignsPage from '@/app/campaigns/page';
+import CampaignPage from '@/app/campaigns/[id]/page';
+import EncounterPage from '@/app/campaigns/[id]/encounters/[encounterId]/page';
+import JoinCampaignDialog from '@/app/campaigns/components/JoinCampaignDialog';
+import MonsterForm from '@/app/campaigns/components/MonsterForm';
+import BestiaryPanel from '@/app/campaigns/[id]/components/BestiaryPanel';
+import SessionsPanel from '@/app/campaigns/[id]/components/SessionsPanel';
 
 expect.extend(toHaveNoViolations);
 
 jest.mock('next/navigation', () => ({
     useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
     usePathname: () => '/dashboard',
+    useParams: () => ({ id: 'camp-1', encounterId: 'enc-1' }),
 }));
 jest.mock('@/lib/api', () => ({
-    api: { get: jest.fn(), post: jest.fn(), patch: jest.fn(), delete: jest.fn() },
+    api: { get: jest.fn(), post: jest.fn(), put: jest.fn(), patch: jest.fn(), delete: jest.fn() },
     ApiError: class ApiError extends Error {},
 }));
 
@@ -125,5 +133,84 @@ describe('accessibility (axe)', () => {
             </main>
         );
         await expectNoViolations(container);
+    });
+
+    describe('campaigns', () => {
+        const party = [{
+            id: 'char-1', userId: 'p1', name: 'Ireena', race: 'human', class: 'fighter', level: 3,
+            hp: { current: 0, max: 28, temp: 0, deathSaves: { successes: 1, failures: 0 } }, conditions: ['Prone'], exhaustion: 1, languages: [],
+        }];
+        const campaign = {
+            id: 'camp-1', name: 'Curse of Strahd', description: 'Gothic horror', role: 'dm', dm: { id: 'dm', name: 'Dana' }, joinCode: 'ABC234',
+            notes: '', members: [{ userId: 'p1', name: 'Pat', joinedAt: '2026-09-01T00:00:00Z' }], party, activeEncounter: null,
+            createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z',
+        };
+        const zombie = {
+            id: 'zombie', name: 'Zombie', size: 'Medium', type: 'Undead', ac: 8, hp: 15, hitDice: '2d8+6', speed: '20 ft.',
+            abilities: { str: 13, dex: 6, con: 16, int: 3, wis: 6, cha: 5 }, saves: { wis: 0 }, skills: { Perception: 0 }, cr: '1/4',
+            traits: [{ name: 'Undead Fortitude', description: 'It might get back up.' }],
+            actions: [{ name: 'Slam', description: 'Hit: 5 (1d8 + 1) Bludgeoning damage.', attackBonus: 3, damage: '1d8+1' }],
+        };
+        const routes: Record<string, unknown> = {
+            '/campaigns': [
+                { id: 'camp-1', name: 'Curse of Strahd', description: null, role: 'dm', dmName: 'Dana', memberCount: 1, characterCount: 1, myCharacters: [], activeEncounter: null, updatedAt: '' },
+                { id: 'camp-2', name: 'Phandelver', description: 'Mines', role: 'player', dmName: 'Sam', memberCount: 4, characterCount: 4, myCharacters: [], activeEncounter: null, updatedAt: '' },
+            ],
+            '/campaigns/camp-1': campaign,
+            '/campaigns/camp-1/encounters/enc-1': {
+                id: 'enc-1', name: 'Ambush', status: 'active', data: {
+                    round: 1, turn: 1, combatants: [
+                        { id: 'pc1', kind: 'pc', name: 'Ireena', characterId: 'char-1', initiative: 12, initiativeBonus: 1 },
+                        { id: 'z1', kind: 'monster', name: 'Zombie', monsterId: 'zombie', monsterSource: 'srd', initiative: 9, initiativeBonus: -2, ac: 8, hp: { current: 4, max: 15, temp: 0 }, conditions: ['Grappled'], xp: 50 },
+                    ],
+                },
+            },
+            '/campaigns/camp-1/sessions': [{ id: 's1', campaignId: 'camp-1', title: 'Into the mists', playedOn: '2026-09-20T00:00:00.000Z', recap: 'We met Ireena.', dmNotes: 'Strahd watches', createdAt: '', updatedAt: '' }],
+            '/reference/monsters': [zombie],
+            '/monsters': [],
+            '/characters': [],
+        };
+        beforeEach(() => {
+            (api.get as jest.Mock).mockImplementation(async (url: string) => routes[url]);
+        });
+
+        it('campaign list and join dialog', async () => {
+            const { container } = render(<ToastProvider><main><CampaignsPage /></main></ToastProvider>);
+            await screen.findByText('Phandelver');
+            await expectNoViolations(container);
+            render(<JoinCampaignDialog onClose={() => {}} onJoined={() => {}} />);
+            await expectNoViolations();
+        });
+
+        it('campaign hub (DM view)', async () => {
+            const { container } = render(<ToastProvider><main><CampaignPage /></main></ToastProvider>);
+            await screen.findByText('ABC-234');
+            await expectNoViolations(container);
+        });
+
+        it('session log and bestiary', async () => {
+            const { container } = render(
+                <ToastProvider>
+                    <main>
+                        <SessionsPanel campaignId="camp-1" isDm />
+                        <BestiaryPanel />
+                    </main>
+                </ToastProvider>
+            );
+            await screen.findByText('Into the mists');
+            await screen.findByText('Zombie');
+            await expectNoViolations(container);
+        });
+
+        it('combat tracker with a stat block', async () => {
+            const { container } = render(<ToastProvider><main><EncounterPage /></main></ToastProvider>);
+            await screen.findByRole('button', { name: /Roll Zombie: Slam/ });
+            await expectNoViolations(container);
+        });
+
+        it('custom monster form', async () => {
+            render(<MonsterForm initial={zombie} onClose={() => {}} onSaved={() => {}} />);
+            await expectNoViolations();
+        });
     });
 });

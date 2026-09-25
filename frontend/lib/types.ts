@@ -1,3 +1,5 @@
+import type { DerivedStats } from './campaigns';
+
 export interface Spell {
     id: string;
     level: number;
@@ -151,6 +153,8 @@ export interface CharacterData {
     exhaustion?: number;
     /** Character portrait as data URL (base64 image); null once removed. */
     portrait?: string | null;
+    /** AC, passives, ... as the sheet last worked them out, for the DM's party view (lib/campaigns) */
+    derivedStats?: DerivedStats;
 }
 
 export interface CharacterAction {

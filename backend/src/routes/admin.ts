@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { invalidateReferenceCache } from '../lib/referenceCache';
 import { REFERENCE_TYPES, ReferenceType, isReferenceType, withCanonicalId } from '../lib/referenceTypes';
 import { uniqueSlug } from '../utils/slug';
+import { monsterSchema } from '../lib/monsterSchema';
 
 const router = express.Router();
 
@@ -84,6 +85,7 @@ const shapeSchemas: Record<ReferenceType, z.ZodTypeAny> = {
         name: z.string().min(1),
         description: z.string().min(1),
     }).passthrough(),
+    monster: monsterSchema,
 };
 
 function parseType(req: express.Request, res: express.Response): ReferenceType | null {

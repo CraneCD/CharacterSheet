@@ -4,6 +4,7 @@ import { useId } from 'react';
 import { Button } from '@/app/components/ui';
 import { ActiveConditions, CONDITIONS, exhaustionSummary, hasActiveConditions, MAX_EXHAUSTION } from '@/lib/conditions';
 import CoreCard from './CoreCard';
+import { useSheetReadOnly } from '../../SheetReadOnly';
 
 interface ConditionsCardProps {
     active: ActiveConditions;
@@ -16,6 +17,7 @@ interface ConditionsCardProps {
 /** Condition toggles and the Exhaustion track. Active ones change rolls in the dice tray. */
 export default function ConditionsCard({ active, onChange, collapsed, autoCollapsed, onToggle }: ConditionsCardProps) {
     const exhaustionId = useId();
+    const readOnly = useSheetReadOnly();
     const on = CONDITIONS.filter((c) => active.conditions.includes(c.name));
     const any = hasActiveConditions(active);
 
@@ -43,7 +45,7 @@ export default function ConditionsCard({ active, onChange, collapsed, autoCollap
             collapsed={collapsed}
             autoCollapsed={autoCollapsed}
             onToggle={onToggle}
-            actions={any ? (
+            actions={any && !readOnly ? (
                 <Button variant="ghost" size="sm" onClick={() => onChange({ conditions: [], exhaustion: 0 })}>Clear all</Button>
             ) : undefined}
         >
@@ -55,6 +57,7 @@ export default function ConditionsCard({ active, onChange, collapsed, autoCollap
                         className="condition-chip"
                         aria-pressed={active.conditions.includes(c.name)}
                         title={c.summary}
+                        disabled={readOnly}
                         onClick={() => toggle(c.name)}
                     >
                         {c.name}
@@ -71,6 +74,7 @@ export default function ConditionsCard({ active, onChange, collapsed, autoCollap
                             className="exhaustion-pip"
                             aria-pressed={level <= active.exhaustion}
                             aria-label={`Exhaustion level ${level}`}
+                            disabled={readOnly}
                             onClick={() => setExhaustion(level)}
                         />
                     ))}

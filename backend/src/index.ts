@@ -7,6 +7,7 @@ import { prisma } from './lib/prisma';
 import authRoutes from './routes/auth';
 import characterRoutes from './routes/characters';
 import campaignRoutes from './routes/campaigns';
+import monsterRoutes from './routes/monsters';
 import referenceRoutes from './routes/reference';
 import adminRoutes from './routes/admin';
 import { getJwtSecret } from './config/jwt';
@@ -103,6 +104,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/campaigns', campaignRoutes);
+app.use('/api/monsters', monsterRoutes);
 app.use('/api/reference', referenceRoutes);
 app.use('/api/admin', adminRoutes);
 
