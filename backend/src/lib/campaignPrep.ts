@@ -143,18 +143,28 @@ export async function exportPrep(campaignId: string) {
     };
 }
 
-/** Rows to create for a prep file, with fresh ids and custom monsters owned by `dmId`. */
-export function planImport(prep: CampaignPrep, campaignId: string, dmId: string) {
+/**
+ * Rows to create for a prep file, with fresh ids and custom monsters owned by `dmId`.
+ * Rows are stamped a millisecond apart in file order: inserted together they'd
+ * otherwise share one timestamp, and lists sorted by it would come out shuffled.
+ */
+export function planImport(prep: CampaignPrep, campaignId: string, dmId: string, now = new Date()) {
+    const stamp = (i: number) => {
+        const at = new Date(now.getTime() + i);
+        return { createdAt: at, updatedAt: at };
+    };
+
     const monsterIds = new Map<string, string>();
-    const monsters = prep.monsters.map(({ ref: monsterRef, ...m }) => {
+    const monsters = prep.monsters.map(({ ref: monsterRef, ...m }, i) => {
         const id = randomUUID();
         monsterIds.set(monsterRef, id);
         const { id: _id, source: _source, ...data } = m as Record<string, unknown>;
-        return { id, ownerId: dmId, name: m.name, data: data as object };
+        return { id, ownerId: dmId, name: m.name, data: data as object, ...stamp(i) };
     });
 
-    const encounters = prep.encounters.map((e) => ({
+    const encounters = prep.encounters.map((e, i) => ({
         campaignId,
+        ...stamp(i),
         name: e.name,
         status: 'planned',
         data: {
@@ -180,15 +190,16 @@ export function planImport(prep: CampaignPrep, campaignId: string, dmId: string)
         },
     }));
 
-    const sessions = prep.sessions.map((s) => ({
+    const sessions = prep.sessions.map((s, i) => ({
         campaignId,
+        ...stamp(i),
         title: s.title,
         recap: s.recap ?? '',
         dmNotes: s.dmNotes ?? '',
         shared: s.shared ?? false,
     }));
 
-    const items = prep.items.map((i) => ({ ...i, campaignId, name: i.name, revealed: i.revealed ?? false }));
+    const items = prep.items.map((item, i) => ({ ...item, campaignId, name: item.name, revealed: item.revealed ?? false, ...stamp(i) }));
 
     return { monsters, encounters, sessions, items };
 }
