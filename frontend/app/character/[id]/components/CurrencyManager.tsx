@@ -3,6 +3,7 @@
 import { useState, useEffect, memo } from 'react';
 import { api } from '@/lib/api';
 import { Currency } from '@/lib/types';
+import { describeError, useToast } from '@/app/components/ui';
 
 interface CurrencyManagerProps {
     characterId: string;
@@ -28,27 +29,27 @@ function CurrencyManager({ characterId, initialCurrency, onUpdate }: CurrencyMan
         { key: 'cp', label: 'Copper', short: 'cp', color: 'var(--coin-cp)' }
     ];
 
+    const toast = useToast();
+
+    // Saves the change (not the total): the server applies it to the stored
+    // purse, so coins that arrived since this sheet loaded (loot from a
+    // campaign) aren't overwritten. The purse it sends back is shown.
     const handleCurrencyChange = async (type: keyof Currency, value: number) => {
         const numValue = Math.max(0, Math.floor(value));
-        const newCurrency = { ...currency, [type]: numValue };
-        setCurrency(newCurrency);
-        
-        // Convert to proper Currency type (all numbers)
-        const currencyForUpdate: Currency = {
-            cp: typeof newCurrency.cp === 'number' ? newCurrency.cp : (newCurrency.cp === '' ? 0 : parseInt(newCurrency.cp as string) || 0),
-            sp: typeof newCurrency.sp === 'number' ? newCurrency.sp : (newCurrency.sp === '' ? 0 : parseInt(newCurrency.sp as string) || 0),
-            ep: typeof newCurrency.ep === 'number' ? newCurrency.ep : (newCurrency.ep === '' ? 0 : parseInt(newCurrency.ep as string) || 0),
-            gp: typeof newCurrency.gp === 'number' ? newCurrency.gp : (newCurrency.gp === '' ? 0 : parseInt(newCurrency.gp as string) || 0),
-            pp: typeof newCurrency.pp === 'number' ? newCurrency.pp : (newCurrency.pp === '' ? 0 : parseInt(newCurrency.pp as string) || 0),
-        };
-        
+        const previous = Math.max(0, Math.floor(Number(initialCurrency?.[type]) || 0));
+        const change = numValue - previous;
+        if (change === 0) {
+            setCurrency({ ...currency, [type]: previous });
+            return;
+        }
+        setCurrency({ ...currency, [type]: numValue });
         try {
-            await api.patch(`/characters/${characterId}/data`, { currency: currencyForUpdate });
-            onUpdate(currencyForUpdate);
+            const result: { currency: Currency } = await api.post(`/characters/${characterId}/currency`, { change: { [type]: change } });
+            setCurrency({ ...result.currency });
+            onUpdate(result.currency);
         } catch (err) {
-            console.error('Failed to update currency', err);
-            // Revert on error
-            setCurrency(currency);
+            setCurrency(initialCurrency ? { ...initialCurrency } : { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 });
+            toast.error(describeError("Couldn't save your currency", err));
         }
     };
 

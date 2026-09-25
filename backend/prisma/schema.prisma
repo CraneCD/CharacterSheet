@@ -122,7 +122,9 @@ model CampaignSession {
 
 // Loot: treasure the DM has planned or handed out. Players see an item once
 // it's `revealed` (never `dmNotes`); `heldBy` is a Character in the campaign,
-// or null for the party's shared stash / not yet found.
+// or null for the party's shared stash / not yet found. `coins` makes it
+// currency ({ pp, gp, ep, sp, cp }). Giving loot to a character puts it on
+// their sheet (backend/src/lib/lootDelivery.ts).
 model CampaignItem {
   id          String   @id @default(uuid())
   campaignId  String
@@ -134,6 +136,7 @@ model CampaignItem {
   value       String   @default("")
   revealed    Boolean  @default(false)
   heldBy      String?
+  coins       Json?
   dmNotes     String   @default("")
 
   createdAt DateTime @default(now())

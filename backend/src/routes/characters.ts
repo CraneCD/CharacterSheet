@@ -6,6 +6,7 @@ import { prisma } from '../lib/prisma';
 import { getReferenceRows } from '../lib/referenceCache';
 import { withCanonicalId } from '../lib/referenceTypes';
 import { calculateAllClassResources, getSubclassMap, setSubclassMap } from '../lib/subclasses';
+import { addCoins } from '../lib/lootDelivery';
 
 // DB-backed equivalents of the old static data/*.ts imports, so admin edits
 // to classes/subclasses/class features are picked up on the next request
@@ -341,6 +342,36 @@ router.patch('/:id/data', authenticateToken, async (req: AuthRequest, res) => {
         res.json(updated);
     } catch (error) {
         res.status(500).json({ error: 'Failed to update character data' });
+    }
+});
+
+const coinChange = z.number().int().min(-10_000_000).max(10_000_000);
+const currencyChangeSchema = z.object({
+    change: z.object({ pp: coinChange, gp: coinChange, ep: coinChange, sp: coinChange, cp: coinChange }).partial().strict(),
+});
+
+// Add or spend coins. The change is applied to the stored purse (never below
+// zero), so coins that arrived meanwhile, like loot a DM just handed out,
+// survive a save from a sheet that loaded before they did. Responds with the
+// new purse.
+router.post('/:id/currency', authenticateToken, async (req: AuthRequest, res) => {
+    const parsed = currencyChangeSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.errors });
+    try {
+        for (let attempt = 0; attempt < 3; attempt++) {
+            const character = await findOwnedCharacter(req, res);
+            if (!character) return;
+            const data = (character.data ?? {}) as any;
+            const currency = addCoins(data.currency, parsed.data.change);
+            const { count } = await prisma.character.updateMany({
+                where: { id: character.id, updatedAt: character.updatedAt },
+                data: { data: { ...data, currency } },
+            });
+            if (count > 0) return res.json({ currency });
+        }
+        res.status(409).json({ error: 'The sheet changed while saving. Try again.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update currency' });
     }
 });
 

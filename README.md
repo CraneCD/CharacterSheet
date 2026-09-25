@@ -78,7 +78,9 @@ A modern web application for creating and managing D&D 5.5e (One D&D) characters
   monsters plus your own custom stat blocks, an encounter builder with 2024 XP budgets (Low / Moderate / High),
   and a combat tracker (initiative, rounds, monster HP and conditions, tap-to-roll stat blocks). Players follow
   the running fight's turn order from the campaign page.
-- **Loot and campaign prep files**: plan treasure and reveal it as the party finds it; hide sessions you're still
+- **Loot and campaign prep files**: plan treasure (items or coin piles) and reveal it as the party finds it.
+  Players claim found loot, or take their share of a stack or of the coins; the DM gives or splits anything.
+  Whatever is handed out lands on the character's sheet (equipment or currency). Hide sessions you're still
   preparing. Export a campaign's prep (notes, sessions, encounters, custom monsters, loot) as a file to reuse or
   share it, and start a new campaign from one, or add one to an existing campaign.
 - **UI**: Premium Dark Theme, Responsive Layout.

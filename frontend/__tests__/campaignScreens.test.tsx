@@ -11,6 +11,8 @@ import { api } from '@/lib/api';
 import LootPanel from '@/app/campaigns/[id]/components/LootPanel';
 import SessionsPanel from '@/app/campaigns/[id]/components/SessionsPanel';
 import ImportPrepDialog from '@/app/campaigns/components/ImportPrepDialog';
+import CurrencyManager from '@/app/character/[id]/components/CurrencyManager';
+import LootSync from '@/app/character/[id]/LootSync';
 
 const push = jest.fn();
 jest.mock('next/navigation', () => ({
@@ -226,6 +228,69 @@ describe('loot', () => {
         expect(screen.queryByRole('button', { name: /Add item|Reveal|Hide/ })).not.toBeInTheDocument();
     });
 
+    const coins = { ...potion, id: 'i3', name: 'Vault Coins', rarity: '', quantity: 1, value: '', revealed: true, coins: { gp: 350, sp: 189 } };
+    const twoPlayers = [
+        { id: 'char-1', userId: 'p1', name: 'Ireena', race: 'human', class: 'fighter', level: 3, isMine: true },
+        { id: 'char-2', userId: 'p2', name: 'Ismark', race: 'human', class: 'fighter', level: 3, isMine: false },
+    ];
+
+    it('lets a player claim a found item straight onto their sheet', async () => {
+        routeGets({ '/campaigns/camp-1/items': [{ ...potion, quantity: 1, revealed: true, dmNotes: undefined }] });
+        mockApi.post.mockResolvedValue({ given: [{ characterId: 'char-1', name: 'Ireena' }] });
+        renderWithToasts(<LootPanel campaignId="camp-1" isDm={false} party={twoPlayers} />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Claim Potion of Healing' }));
+        await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith('/campaigns/camp-1/items/i2/distribute', { shares: [{ characterId: 'char-1', quantity: 1 }] }));
+        expect(await screen.findByText('Potion of Healing is on Ireena’s sheet.')).toBeInTheDocument();
+    });
+
+    it("offers a player their fair share of coins, and nothing someone already holds", async () => {
+        routeGets({ '/campaigns/camp-1/items': [{ ...coins, dmNotes: undefined }, { ...ring, dmNotes: undefined }] });
+        mockApi.post.mockResolvedValue({ given: [{ characterId: 'char-1', name: 'Ireena' }] });
+        renderWithToasts(<LootPanel campaignId="camp-1" isDm={false} party={twoPlayers} />);
+        expect(await screen.findByText('350 gp, 189 sp')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Ring of Warmth/ })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Take a share of Vault Coins' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Take Vault Coins' });
+        expect(within(dialog).getByLabelText('Ireena: gp')).toHaveValue('175');
+        expect(within(dialog).getByLabelText('Ireena: sp')).toHaveValue('94');
+        expect(within(dialog).queryByLabelText(/Ismark/)).not.toBeInTheDocument();
+        expect(within(dialog).getByText('Left in the pool: 175 gp, 95 sp')).toBeInTheDocument();
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Take' }));
+        await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith('/campaigns/camp-1/items/i3/distribute', { shares: [{ characterId: 'char-1', coins: { gp: 175, sp: 94 } }] }));
+    });
+
+    it('lets the DM split a stack evenly, and stops them giving more than there is', async () => {
+        const party2 = twoPlayers.map(({ isMine: _mine, ...c }) => c);
+        routeGets({ '/campaigns/camp-1/items': [{ ...potion, quantity: 5 }] });
+        mockApi.post.mockResolvedValue({ given: [{ characterId: 'char-1', name: 'Ireena' }, { characterId: 'char-2', name: 'Ismark' }] });
+        renderWithToasts(<LootPanel campaignId="camp-1" isDm party={party2} />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Give Potion of Healing' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Give Potion of Healing' });
+        fireEvent.change(within(dialog).getByLabelText('Ireena: how many'), { target: { value: '6' } });
+        expect(within(dialog).getByRole('alert')).toHaveTextContent("That's more than there is.");
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Split evenly' }));
+        expect(within(dialog).getByLabelText('Ismark: how many')).toHaveValue('2');
+        expect(within(dialog).getByText('Left in the pool: 1')).toBeInTheDocument();
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Give' }));
+        await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith('/campaigns/camp-1/items/i2/distribute', {
+            shares: [{ characterId: 'char-1', quantity: 2 }, { characterId: 'char-2', quantity: 2 }],
+        }));
+        expect(await screen.findByText('Gave Potion of Healing to Ireena and Ismark. It’s on their sheets.')).toBeInTheDocument();
+    });
+
+    it('adds a pile of coins', async () => {
+        routeGets({ '/campaigns/camp-1/items': [] });
+        mockApi.post.mockImplementation(async (_url: string, body: any) => ({ ...potion, ...body, id: 'i9' }));
+        renderWithToasts(<LootPanel campaignId="camp-1" isDm party={party} />);
+        fireEvent.click(await screen.findByRole('button', { name: '+ Add item' }));
+        fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Coin purse' } });
+        fireEvent.click(screen.getByLabelText(/It's coins/));
+        fireEvent.change(screen.getByLabelText('gp'), { target: { value: '25' } });
+        fireEvent.change(screen.getByLabelText('cp'), { target: { value: '7' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save item' }));
+        await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith('/campaigns/camp-1/items', expect.objectContaining({ name: 'Coin purse', coins: { gp: 25, cp: 7 }, quantity: 1 })));
+    });
+
     it('adds an item', async () => {
         routeGets({ '/campaigns/camp-1/items': [] });
         mockApi.post.mockImplementation(async (_url: string, body: any) => ({ ...potion, ...body, id: 'i9' }));
@@ -237,6 +302,37 @@ describe('loot', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Save item' }));
         await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith('/campaigns/camp-1/items', expect.objectContaining({ name: 'Bag of Holding', rarity: 'uncommon', heldBy: 'char-1', quantity: 1, revealed: false })));
         expect(await screen.findByText('Bag of Holding')).toBeInTheDocument();
+    });
+});
+
+describe('loot on the sheet', () => {
+    it('saves a currency edit as a change, and shows the purse the server sends back', async () => {
+        const onUpdate = jest.fn();
+        // The sheet loaded with 10 gp; loot since then brought the saved purse to 185
+        mockApi.post.mockResolvedValue({ currency: { pp: 0, gp: 180, ep: 0, sp: 0, cp: 0 } });
+        renderWithToasts(<CurrencyManager characterId="char-1" initialCurrency={{ gp: 10 }} onUpdate={onUpdate} />);
+        fireEvent.click(screen.getByText('10'));
+        const input = screen.getByDisplayValue('10');
+        fireEvent.change(input, { target: { value: '5' } });
+        fireEvent.blur(input);
+        await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith('/characters/char-1/currency', { change: { gp: -5 } }));
+        expect(await screen.findByText('180')).toBeInTheDocument();
+        expect(onUpdate).toHaveBeenCalledWith({ pp: 0, gp: 180, ep: 0, sp: 0, cp: 0 });
+    });
+
+    it('picks up loot given to an open sheet', async () => {
+        jest.useFakeTimers();
+        try {
+            const onChange = jest.fn();
+            mockApi.get.mockResolvedValue({ data: { equipment: ['Rope', { name: 'Potion of Healing', quantity: 2 }], currency: { gp: 60 } } });
+            renderWithToasts(<LootSync characterId="char-1" equipment={['Rope']} currency={{ gp: 10 }} onChange={onChange} />);
+            await act(async () => { jest.advanceTimersByTime(30_000); });
+            expect(mockApi.get).toHaveBeenCalledWith('/characters/char-1');
+            expect(onChange).toHaveBeenCalledWith({ equipment: ['Rope', { name: 'Potion of Healing', quantity: 2 }], currency: { gp: 60 } });
+            expect(screen.getByText('New loot is on your sheet.')).toBeInTheDocument();
+        } finally {
+            jest.useRealTimers();
+        }
     });
 });
 
