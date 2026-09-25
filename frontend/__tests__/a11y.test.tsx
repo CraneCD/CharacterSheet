@@ -2,7 +2,7 @@
  * Automated accessibility checks (axe) on the main screens and shared components.
  * jsdom can't compute colors, so contrast is covered separately by the design tokens.
  */
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import '@testing-library/jest-dom';
 import LoginPage from '@/app/(auth)/login/page';
@@ -34,6 +34,8 @@ import JoinCampaignDialog from '@/app/campaigns/components/JoinCampaignDialog';
 import MonsterForm from '@/app/campaigns/components/MonsterForm';
 import BestiaryPanel from '@/app/campaigns/[id]/components/BestiaryPanel';
 import SessionsPanel from '@/app/campaigns/[id]/components/SessionsPanel';
+import LootPanel from '@/app/campaigns/[id]/components/LootPanel';
+import ImportPrepDialog from '@/app/campaigns/components/ImportPrepDialog';
 
 expect.extend(toHaveNoViolations);
 
@@ -169,6 +171,10 @@ describe('accessibility (axe)', () => {
             '/reference/monsters': [zombie],
             '/monsters': [],
             '/characters': [],
+            '/campaigns/camp-1/items': [
+                { id: 'i1', campaignId: 'camp-1', name: 'Ring of Warmth', description: 'Cozy', rarity: 'uncommon', quantity: 1, value: '', revealed: true, heldBy: 'char-1', dmNotes: 'Dragon hoard', createdAt: '', updatedAt: '' },
+                { id: 'i2', campaignId: 'camp-1', name: 'Potion of Healing', description: '', rarity: 'common', quantity: 2, value: '50 gp', revealed: false, heldBy: null, dmNotes: '', createdAt: '', updatedAt: '' },
+            ],
         };
         beforeEach(() => {
             (api.get as jest.Mock).mockImplementation(async (url: string) => routes[url]);
@@ -206,6 +212,25 @@ describe('accessibility (axe)', () => {
             const { container } = render(<ToastProvider><main><EncounterPage /></main></ToastProvider>);
             await screen.findByRole('button', { name: /Roll Zombie: Slam/ });
             await expectNoViolations(container);
+        });
+
+        it('loot tab and its item form', async () => {
+            const { container } = render(<ToastProvider><main><LootPanel campaignId="camp-1" isDm party={party} /></main></ToastProvider>);
+            await screen.findByText('Potion of Healing');
+            await expectNoViolations(container);
+            fireEvent.click(screen.getByRole('button', { name: '+ Add item' }));
+            await expectNoViolations();
+        });
+
+        it('prep import dialog with a preview', async () => {
+            render(<ImportPrepDialog onClose={() => {}} onImported={() => {}} />);
+            await expectNoViolations();
+            const text = JSON.stringify({ format: 'dnd55e-campaign-prep', version: 1, campaign: { name: 'Obelisk' }, encounters: [{ name: 'A', combatants: [] }] });
+            const file = new File([text], 'obelisk.prep.json', { type: 'application/json' });
+            Object.defineProperty(file, 'text', { value: () => Promise.resolve(text) });
+            fireEvent.change(screen.getByTestId('prep-file-input'), { target: { files: [file] } });
+            await screen.findByText('Obelisk');
+            await expectNoViolations();
         });
 
         it('custom monster form', async () => {

@@ -62,6 +62,7 @@ model Campaign {
   members    CampaignMember[]
   encounters Encounter[]
   sessions   CampaignSession[]
+  items      CampaignItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -110,6 +111,30 @@ model CampaignSession {
   playedOn   DateTime?
   recap      String    @default("")
   dmNotes    String    @default("")
+  // false hides the session from players entirely (planning ahead, imported prep)
+  shared     Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId])
+}
+
+// Loot: treasure the DM has planned or handed out. Players see an item once
+// it's `revealed` (never `dmNotes`); `heldBy` is a Character in the campaign,
+// or null for the party's shared stash / not yet found.
+model CampaignItem {
+  id          String   @id @default(uuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  name        String
+  description String   @default("")
+  rarity      String   @default("")
+  quantity    Int      @default(1)
+  value       String   @default("")
+  revealed    Boolean  @default(false)
+  heldBy      String?
+  dmNotes     String   @default("")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

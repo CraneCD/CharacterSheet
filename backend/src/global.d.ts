@@ -23,4 +23,5 @@ declare var console: {
 // declaration here. Keep these to what the code uses.
 declare module 'crypto' {
     export function randomInt(max: number): number;
+    export function randomUUID(): string;
 }
