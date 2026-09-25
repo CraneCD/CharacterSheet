@@ -6,7 +6,7 @@
     "scripts": {
         "start": "node dist/index.js",
         "dev": "nodemon src/index.ts",
-        "build": "prisma generate && tsc --skipLibCheck",
+        "build": "prisma generate && tsc --skipLibCheck && node prisma/deploy-migrations.js",
         "postinstall": "prisma generate",
         "test": "jest",
         "prisma:generate": "prisma generate",

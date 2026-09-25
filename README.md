@@ -36,7 +36,9 @@ A modern web application for creating and managing D&D 5.5e (One D&D) characters
       npx prisma migrate dev --name init
       ```
 
-    - On an existing database (e.g. production), apply new migrations with:
+    - On Render, `npm run build` applies pending migrations itself
+      (`prisma/deploy-migrations.js`; a failed migration fails the deploy). For any
+      other existing database, apply them with:
       ```bash
       cd backend
       npx prisma migrate deploy
