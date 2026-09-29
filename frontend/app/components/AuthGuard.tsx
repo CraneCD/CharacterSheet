@@ -4,7 +4,7 @@ import { useLayoutEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { clearAuthStorage, isStoredTokenValid, isStoredUserAdmin } from '@/lib/auth';
 
-const PROTECTED_PREFIXES = ['/dashboard', '/create', '/character', '/campaigns', '/admin'];
+const PROTECTED_PREFIXES = ['/dashboard', '/create', '/character', '/campaigns', '/admin', '/account'];
 const AUTH_PAGES = ['/login', '/register'];
 
 export function isProtectedPath(pathname: string): boolean {

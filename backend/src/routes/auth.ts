@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { getJwtSecret } from '../config/jwt';
 import { prisma } from '../lib/prisma';
+import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -11,6 +12,12 @@ const registerSchema = z.object({
     email: z.string().email(),
     password: z.string().min(6),
     name: z.string().optional(),
+});
+
+// New passwords follow the sign-up rule (at least 6 characters); bcrypt only reads the first 72 bytes
+const changePasswordSchema = z.object({
+    currentPassword: z.string().min(1).max(200),
+    newPassword: z.string().min(6).max(72),
 });
 
 const loginSchema = z.object({
@@ -82,6 +89,33 @@ router.post('/login', async (req, res) => {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('Login error details:', { errorMessage, stack: error instanceof Error ? error.stack : undefined });
         res.status(500).json({ error: 'Internal server error', details: process.env.NODE_ENV === 'development' ? errorMessage : undefined });
+    }
+});
+
+// Change the signed-in user's password (needs the current one). Rate-limited with the other /api/auth routes.
+router.post('/change-password', authenticateToken, async (req: AuthRequest, res) => {
+    const parsed = changePasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({ error: 'Enter your current password and a new password of 6 to 72 characters.' });
+    }
+    const { currentPassword, newPassword } = parsed.data;
+    try {
+        const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+        if (!user) return res.status(404).json({ error: 'Account not found.' });
+
+        if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
+            return res.status(400).json({ error: 'Your current password is incorrect.' });
+        }
+        if (currentPassword === newPassword) {
+            return res.status(400).json({ error: 'The new password must be different from your current one.' });
+        }
+
+        const passwordHash = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
+        await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+        res.json({ message: 'Password changed.' });
+    } catch (error) {
+        console.error('Change password error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

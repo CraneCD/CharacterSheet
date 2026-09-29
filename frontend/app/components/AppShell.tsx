@@ -42,6 +42,7 @@ export function AppNav() {
                 <NavLink href="/dashboard" active={isCharactersPath(pathname)}>My Characters</NavLink>
                 <NavLink href="/campaigns" active={isCampaignsPath(pathname)}>Campaigns</NavLink>
                 {isAdmin && <NavLink href="/admin" active={isAdminPath(pathname)}>Admin</NavLink>}
+                <NavLink href="/account" active={pathname === '/account' || pathname.startsWith('/account/')}>Account</NavLink>
                 <span className="nav-divider" aria-hidden="true" />
                 <ThemeToggle />
                 <button
