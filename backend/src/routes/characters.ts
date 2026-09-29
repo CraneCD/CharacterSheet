@@ -453,6 +453,7 @@ const resourceSchema = z.object({
     source: z.enum(['class', 'species', 'feat', 'subclass', 'custom']).optional(),
     feature: z.string().max(200).optional(),
     maxEdited: z.boolean().optional(),
+    spellId: z.string().max(100).optional(),
 });
 
 router.patch('/:id/class-resources', authenticateToken, (req: AuthRequest, res) =>

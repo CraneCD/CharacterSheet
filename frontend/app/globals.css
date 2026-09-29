@@ -5784,3 +5784,16 @@ a.party-card-head:hover .party-card-name {
     display: none;
   }
 }
+
+/* Species spells cast without a slot (Spells tab) */
+.spell-free-cast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.spell-free-cast-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}

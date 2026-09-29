@@ -76,7 +76,8 @@ export interface ClassResource {
     /** The feature, trait or feat these are uses of (e.g. "Lucky" for Luck Points) */
     feature?: string;
     /** The player set the maximum by hand; the sheet stops recalculating it */
-    maxEdited?: boolean;
+    maxEdited?: boolean;    /** Free casts of this spell (species traits like Elven Lineage) */
+    spellId?: string;
 }
 
 export type ResourceSource = 'class' | 'species' | 'feat' | 'subclass' | 'custom';

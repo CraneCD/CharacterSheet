@@ -91,6 +91,9 @@ export default function CharacterSheet() {
     // Spells you can cast and slots left, reported by the spell list for the Actions card
     const [castable, setCastable] = useState<CastableSummary | null>(null);
     const choiceSpellIdsKey = getChoiceSpellIds(character?.data?.classChoices).join(',');
+    // Species free casts (Elven Lineage, Githyanki Psionics, ...) are named after their spells too
+    const hasSpeciesFreeCasts = getSpeciesSpellEntries(character?.race, character?.data?.speciesLineage || character?.data?.elvenLineage).some((e) => e.free);
+    const needsSpellNames = !!choiceSpellIdsKey || hasSpeciesFreeCasts;
     // Live feat text, so admin edits to a feat show on characters that already have it
     const [featsById, setFeatsById] = useState<Record<string, { name: string; description: string }>>({});
     useEffect(() => {
@@ -100,11 +103,11 @@ export default function CharacterSheet() {
             .catch((err: unknown) => console.error('Failed to fetch feats', err));
     }, []);
     useEffect(() => {
-        if (!choiceSpellIdsKey) return;
+        if (!needsSpellNames) return;
         api.get('/reference/spells/summary')
             .then((list: { id: string; name: string }[]) => setChoiceSpellNames(Object.fromEntries((list || []).map(s => [s.id, s.name]))))
             .catch(() => setChoiceSpellNames({}));
-    }, [choiceSpellIdsKey]);
+    }, [needsSpellNames]);
 
     if (loadError) {
         return (
@@ -543,6 +546,7 @@ export default function CharacterSheet() {
             choiceSpellNames={choiceSpellNames}
             hasChoiceSpells={!!choiceSpellIdsKey}
             features={allFeatures}
+            speciesSpells={speciesSpells}
             modifiers={effectiveModifiers}
             readOnly={readOnly}
             onUpdate={handleUpdateCharacter}

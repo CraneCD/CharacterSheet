@@ -5,6 +5,7 @@
  */
 import type { ActionTiming } from './actionRows';
 import type { ClassResource, ClassResources, ResourceSource } from './types';
+import type { SpeciesSpellEntry } from './wizardReference';
 
 type AbilityKey = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
 
@@ -59,7 +60,7 @@ export const FEATURE_USES: Record<string, FeatureUsesRule> = {
     'Fortune from the Many': pbLong('Add a bonus die to a missed roll or failed check or save.', 'other'),
     'Kenku Recall': pbLong('Advantage on a skill check.', 'other'),
     'Draconic Cry': pbLong('Allies get Advantage against nearby enemies.', 'bonus'),
-    'Merge with Stone': pbLong('Cast Blur as a Bonus Action.', 'bonus'),
+    'Merge with Stone': pbLong('Cast Blade Ward as a Bonus Action.', 'bonus'),
     'Grovel, Cower, and Beg': once('species', 'short', 'Allies get Advantage against distracted enemies.', 'action'),
     'Svirfneblin Camouflage': pbLong('Advantage on a Stealth check.', 'other'),
     'Fey Gift': pbLong('Help as a Bonus Action.', 'bonus'),
@@ -223,9 +224,11 @@ export function mergeFeatureUses(stored: ClassResources, computed: ClassResource
             description: prev.description || next.description,
             source: next.source,
             feature: next.feature,
+            ...(next.spellId && { spellId: next.spellId }),
         };
         if (merged.max !== prev.max || merged.current !== prev.current || merged.resetType !== prev.resetType
-            || merged.source !== prev.source || merged.feature !== prev.feature || merged.description !== prev.description) {
+            || merged.source !== prev.source || merged.feature !== prev.feature || merged.description !== prev.description
+            || merged.spellId !== prev.spellId) {
             changed = true;
         }
         resources[name] = merged;
@@ -248,4 +251,52 @@ export function counterForFeature(resources: ClassResources, featureName: string
     return entries.find(([, r]) => r?.feature && featureKey(r.feature) === key)
         ?? entries.find(([name, r]) => !r?.feature && featureKey(name) === key)
         ?? (CLASS_FEATURE_COUNTERS[key] ? entries.find(([name]) => name === CLASS_FEATURE_COUNTERS[key]) : undefined);
+}
+
+/** "create-or-destroy-water" → "Create or Destroy Water" (when the spell list couldn't load) */
+function spellNameFromId(id: string): string {
+    return id.split('-').map((w, i) => (i > 0 && ['or', 'of', 'and', 'the', 'with', 'from', 'to'].includes(w) ? w : w.charAt(0).toUpperCase() + w.slice(1))).join(' ');
+}
+
+/**
+ * Free casts of species spells (Elven Lineage, Fiendish Legacy, Githyanki Psionics, ...): one
+ * counter per spell the character has reached, named after the spell and linked to its trait.
+ */
+export function computeSpeciesSpellUses(
+    entries: SpeciesSpellEntry[],
+    level: number,
+    proficiencyBonus: number,
+    spellNames: Record<string, string>,
+): ClassResources {
+    const out: ClassResources = {};
+    for (const entry of entries) {
+        if (!entry.free || level < entry.level) continue;
+        const name = spellNames[entry.spellId] || spellNameFromId(entry.spellId);
+        const max = entry.free === 'pb' ? proficiencyBonus : 1;
+        out[name] = {
+            name,
+            current: max,
+            max,
+            resetType: 'long',
+            description: `Cast ${name} without a spell slot${max > 1 ? `, ${max} times` : ''}. Regain on a Long Rest.`,
+            source: 'species',
+            feature: entry.trait,
+            spellId: entry.spellId,
+        };
+    }
+    return out;
+}
+
+/** Every counter that tracks a feature's uses (a trait can have several: one per free spell). */
+export function countersForFeature(resources: ClassResources, featureName: string): [string, ClassResource][] {
+    const key = featureKey(featureName);
+    const linked = Object.entries(resources).filter(([, r]) => r?.feature && featureKey(r.feature) === key);
+    if (linked.length > 0) return linked;
+    const single = counterForFeature(resources, featureName);
+    return single ? [single] : [];
+}
+
+/** The free-cast counter for a spell, if the character has one. */
+export function freeCastCounter(resources: ClassResources | undefined, spellId: string): [string, ClassResource] | undefined {
+    return Object.entries(resources || {}).find(([, r]) => r?.spellId === spellId);
 }

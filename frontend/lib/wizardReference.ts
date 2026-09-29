@@ -12,62 +12,62 @@ export const ELVEN_LINEAGES = [
     { id: 'wood_elf', name: 'Wood Elf' }
 ] as const;
 
+/** A spell a species trait grants from a character level. */
+export interface SpeciesSpellEntry {
+    /** Character level it's gained at (1 = from the start) */
+    level: number;
+    spellId: string;
+    /** The trait that grants it (links its free casts to the trait on the Features card) */
+    trait: string;
+    /**
+     * Casting it without a spell slot: once per Long Rest, or Proficiency Bonus times per Long Rest.
+     * Left out for cantrips and spells the trait lets you cast at will.
+     */
+    free?: 'once' | 'pb';
+}
+
+const cantrip = (spellId: string, trait: string): SpeciesSpellEntry => ({ level: 1, spellId, trait });
+const onceAt = (level: number, spellId: string, trait: string): SpeciesSpellEntry => ({ level, spellId, trait, free: 'once' });
+
 /**
- * Spells granted by a species or its lineage choice, by character level
- * (level 1 = cantrip or always-prepared spell). Keys are lineage option ids,
- * or species ids for spells every member of the species gets.
+ * Spells granted by a species or its lineage choice, by character level. Keys are lineage option
+ * ids, or species ids for spells every member of the species gets (2024 PHB and later books).
  */
-export const SPECIES_LINEAGE_SPELLS: Record<string, { level: number; spellId: string }[]> = {
-    drow: [
-        { level: 1, spellId: 'dancing-lights' },
-        { level: 3, spellId: 'faerie-fire' },
-        { level: 5, spellId: 'darkness' }
-    ],
-    high_elf: [
-        { level: 1, spellId: 'prestidigitation' },
-        { level: 3, spellId: 'detect-magic' },
-        { level: 5, spellId: 'misty-step' }
-    ],
-    wood_elf: [
-        { level: 1, spellId: 'druidcraft' },
-        { level: 3, spellId: 'longstrider' },
-        { level: 5, spellId: 'pass-without-trace' }
-    ],
-    forest_gnome: [
-        { level: 1, spellId: 'minor-illusion' },
-        { level: 1, spellId: 'speak-with-animals' }
-    ],
-    rock_gnome: [
-        { level: 1, spellId: 'mending' },
-        { level: 1, spellId: 'prestidigitation' }
-    ],
-    abyssal: [
-        { level: 1, spellId: 'poison-spray' },
-        { level: 3, spellId: 'ray-of-sickness' },
-        { level: 5, spellId: 'hold-person' }
-    ],
-    chthonic: [
-        { level: 1, spellId: 'chill-touch' },
-        { level: 3, spellId: 'false-life' },
-        { level: 5, spellId: 'ray-of-enfeeblement' }
-    ],
-    infernal: [
-        { level: 1, spellId: 'fire-bolt' },
-        { level: 3, spellId: 'hellish-rebuke' },
-        { level: 5, spellId: 'darkness' }
-    ],
-    aasimar: [
-        { level: 1, spellId: 'light' }
-    ]
+export const SPECIES_LINEAGE_SPELLS: Record<string, SpeciesSpellEntry[]> = {
+    drow: [cantrip('dancing-lights', 'Elven Lineage'), onceAt(3, 'faerie-fire', 'Elven Lineage'), onceAt(5, 'darkness', 'Elven Lineage')],
+    high_elf: [cantrip('prestidigitation', 'Elven Lineage'), onceAt(3, 'detect-magic', 'Elven Lineage'), onceAt(5, 'misty-step', 'Elven Lineage')],
+    wood_elf: [cantrip('druidcraft', 'Elven Lineage'), onceAt(3, 'longstrider', 'Elven Lineage'), onceAt(5, 'pass-without-trace', 'Elven Lineage')],
+    forest_gnome: [cantrip('minor-illusion', 'Gnomish Lineage'), { level: 1, spellId: 'speak-with-animals', trait: 'Gnomish Lineage', free: 'pb' }],
+    rock_gnome: [cantrip('mending', 'Gnomish Lineage'), cantrip('prestidigitation', 'Gnomish Lineage')],
+    abyssal: [cantrip('poison-spray', 'Fiendish Legacy'), onceAt(3, 'ray-of-sickness', 'Fiendish Legacy'), onceAt(5, 'hold-person', 'Fiendish Legacy')],
+    chthonic: [cantrip('chill-touch', 'Fiendish Legacy'), onceAt(3, 'false-life', 'Fiendish Legacy'), onceAt(5, 'ray-of-enfeeblement', 'Fiendish Legacy')],
+    infernal: [cantrip('fire-bolt', 'Fiendish Legacy'), onceAt(3, 'hellish-rebuke', 'Fiendish Legacy'), onceAt(5, 'darkness', 'Fiendish Legacy')],
+    aasimar: [cantrip('light', 'Light Bearer')],
+    aarakocra: [onceAt(3, 'gust-of-wind', 'Wind Caller')],
+    'deep-gnome': [onceAt(3, 'disguise-self', 'Gift of the Svirfneblin'), onceAt(5, 'nondetection', 'Gift of the Svirfneblin')],
+    duergar: [onceAt(3, 'enlarge-reduce', 'Duergar Magic'), onceAt(5, 'invisibility', 'Duergar Magic')],
+    fairy: [cantrip('druidcraft', 'Fairy Magic'), onceAt(3, 'faerie-fire', 'Fairy Magic'), onceAt(5, 'enlarge-reduce', 'Fairy Magic')],
+    firbolg: [onceAt(1, 'detect-magic', 'Firbolg Magic'), onceAt(1, 'disguise-self', 'Firbolg Magic')],
+    'genasi-air': [cantrip('shocking-grasp', 'Mingle with the Wind'), onceAt(3, 'feather-fall', 'Mingle with the Wind'), onceAt(5, 'levitate', 'Mingle with the Wind')],
+    // Blade Ward's Bonus Action uses are counted with the trait (lib/featureUses)
+    'genasi-earth': [cantrip('blade-ward', 'Merge with Stone'), onceAt(5, 'pass-without-trace', 'Merge with Stone')],
+    'genasi-fire': [cantrip('produce-flame', 'Reach to the Blaze'), onceAt(3, 'burning-hands', 'Reach to the Blaze'), onceAt(5, 'flame-blade', 'Reach to the Blaze')],
+    'genasi-water': [cantrip('acid-splash', 'Call to the Wave'), onceAt(3, 'create-or-destroy-water', 'Call to the Wave'), onceAt(5, 'water-walk', 'Call to the Wave')],
+    githyanki: [cantrip('mage-hand', 'Githyanki Psionics'), onceAt(3, 'jump', 'Githyanki Psionics'), onceAt(5, 'misty-step', 'Githyanki Psionics')],
+    githzerai: [cantrip('mage-hand', 'Githzerai Psionics'), onceAt(3, 'shield', 'Githzerai Psionics'), onceAt(5, 'detect-thoughts', 'Githzerai Psionics')],
+    triton: [onceAt(1, 'fog-cloud', 'Control Air and Water'), onceAt(3, 'gust-of-wind', 'Control Air and Water'), onceAt(5, 'water-walk', 'Control Air and Water')],
+    // Animal Friendship at will (snakes only)
+    'yuan-ti': [cantrip('poison-spray', 'Serpentine Spellcasting'), cantrip('animal-friendship', 'Serpentine Spellcasting'), onceAt(3, 'suggestion', 'Serpentine Spellcasting')],
 };
 
 /** @deprecated use SPECIES_LINEAGE_SPELLS (kept for existing imports). */
 export const ELVEN_LINEAGE_SPELLS = SPECIES_LINEAGE_SPELLS;
 
 /** Spells a character gets from their species (and lineage choice) at a character level. */
-export function getSpeciesSpellEntries(raceId: string, lineageId?: string): { level: number; spellId: string }[] {
-    const out: { level: number; spellId: string }[] = [];
-    const r = (raceId || '').toLowerCase();
+export function getSpeciesSpellEntries(raceId: string, lineageId?: string): SpeciesSpellEntry[] {
+    const out: SpeciesSpellEntry[] = [];
+    // Species ids use hyphens ("deep-gnome"); older characters may store the name ("Deep Gnome")
+    const r = (raceId || '').trim().toLowerCase().replace(/[\s_]+/g, '-');
     const l = (lineageId || '').toLowerCase().replace(/\s+/g, '_');
     if (SPECIES_LINEAGE_SPELLS[r]) out.push(...SPECIES_LINEAGE_SPELLS[r]);
     if (l && SPECIES_LINEAGE_SPELLS[l]) out.push(...SPECIES_LINEAGE_SPELLS[l]);

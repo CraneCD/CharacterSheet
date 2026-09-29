@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
 import { Button, ConfirmDialog, describeError, Field, Modal, SectionHeader, TextField, useToast } from '@/app/components/ui';
 import type { CharacterFeature, ClassResource } from '@/lib/types';
 import { FeatureEntry, FeatureGroup, featureSummary, filterFeatureGroups } from '@/lib/featureList';
-import { counterForFeature } from '@/lib/featureUses';
+import { countersForFeature } from '@/lib/featureUses';
 import { useSheetLimitedUses, type LimitedUses } from './ClassResourcesSection';
 import UsesTracker, { resetLabel } from '../UsesTracker';
 import { useSheetReadOnly } from '../../SheetReadOnly';
@@ -39,9 +39,9 @@ export default function FeaturesCard({ characterId, groups, storedFeatures, onFe
     const [removing, setRemoving] = useState<FeatureEntry | null>(null);
     const [busy, setBusy] = useState(false);
 
-    const counterFor = (entry: FeatureEntry) => counterForFeature(uses.resources, entry.name);
+    const countersFor = (entry: FeatureEntry) => countersForFeature(uses.resources, entry.name);
     const visible = filterFeatureGroups(groups, query, (entry) =>
-        filter === 'all' || (filter === 'custom' ? entry.custom : !!counterFor(entry)));
+        filter === 'all' || (filter === 'custom' ? entry.custom : countersFor(entry).length > 0));
     const visibleKeys = visible.flatMap((g) => g.entries.map((e) => e.key));
     const allExpanded = visibleKeys.length > 0 && visibleKeys.every((k) => expanded.has(k));
     const total = groups.reduce((n, g) => n + g.entries.length, 0);
@@ -122,7 +122,7 @@ export default function FeaturesCard({ characterId, groups, storedFeatures, onFe
                             <FeatureRow
                                 key={entry.key}
                                 entry={entry}
-                                counter={counterFor(entry)}
+                                counters={countersFor(entry)}
                                 expanded={expanded.has(entry.key)}
                                 onToggle={() => toggle(entry.key)}
                                 onUse={(name, current) => uses.setCurrent(name, current)}
@@ -172,7 +172,8 @@ export default function FeaturesCard({ characterId, groups, storedFeatures, onFe
 
 interface FeatureRowProps {
     entry: FeatureEntry;
-    counter?: [string, ClassResource];
+    /** A trait can have several (Elven Lineage: one per free spell) */
+    counters: [string, ClassResource][];
     expanded: boolean;
     onToggle: () => void;
     onUse: (counterName: string, current: number) => void;
@@ -180,7 +181,7 @@ interface FeatureRowProps {
     onRemove?: () => void;
 }
 
-function FeatureRow({ entry, counter, expanded, onToggle, onUse, onEdit, onRemove }: FeatureRowProps) {
+function FeatureRow({ entry, counters, expanded, onToggle, onUse, onEdit, onRemove }: FeatureRowProps) {
     const descriptionId = useId();
     const summary = featureSummary(entry.description);
     return (
@@ -193,13 +194,13 @@ function FeatureRow({ entry, counter, expanded, onToggle, onUse, onEdit, onRemov
                 </span>
                 {!expanded && summary && <span className="feature-summary">{summary}</span>}
             </button>
-            {counter && (
-                <div className="feature-uses">
-                    {counter[1].name !== entry.name && <span className="feature-uses-name">{counter[1].name}</span>}
-                    <UsesTracker resource={counter[1]} onChange={(current) => onUse(counter[0], current)} />
-                    <span className="reset-tag">{resetLabel(counter[1])}</span>
+            {counters.map(([name, counter]) => (
+                <div key={name} className="feature-uses">
+                    {counter.name !== entry.name && <span className="feature-uses-name">{counter.name}</span>}
+                    <UsesTracker resource={counter} onChange={(current) => onUse(name, current)} />
+                    <span className="reset-tag">{resetLabel(counter)}</span>
                 </div>
-            )}
+            ))}
             <div id={descriptionId} className="feature-description" hidden={!expanded}>
                 {entry.description ? <p>{entry.description}</p> : <p className="features-empty">No description.</p>}
                 {(onEdit || onRemove) && (
