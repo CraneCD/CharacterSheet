@@ -222,3 +222,62 @@ describe('reference sync planning', () => {
         expect(stableStringify({ b: 1, a: [1, { d: 2, c: 3 }] })).toBe(stableStringify({ a: [1, { c: 3, d: 2 }], b: 1 }));
     });
 });
+
+describe('magic weapons, armor and shields', () => {
+    const byName = (name: string) => baseItems.find(i => i.name === name && !i.legacy)!;
+    const bases = baseItems.filter(i => ['weapon', 'armor', 'shield'].includes(i.category) && !i.legacy);
+    const baseNames = new Set(bases.map(b => b.name));
+
+    it('has a +1, +2 and +3 version of every weapon, armor and shield, with the base stats', () => {
+        const variants = baseItems.filter(i => i.baseName);
+        expect(variants).toHaveLength(bases.length * 3);
+        expect(byName('Longsword, +2')).toMatchObject({
+            category: 'magic-item', type: 'weapon', damage: '1d8', damageType: 'slashing', properties: ['versatile (1d10)'],
+            mastery: 'sap', magicBonus: 2, rarity: 'Rare', baseName: 'Longsword', appliesTo: { kind: 'weapon', names: ['Longsword'] },
+        });
+        expect(byName('Plate Armor, +3')).toMatchObject({ armorMethod: 'heavy', baseAC: 18, magicBonus: 3, rarity: 'Legendary' });
+        expect(byName('Shield, +1')).toMatchObject({ type: 'shield', baseAC: 2, magicBonus: 1, rarity: 'Uncommon' });
+        expect(byName('Shield, +1').cost).toBeUndefined();
+    });
+
+    it('gives the new items stable keys after the existing ones', () => {
+        const rows = buildReferenceRows().filter(r => r.type === 'baseItem');
+        const keys = rows.map(r => r.key);
+        expect(new Set(keys).size).toBe(keys.length);
+        expect(rows.find(r => r.data.name === 'Longsword, +1')?.key).toBe('longsword-1');
+        expect(rows.find(r => r.data.name === 'Shield, +3')?.key).toBe('shield-3');
+        // The generated items come after every hand-written one, so existing keys never move
+        const firstGenerated = rows.findIndex(r => r.data.baseName);
+        expect(rows.slice(firstGenerated).every(r => r.data.baseName)).toBe(true);
+    });
+
+    it('reads what each magic item can be made from and its bonus', () => {
+        expect(byName('Flame Tongue').appliesTo).toEqual({ kind: 'weapon', melee: true });
+        expect(byName('Holy Avenger')).toMatchObject({ appliesTo: { kind: 'weapon' }, magicBonus: 3 });
+        expect(byName('Dwarven Plate')).toMatchObject({ appliesTo: { kind: 'armor', names: ['Half Plate', 'Plate Armor'] }, magicBonus: 2 });
+        expect(byName('Mithral Armor')).toMatchObject({
+            appliesTo: { kind: 'armor', armorMethods: ['medium', 'heavy'], except: ['Hide Armor'] },
+            overrides: { stealthDisadvantage: false, strengthRequirement: null },
+        });
+        expect(byName('Dragon Scale Mail')).toMatchObject({ appliesTo: { names: ['Scale Mail'] }, magicBonus: 1 });
+        // Needs a Bonus Action and lasts a turn: not a constant bonus
+        expect(byName('Shield Of The Tortoise').magicBonus).toBeUndefined();
+    });
+
+    it('only names base items that exist', () => {
+        for (const item of baseItems) {
+            for (const name of [...(item.appliesTo?.names ?? []), ...(item.appliesTo?.except ?? []), ...(item.baseName ? [item.baseName] : [])]) {
+                expect(baseNames.has(name)).toBe(true);
+            }
+        }
+    });
+
+    it('hides repeated entries and the generic "+1, +2, or +3" items from pickers', () => {
+        const shown = baseItems.filter(i => !i.legacy).map(i => i.name);
+        expect(shown).not.toContain('Weapon, +1, +2, or +3');
+        expect(shown).not.toContain('Armor, +1, +2, or +3');
+        expect(shown).not.toContain('Shield, +1, +2, +3');
+        expect(shown.filter(n => n === 'Potion of Healing')).toHaveLength(1);
+        expect(shown.filter(n => n === 'Spell Scroll').length).toBeGreaterThanOrEqual(1);
+    });
+});

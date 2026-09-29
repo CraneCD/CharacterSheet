@@ -19,6 +19,8 @@ export interface WeaponAttack {
     mastery?: string;
     /** Magic weapon bonus already included in toHit and damageMod (+1 to +3) */
     magicBonus: number;
+    /** What a magic weapon is made from ("Longsword"), for Weapon Mastery choices */
+    baseName?: string;
 }
 
 export interface WeaponAttackInput {
@@ -77,6 +79,7 @@ export function getWeaponAttacks({ equipment, strMod, dexMod, profBonus, fightin
             sneakAttackDice: sneak > 0 && (isFinesse(weapon) || ranged) ? sneak : 0,
             mastery: weapon.mastery,
             magicBonus,
+            ...(weapon.baseName && { baseName: weapon.baseName }),
         };
     });
 }
