@@ -9,7 +9,6 @@ import EquipmentManager from './components/EquipmentManager';
 import LevelUpWizard from './components/LevelUpWizard';
 import ActionsCard from './components/ActionsCard';
 import PortraitUpload from './components/PortraitUpload';
-import FeatureManager from './components/FeatureManager';
 import CurrencyManager from './components/CurrencyManager';
 import CharacterSheetSkeleton from './components/CharacterSheetSkeleton';
 import { LongRestDialog, ShortRestDialog } from './components/RestDialogs';
@@ -20,7 +19,7 @@ import { downloadCharacterJson } from '@/lib/characterTransfer';
 import { calculateArmorClass } from '@/lib/armorClass';
 import { defaultSpeed, overrideToStore, resolveOverride } from '@/lib/sheetDefaults';
 import { classColorStyle } from '@/lib/classColors';
-import { CharacterItem, CharacterFeature } from '@/lib/types';
+import { CharacterItem } from '@/lib/types';
 import { 
     calculateSpeedBonusFromFeatures, 
     getACCalculationFromFeatures,
@@ -50,7 +49,10 @@ import NotesCard from './components/sections/NotesCard';
 import { useCoreColumnFit } from './useCoreColumnFit';
 import { normalizeConditions, speedWithConditions } from '@/lib/conditions';
 import { darkvisionRange, passiveScores, traitResistances } from '@/lib/senses';
-import ClassResourcesSection from './components/sections/ClassResourcesSection';
+import { LimitedUsesProvider } from './components/sections/ClassResourcesSection';
+import LimitedUsesCard from './components/LimitedUsesCard';
+import FeaturesCard from './components/sections/FeaturesCard';
+import { buildFeatureGroups } from '@/lib/featureList';
 import CampaignPickerDialog from './components/CampaignPickerDialog';
 import DerivedStatsSync from './DerivedStatsSync';
 import LootSync from './LootSync';
@@ -89,6 +91,14 @@ export default function CharacterSheet() {
     // Spells you can cast and slots left, reported by the spell list for the Actions card
     const [castable, setCastable] = useState<CastableSummary | null>(null);
     const choiceSpellIdsKey = getChoiceSpellIds(character?.data?.classChoices).join(',');
+    // Live feat text, so admin edits to a feat show on characters that already have it
+    const [featsById, setFeatsById] = useState<Record<string, { name: string; description: string }>>({});
+    useEffect(() => {
+        api.get('/reference/feats')
+            .then((list: { id: string; name: string; description: string }[]) =>
+                setFeatsById(Object.fromEntries((Array.isArray(list) ? list : []).map((f) => [f.id, f]))))
+            .catch((err: unknown) => console.error('Failed to fetch feats', err));
+    }, []);
     useEffect(() => {
         if (!choiceSpellIdsKey) return;
         api.get('/reference/spells/summary')
@@ -348,53 +358,21 @@ export default function CharacterSheet() {
         ? data.toolProficiencies
         : [...(charClass.toolProficiencies || []), ...(background.toolProficiencies || [])];
 
-    const staticFeatureEntries = [
-        ...(masteryWeapons && masteryWeapons.length > 0 ? [{
-            name: 'Weapon Mastery Weapons',
-            source: 'Class Choice',
-            description: `You can use the mastery properties of: ${masteryWeapons.map(w => w.replace(/\b\w/g, c => c.toUpperCase())).join(', ')}.`
-        }] : []),
-        ...((racialTraits || []).map((trait: string) => {
-            const traitKey = trait;
-            const traitData = gameData.traits?.[traitKey] || 
-                (trait.includes('(') ? gameData.traits?.[trait.split('(')[0].trim()] : undefined);
-            return {
-                name: trait,
-                source: 'Racial Trait',
-                description: traitData?.description || `Racial trait: ${trait}`
-            };
+    // Features & Traits card, grouped by source
+    const featureGroups = buildFeatureGroups({
+        stored: Array.isArray(data.features) ? data.features : [],
+        racialTraits: traitTexts.map((t: { name: string; description?: string }) => ({
+            name: t.name,
+            description: t.description
+                || (t.name.includes('(') ? gameData.traits?.[t.name.split('(')[0].trim()]?.description : undefined)
+                || `Species trait: ${t.name}`,
         })),
-        // 2024 backgrounds carry an "Origin Feat: X" stub as their feature; hide it once the feat itself is stored on the character.
-        ...(background?.feature && !(
-            background.originFeat &&
-            String(background.feature.name || '').startsWith('Origin Feat:') &&
-            (data.features || []).some((f: any) => f.featId === background.originFeat)
-        ) ? [{ name: background.feature.name, source: 'Background Feature', description: background.feature.description }] : []),
-        ...(classFeaturesList || []).map(f => ({
-            name: f.name,
-            source: f.source || `Class: ${charClass.name}`,
-            description: f.description
-        })),
-        ...(subclassFeaturesList || []).map(f => ({
-            name: f.name,
-            source: f.source || (subclass ? `Subclass: ${subclass.name}` : 'Subclass'),
-            description: f.description
-        }))
-    ];
-
-    const staticFeatureNameSet = new Set(
-        staticFeatureEntries
-            .map(f => (f.name || '').toLowerCase())
-            .filter(Boolean)
-    );
-
-    const filteredDynamicFeatures = (Array.isArray(data.features) ? data.features : []).filter((f: CharacterFeature) => {
-        const nameKey = (f.name || '').toLowerCase();
-        if (!nameKey) return true;
-        const sourceKey = (f.source || '').toLowerCase();
-        const isAutoSource = sourceKey.startsWith('class:') || sourceKey.startsWith('subclass:') || sourceKey === 'racial trait' || sourceKey === 'background feature';
-        if (!isAutoSource) return true;
-        return !staticFeatureNameSet.has(nameKey);
+        speciesName: race?.name || character.race,
+        background: (background as { id?: string }).id ? background : undefined,
+        classFeatures: classFeaturesList || [],
+        subclassFeatures: subclassFeaturesList || [],
+        masteryWeapons,
+        featsById,
     });
 
     const handleAddLanguage = async (language: string) => {
@@ -554,6 +532,21 @@ export default function CharacterSheet() {
     return (
         <SheetReadOnlyProvider value={readOnly}>
         <DiceProvider conditions={activeConditions}>
+        <LimitedUsesProvider
+            characterId={character.id}
+            data={data}
+            classLevels={classLevels}
+            subclassMap={subclassMap}
+            abilityScores={abilityScores}
+            racialTraits={racialTraits}
+            level={level}
+            choiceSpellNames={choiceSpellNames}
+            hasChoiceSpells={!!choiceSpellIdsKey}
+            features={allFeatures}
+            modifiers={effectiveModifiers}
+            readOnly={readOnly}
+            onUpdate={handleUpdateCharacter}
+        >
         <div className="sheet" style={{ marginBottom: '2rem', ...classColorStyle(primaryClass) }}>
             {readOnly ? (
                 <div className="sheet-readonly-banner no-print" role="status">
@@ -817,21 +810,10 @@ export default function CharacterSheet() {
                         />
                     </div>
 
-                    {/* Class Resources */}
+                    {/* Limited Uses: class resources, species traits, feats, subclass and custom features */}
                     <div data-tab="combat">
                         <ReadOnlyRegion>
-                        <ClassResourcesSection
-                            characterId={character.id}
-                            data={data}
-                            classLevels={classLevels}
-                            subclassMap={subclassMap}
-                            abilityScores={abilityScores}
-                            racialTraits={racialTraits}
-                            level={level}
-                            choiceSpellNames={choiceSpellNames}
-                            hasChoiceSpells={!!choiceSpellIdsKey}
-                            onUpdate={handleUpdateCharacter}
-                        />
+                            <LimitedUsesCard />
                         </ReadOnlyRegion>
                     </div>
 
@@ -894,11 +876,11 @@ export default function CharacterSheet() {
 
                     {/* Features & Traits */}
                     <div data-tab="features" className="sheet-column-fill">
-                        <FeatureManager
+                        <FeaturesCard
                             characterId={character.id}
-                            initialFeatures={filteredDynamicFeatures}
-                            staticFeatures={staticFeatureEntries}
-                            onUpdate={(newFeatures) => handleUpdateCharacter({ features: newFeatures })}
+                            groups={featureGroups}
+                            storedFeatures={Array.isArray(data.features) ? data.features : []}
+                            onFeaturesChange={(features) => handleUpdateCharacter({ features })}
                         />
                     </div>
 
@@ -948,6 +930,7 @@ export default function CharacterSheet() {
                 />
             )}
         </div>
+        </LimitedUsesProvider>
         </DiceProvider>
         </SheetReadOnlyProvider>
     );

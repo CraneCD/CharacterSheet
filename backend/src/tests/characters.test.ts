@@ -380,3 +380,63 @@ describe('character actions', () => {
         expect(savedActions()).toEqual([{ name: 'A' }]);
     });
 });
+
+describe('features', () => {
+    const features = [
+        { name: 'Alert', source: 'Background: Criminal (Origin Feat)', description: 'x' },
+        { name: 'Action Surge', source: 'Class: Fighter', description: 'x' },
+        { name: 'Lucky Charm', source: 'Custom', description: 'x' },
+    ];
+    const send = async (method: 'put' | 'delete', body: object) => {
+        (prisma.character.findUnique as jest.Mock).mockResolvedValue(ownedCharacter({ features: features.map(f => ({ ...f })) }));
+        return request(app)[method]('/characters/char-1/features').set('Authorization', `Bearer ${token}`).send(body);
+    };
+    const saved = () => (prisma.character.update as jest.Mock).mock.calls[0][0].data.data.features;
+
+    it('removes the named feature even when the index points at another one', async () => {
+        // Index 1 in the sheet's filtered list (hidden class features left out) is Action Surge in storage
+        const res = await send('delete', { index: 1, name: 'Lucky Charm' });
+        expect(res.status).toBe(200);
+        expect(saved().map((f: any) => f.name)).toEqual(['Alert', 'Action Surge']);
+    });
+
+    it('edits a feature in place', async () => {
+        const res = await send('put', { index: 2, name: 'Lucky Charm', feature: { name: 'Rabbit Foot', source: 'Custom', description: 'y' } });
+        expect(res.status).toBe(200);
+        expect(saved()[2]).toEqual({ name: 'Rabbit Foot', source: 'Custom', description: 'y' });
+    });
+
+    it('rejects edits to a feature that is not there', async () => {
+        const res = await send('put', { index: 0, name: 'Nope', feature: { name: 'A', source: 'Custom', description: 'y' } });
+        expect(res.status).toBe(404);
+        expect(prisma.character.update).not.toHaveBeenCalled();
+    });
+});
+
+describe('PATCH /characters/:id/class-resources', () => {
+    const rage = { name: 'Rage', current: 2, max: 3, resetType: 'long' };
+    const send = async (body: object) => {
+        (prisma.character.findUnique as jest.Mock).mockResolvedValue(ownedCharacter({ classResources: { Rage: { ...rage } } }));
+        return request(app).patch('/characters/char-1/class-resources').set('Authorization', `Bearer ${token}`).send(body);
+    };
+    const saved = () => (prisma.character.update as jest.Mock).mock.calls[0][0].data.data.classResources;
+
+    it('adds one counter without touching the others', async () => {
+        const luck = { name: 'Luck Points', current: 5, max: 2, resetType: 'long', source: 'feat', feature: 'Lucky' };
+        const res = await send({ resourceName: 'Luck Points', resource: luck });
+        expect(res.status).toBe(200);
+        expect(saved()).toEqual({ Rage: rage, 'Luck Points': { ...luck, current: 2 } });
+    });
+
+    it('removes one counter', async () => {
+        const res = await send({ resourceName: 'Rage', remove: true });
+        expect(res.status).toBe(200);
+        expect(saved()).toEqual({});
+    });
+
+    it('rejects malformed counters and reserved names', async () => {
+        expect((await send({ resourceName: 'Luck Points', resource: { name: 'Luck Points', max: 'lots' } })).status).toBe(400);
+        expect((await send({ resourceName: '__proto__', resource: { ...rage, name: '__proto__' } })).status).toBe(400);
+        expect(prisma.character.update).not.toHaveBeenCalled();
+    });
+});
