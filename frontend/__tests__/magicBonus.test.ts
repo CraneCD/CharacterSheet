@@ -1,4 +1,4 @@
-import { armorMagicBonus, detectedMagicBonus, weaponMagicBonus } from '@/lib/magicBonus';
+import { armorMagicBonus, detectedMagicBonus, shieldBaseAC, weaponMagicBonus } from '@/lib/magicBonus';
 import { calculateArmorClass } from '@/lib/armorClass';
 import { getWeaponAttacks } from '@/lib/attacks';
 import { weaponRow } from '@/lib/actionRows';
@@ -69,5 +69,24 @@ describe('magic armor and shields', () => {
     it('adds a magic shield to unarmored AC', () => {
         const ac = calculateArmorClass({ ...base, unarmoredMethod: 'unarmored-barbarian', equipment: [{ ...shield, name: 'Shield +1' }] });
         expect(ac.value).toBe(10 + 3 + 0 + 2 + 1);
+    });
+});
+
+describe('the generic magic shield', () => {
+    const base = { modifiers: { dex: 2, con: 0, wis: 0, cha: 0 }, unarmoredMethod: 'standard' as const, traits: [], draconicResilience: false, fightingStyles: [] };
+    const generic = { name: 'Shield, +1, +2, +3', type: 'shield' as const, equipped: true };
+
+    it('is a plain shield until a bonus is picked', () => {
+        expect(calculateArmorClass({ ...base, equipment: [{ ...generic, baseAC: 2 }] }).value).toBe(12 + 2);
+        expect(calculateArmorClass({ ...base, equipment: [{ ...generic, baseAC: 2, magicBonus: 2 }] }).value).toBe(12 + 2 + 2);
+    });
+
+    it('keeps an old copy’s 3 AC, and doesn’t count its built-in +1 twice once a bonus is picked', () => {
+        const old = { ...generic, baseAC: 3 };
+        expect(calculateArmorClass({ ...base, equipment: [old] }).value).toBe(12 + 3);
+        const picked = calculateArmorClass({ ...base, equipment: [{ ...old, magicBonus: 1 }] });
+        expect(picked.value).toBe(12 + 2 + 1);
+        expect(picked.parts).toEqual(['Unarmored 10', 'DEX +2', 'Shield, +1, +2, +3 +2', 'Magic shield +1']);
+        expect(shieldBaseAC({ name: 'Tower Shield', baseAC: 3, magicBonus: 1 })).toBe(3);
     });
 });

@@ -1,5 +1,5 @@
 import { CharacterItem } from './types';
-import { armorMagicBonus } from './magicBonus';
+import { armorMagicBonus, shieldBaseAC } from './magicBonus';
 
 export type UnarmoredMethod = 'standard' | 'unarmored-monk' | 'unarmored-barbarian';
 
@@ -87,8 +87,9 @@ export function calculateArmorClass(input: ArmorClassInput): ArmorClassResult {
     }
 
     if (shield) {
-        value += shield.baseAC ?? 2;
-        parts.push(`${shield.name || 'Shield'} +${shield.baseAC ?? 2}`);
+        const shieldAC = shieldBaseAC(shield);
+        value += shieldAC;
+        parts.push(`${shield.name || 'Shield'} +${shieldAC}`);
         const shieldBonus = armorMagicBonus(shield);
         if (shieldBonus) {
             value += shieldBonus;

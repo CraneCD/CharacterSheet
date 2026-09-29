@@ -30,6 +30,16 @@ export function weaponMagicBonus(item: BonusItem): number {
     return setBonus(item) ?? detectedMagicBonus(item);
 }
 
+/**
+ * The catalogue's generic "Shield, +1, +2, +3" once had 3 AC (a +1 built in). Copies saved then
+ * keep that 3; once a bonus is picked they count as a plain 2 AC shield so it isn't added twice.
+ */
+export function shieldBaseAC(shield: Pick<CharacterItem, 'name' | 'baseAC' | 'magicBonus'>): number {
+    const base = shield.baseAC ?? 2;
+    const generic = /^Shield, \+1, \+2,? (?:or )?\+3$/i.test(String(shield.name || '').trim());
+    return generic && base === 3 && setBonus(shield) !== undefined ? 2 : base;
+}
+
 /** Magic armor or shield's bonus to AC ("Chain Mail, +1", "Shield +2"): set on the item, else from its name or text. */
 export function armorMagicBonus(item: BonusItem): number {
     return setBonus(item) ?? detectedMagicBonus(item, 'armor');
