@@ -61,9 +61,15 @@ export function hasActiveConditions(active: ActiveConditions): boolean {
  * How active conditions change a d20 roll (2024 rules). Covers what applies to every roll of
  * that kind; situational effects (e.g. Grappled attacking someone else) are left to the player.
  */
-export function rollAdjustment(kind: RollKind, ability: string | undefined, active: ActiveConditions): RollAdjustment {
+export function rollAdjustment(
+    kind: RollKind,
+    ability: string | undefined,
+    active: ActiveConditions,
+    /** Features that always give Advantage on this roll (e.g. Feral Instinct on Initiative) */
+    featureAdvantage: string[] = [],
+): RollAdjustment {
     const disadvantage: string[] = [];
-    const advantage: string[] = [];
+    const advantage: string[] = [...featureAdvantage];
 
     if (kind === 'check' || kind === 'initiative') {
         disadvantage.push(...['Poisoned', 'Frightened'].filter((n) => has(active, n)));
