@@ -1,5 +1,5 @@
 /** Campaign API shapes (backend/src/routes/campaigns.ts) and the party numbers the DM sees. */
-import type { HP } from './types';
+import type { CharacterItem, HP } from './types';
 import type { Coins } from './loot';
 
 export type CampaignRole = 'dm' | 'player';
@@ -115,6 +115,8 @@ export interface CampaignItemEntry {
     heldBy: string | null;
     /** Set for currency: the coins in the pile (see lib/loot.ts) */
     coins?: Coins | null;
+    /** Linked to the item list: the sheet item it becomes (see lib/lootCatalogue.ts) */
+    item?: CharacterItem | null;
     dmNotes?: string;
     createdAt: string;
     updatedAt: string;

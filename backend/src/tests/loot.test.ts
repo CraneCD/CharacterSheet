@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { Prisma } from '@prisma/client';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 
@@ -8,6 +9,7 @@ jest.mock('../lib/prisma', () => ({
         campaignMember: { findUnique: jest.fn() },
         campaignItem: { findUnique: jest.fn(), updateMany: jest.fn(), deleteMany: jest.fn(), createMany: jest.fn(), create: jest.fn(), update: jest.fn() },
         character: { findUnique: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
+        referenceItem: { findMany: jest.fn() },
         $transaction: jest.fn(),
     },
 }));
@@ -15,7 +17,7 @@ jest.mock('../lib/prisma', () => ({
 import { prisma } from '../lib/prisma';
 import campaignRoutes from '../routes/campaigns';
 import characterRoutes from '../routes/characters';
-import { addCoins, addLootToSheet, planDistribution, LootItem } from '../lib/lootDelivery';
+import { addCoins, addLootToSheet, catalogueMatch, planDistribution, LootItem } from '../lib/lootDelivery';
 
 process.env.JWT_SECRET = 'test-secret';
 
@@ -36,7 +38,18 @@ const coins = { ...potion, id: 'item-2', name: 'Vault Coins', description: '', r
 const hidden = { ...potion, id: 'item-3', name: 'Dagger of Venom', quantity: 1, rarity: 'rare', revealed: false };
 const aria = { id: 'char-1', userId: 'player-1', campaignId: 'camp-1', name: 'Aria', updatedAt: stamp, data: { equipment: ['Rope'], currency: { gp: 10 } } };
 const borin = { id: 'char-2', userId: 'player-2', campaignId: 'camp-1', name: 'Borin', updatedAt: stamp, data: { equipment: [{ name: 'potion of healing', quantity: 1 }] } };
-const items = [potion, coins, hidden];
+// Linked to the item list: a Flame Tongue made from a longsword
+const flameTongue = {
+    name: 'Flame Tongue (Longsword)', category: 'magic-item', type: 'weapon', damage: '1d8', damageType: 'slashing', properties: ['versatile (1d10)'],
+    mastery: 'sap', rarity: 'Rare', attunement: true, baseName: 'Longsword', baseItemId: 'flame-tongue', description: 'Bonus fire damage.', isBaseItem: true, equipped: false,
+};
+const sword = { ...potion, id: 'item-4', name: 'Flame Tongue (Longsword)', description: 'Bonus fire damage.', rarity: 'rare', quantity: 1, item: flameTongue };
+const catalogue = [
+    { type: 'baseItem', key: 'potion-of-healing', data: { name: 'Potion of Healing', category: 'potion', rarity: 'Common', description: 'Regain 2d4 + 2 HP.' } },
+    { type: 'baseItem', key: 'longsword-1', data: { name: 'Longsword, +1', category: 'magic-item', type: 'weapon', damage: '1d8', damageType: 'slashing', magicBonus: 1, baseName: 'Longsword' } },
+    { type: 'baseItem', key: 'weapon-1-2-3', data: { name: 'Weapon, +1, +2, or +3', category: 'magic-item', type: 'weapon', legacy: true } },
+];
+const items = [potion, coins, hidden, sword];
 const characters = [aria, borin];
 
 beforeEach(() => {
@@ -52,6 +65,7 @@ beforeEach(() => {
     mock(prisma.campaignItem.deleteMany).mockResolvedValue({ count: 1 });
     mock(prisma.campaignItem.createMany).mockResolvedValue({ count: 1 });
     mock(prisma.character.updateMany).mockResolvedValue({ count: 1 });
+    mock(prisma.referenceItem.findMany).mockResolvedValue(catalogue);
 });
 
 const sheetWrites = () => mock(prisma.character.updateMany).mock.calls.map(([arg]: any) => ({ id: arg.where.id, data: arg.data.data }));
@@ -99,10 +113,44 @@ describe('addLootToSheet', () => {
         expect(sheet.equipment).toEqual([{ name: 'potion of healing', quantity: 3 }]);
     });
 
+    it("gives a linked item its stats, under the loot's name and text", () => {
+        const sheet = addLootToSheet({ equipment: [] }, sword as unknown as LootItem, { quantity: 1, coins: null }, 'Obelisk');
+        const { equipped: _e, ...stats } = flameTongue;
+        expect(sheet.equipment).toEqual([{ ...stats, quantity: 1, equipped: false, notes: 'Loot from Obelisk · Rare · Worth 50 gp' }]);
+    });
+
+    it("doesn't tie a renamed or reworded linked item to the item list's live text", () => {
+        const renamed = { ...sword, name: "Grandpa's Blade" } as unknown as LootItem;
+        const [entry] = addLootToSheet({}, renamed, { quantity: 1, coins: null }, 'Obelisk').equipment as Record<string, unknown>[];
+        expect(entry).toMatchObject({ name: "Grandpa's Blade", damage: '1d8', baseName: 'Longsword' });
+        expect(entry).not.toHaveProperty('baseItemId');
+        const reworded = { ...sword, description: 'It hums.' } as unknown as LootItem;
+        expect((addLootToSheet({}, reworded, { quantity: 1, coins: null }, 'Obelisk').equipment as Record<string, unknown>[])[0])
+            .toMatchObject({ description: 'It hums.' });
+        expect((addLootToSheet({}, { ...sword, description: '' } as unknown as LootItem, { quantity: 1, coins: null }, 'Obelisk').equipment as Record<string, unknown>[])[0])
+            .toMatchObject({ description: 'Bonus fire damage.', baseItemId: 'flame-tongue' });
+    });
+
     it('puts coins in the purse', () => {
         expect(addLootToSheet(aria.data, coins as unknown as LootItem, { quantity: 1, coins: { gp: 5, sp: 2 } }, 'Obelisk').currency)
             .toEqual({ pp: 0, gp: 15, ep: 0, sp: 2, cp: 0 });
         expect(addCoins({ gp: 3 }, { gp: -5, cp: 4 })).toEqual({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 4 });
+    });
+});
+
+describe('catalogueMatch', () => {
+    const loot = (name: string, extra: object = {}) => ({ ...potion, name, ...extra }) as unknown as LootItem;
+
+    it('finds unlinked loot in the item list by name, "+1 Longsword" too', async () => {
+        expect(await catalogueMatch(loot('potion of healing'))).toEqual({ ...catalogue[0].data, baseItemId: 'potion-of-healing' });
+        expect(await catalogueMatch(loot('+1 Longsword'))).toMatchObject({ name: 'Longsword, +1', magicBonus: 1, baseItemId: 'longsword-1' });
+    });
+
+    it('skips hidden entries, coins, linked items and unknown names', async () => {
+        expect(await catalogueMatch(loot('Weapon, +1, +2, or +3'))).toBeNull();
+        expect(await catalogueMatch(loot('Potion of Healing', { coins: { gp: 5 } }))).toBeNull();
+        expect(await catalogueMatch(loot('Potion of Healing', { item: flameTongue }))).toBeNull();
+        expect(await catalogueMatch(loot('Mysterious Orb'))).toBeNull();
     });
 });
 
@@ -142,6 +190,19 @@ describe('POST /campaigns/:id/items/:itemId/distribute', () => {
             ['char-1', { pp: 0, gp: 185, ep: 0, sp: 95, cp: 0 }],
             ['char-2', { pp: 0, gp: 175, ep: 0, sp: 94, cp: 0 }],
         ]);
+    });
+
+    it('puts linked loot on the sheet with its stats, and unlinked loot with the matching entry', async () => {
+        await distribute(DM, 'item-4', [{ characterId: 'char-1' }]);
+        expect(sheetWrites()[0].data.equipment[1]).toMatchObject({ name: 'Flame Tongue (Longsword)', damage: '1d8', baseItemId: 'flame-tongue' });
+
+        mock(prisma.character.updateMany).mockClear();
+        await distribute(DM, 'item-1', [{ characterId: 'char-1', quantity: 1 }]);
+        // The DM's own text wins, so it isn't tied to the item list's live text
+        expect(sheetWrites()[0].data.equipment[1]).toMatchObject({ name: 'Potion of Healing', category: 'potion', description: 'Heals 2d4 + 2.', rarity: 'Common' });
+        expect(sheetWrites()[0].data.equipment[1]).not.toHaveProperty('baseItemId');
+        // The shares keep the loot's own link (none), not the match
+        expect(mock(prisma.campaignItem.createMany).mock.calls[0][0].data[0].item).toBe(Prisma.DbNull);
     });
 
     it('keeps what nobody took in the pool', async () => {

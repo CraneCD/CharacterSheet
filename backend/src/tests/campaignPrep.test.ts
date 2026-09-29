@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { Prisma } from '@prisma/client';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 
@@ -110,6 +111,12 @@ describe('planImport', () => {
         expect(planned.items[1]).not.toHaveProperty('coins');
     });
 
+    it('carries the linked sheet item', () => {
+        const item = { name: 'Longsword, +1', damage: '1d8', magicBonus: 1 };
+        const planned = planImport(prepSchema.parse({ ...prep, items: [{ name: 'Longsword, +1', item }] }), 'camp-9', 'dm-9');
+        expect(planned.items[0]).toMatchObject({ name: 'Longsword, +1', item });
+    });
+
     it('keeps the file order: rows are stamped a millisecond apart', () => {
         const twoOfEach = prepSchema.parse({ ...prep, sessions: [...prep.sessions, { title: 'Chapter 2' }], items: [...prep.items, { name: 'Rope' }] });
         const now = new Date('2026-09-25T12:00:00.000Z');
@@ -192,6 +199,16 @@ describe('loot', () => {
         const res = await request(app).post('/campaigns/camp-1/items').set('Authorization', DM).send({ name: 'Ring', rarity: 'rare' });
         expect(res.status).toBe(201);
         expect(prisma.campaignItem.create).toHaveBeenCalledWith({ data: { name: 'Ring', rarity: 'rare', campaignId: 'camp-1' } });
+    });
+
+    it('stores the linked sheet item, and none for coins or when unlinked', async () => {
+        mock(prisma.campaignItem.create).mockImplementation(async ({ data }: any) => ({ id: 'i2', ...data }));
+        const item = { name: 'Longsword, +1', damage: '1d8', magicBonus: 1 };
+        await request(app).post('/campaigns/camp-1/items').set('Authorization', DM).send({ name: 'Longsword, +1', item });
+        expect(mock(prisma.campaignItem.create).mock.calls[0][0].data.item).toEqual(item);
+        await request(app).post('/campaigns/camp-1/items').set('Authorization', DM).send({ name: 'Coins', coins: { gp: 5 }, item });
+        expect(mock(prisma.campaignItem.create).mock.calls[1][0].data.item).toBe(Prisma.DbNull);
+        expect((await request(app).post('/campaigns/camp-1/items').set('Authorization', DM).send({ name: 'Odd', item: { damage: '1d8' } })).status).toBe(400);
     });
 
     it("only gives items to characters in the campaign", async () => {
