@@ -49,6 +49,30 @@ export interface CharacterItem {
     magicBonus?: number | null;
     notes?: string;
     isBaseItem?: boolean; // To distinguish base items from custom items
+    weight?: number;
+    weaponCategory?: 'simple' | 'martial';
+    strengthRequirement?: number | null;
+    stealthDisadvantage?: boolean;
+    rarity?: string;
+    attunement?: boolean;
+    /** Catalogue items the player shouldn't pick any more (duplicates, replaced entries) */
+    legacy?: boolean;
+    /** Magic weapons/armor/shields: which base items they can be made from (lib/itemComposition) */
+    appliesTo?: AppliesTo;
+    /** The mundane item this magic item is made from ("Longsword"); its stats are copied onto the item */
+    baseName?: string;
+    /** Base-item fields the magic item changes (Mithral: no Stealth Disadvantage, no Strength requirement) */
+    overrides?: { stealthDisadvantage?: boolean; strengthRequirement?: null };
+}
+
+/** Which base items a magic weapon, armor or shield can be; no names/filters = any of that kind. */
+export interface AppliesTo {
+    kind: 'weapon' | 'armor' | 'shield';
+    names?: string[];
+    melee?: boolean;
+    ranged?: boolean;
+    armorMethods?: ('light' | 'medium' | 'heavy')[];
+    except?: string[];
 }
 
 export interface HP {

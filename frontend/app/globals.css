@@ -5861,3 +5861,58 @@ a.party-card-head:hover .party-card-name {
 .account-email strong {
   color: var(--text);
 }
+
+/* ---------- Magic items: choosing the base, +N tag ---------- */
+.item-bonus-tag {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.choose-base {
+  display: grid;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.choose-base-question {
+  margin: 0;
+}
+
+.choose-base-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-2);
+  max-height: 50vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.choose-base-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.choose-base-option:hover {
+  border-color: var(--primary);
+}
+
+.choose-base-name {
+  font-weight: 700;
+}
+
+.choose-base-stats {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}

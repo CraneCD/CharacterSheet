@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { CharacterItem, ItemCategory } from '@/lib/types';
-import { detectedMagicBonus } from '@/lib/magicBonus';
+import { armorMagicBonus, detectedMagicBonus, weaponMagicBonus } from '@/lib/magicBonus';
+import { baseCandidates, composeMagicItem, isMagicGear, liveName, needsBase, remakeFrom } from '@/lib/itemComposition';
 import { describeError, Modal, useToast } from '@/app/components/ui';
 import { useSheetReadOnly } from '../SheetReadOnly';
 
@@ -51,6 +52,8 @@ export default function EquipmentManager({
         quantity: 1
     });
     const [editingQuantity, setEditingQuantity] = useState<{ [index: number]: string }>({});
+    // Adding a magic weapon/armor/shield that fits several base items: which one it is
+    const [choosingBase, setChoosingBase] = useState<{ item: CharacterItem; candidates: CharacterItem[] } | null>(null);
 
     useEffect(() => {
         setEquipment(initialEquipment || []);
@@ -77,7 +80,7 @@ export default function EquipmentManager({
     const mergeLiveBaseItem = (item: CharacterItem): CharacterItem => {
         const live = item.baseItemId ? baseItemsById[item.baseItemId] : undefined;
         if (!live) return item;
-        return { ...item, name: live.name, description: live.description };
+        return { ...item, name: liveName(item, live), description: live.description };
     };
 
     // Fetch base items lazily — only when the add panel is open and a non-custom category is selected
@@ -104,11 +107,27 @@ export default function EquipmentManager({
         fetchBaseItems();
     }, [isAdding, selectedCategory]);
 
-    const handleAddBaseItem = async (baseItem: CharacterItem) => {
+    const catalogue = Object.values(baseItemsById);
+
+    /** Magic weapons, armor and shields are made from a base item: pick it (or ask which) before adding. */
+    const handleAddBaseItem = (baseItem: CharacterItem) => {
+        if (needsBase(baseItem)) {
+            const candidates = baseCandidates(baseItem, catalogue);
+            if (candidates.length === 1) return addItem(composeMagicItem(baseItem, candidates[0], true), baseItem.id);
+            if (candidates.length > 1) {
+                setChoosingBase({ item: baseItem, candidates });
+                return;
+            }
+        }
+        return addItem(baseItem, baseItem.id);
+    };
+
+    const addItem = async (item: CharacterItem, catalogueId?: string) => {
         try {
+            const { id: _id, ...rest } = item as CharacterItem & { id?: string };
             const itemToAdd: CharacterItem = {
-                ...baseItem,
-                baseItemId: baseItem.id,
+                ...rest,
+                ...(catalogueId && { baseItemId: catalogueId }),
                 equipped: false,
                 quantity: 1
             };
@@ -119,6 +138,7 @@ export default function EquipmentManager({
             setEquipment(newEquipment);
             onUpdate(newEquipment);
             setIsAdding(false);
+            setChoosingBase(null);
         } catch (err) {
             console.error('Failed to add equipment', err);
             toast.error(describeError("Couldn't add equipment", err));
@@ -292,6 +312,8 @@ export default function EquipmentManager({
     const filteredBaseItems = selectedCategory === 'custom'
         ? []
         : safeBaseItems.filter(item => {
+            // Duplicates and replaced entries stay in the catalogue for characters that own them
+            if (item.legacy) return false;
             if (!searchTerm.trim()) return true;
             const searchLower = searchTerm.toLowerCase();
             return (
@@ -341,9 +363,18 @@ export default function EquipmentManager({
             {isAdding && (
                 <Modal onClose={() => {
                     setIsAdding(false);
+                    setChoosingBase(null);
                     setSearchTerm('');
                 }} ariaLabel="Add Item" contentStyle={{ maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
                     <h3>Add Item</h3>
+                    {choosingBase ? (
+                        <ChooseBase
+                            item={choosingBase.item}
+                            candidates={choosingBase.candidates}
+                            onChoose={(base) => addItem(composeMagicItem(choosingBase.item, base, false), choosingBase.item.id)}
+                            onBack={() => setChoosingBase(null)}
+                        />
+                    ) : (<>
                     <div style={{ marginBottom: '1rem' }}>
                         <label htmlFor="equipmentmanager-select-category" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Select Category</label>
                         <select id="equipmentmanager-select-category"
@@ -450,6 +481,7 @@ export default function EquipmentManager({
                             </button>
                         </div>
                     )}
+                    </>)}
                 </Modal>
             )}
 
@@ -509,6 +541,12 @@ export default function EquipmentManager({
                                                             onClick={() => setExpandedIndex(isItemExpanded ? null : actualIndex)}
                                                         >
                                                             {itemObj.name} {itemObj.quantity && itemObj.quantity > 1 ? `(x${itemObj.quantity})` : ''}
+                                                            {(() => {
+                                                                // A +N set on a plain item ("Longsword" made +1) shows next to its name
+                                                                const bonus = isWeapon(itemObj) ? weaponMagicBonus(itemObj) : isEquipable(itemObj) ? armorMagicBonus(itemObj) : 0;
+                                                                return bonus > 0 && !itemObj.name.includes(`+${bonus}`)
+                                                                    ? <span className="item-bonus-tag"> +{bonus}</span> : null;
+                                                            })()}
                                                             {itemObj.equipped && ' ✓'}
                                                         </span>
                                                     </div>
@@ -640,6 +678,29 @@ export default function EquipmentManager({
                                                                 </select>
                                                             </div>
                                                         )}
+                                                        {isMagicGear(itemObj) && (() => {
+                                                            // Made from: the base item whose stats this magic item uses (old items may have none yet)
+                                                            const liveMagic = itemObj.baseItemId ? baseItemsById[itemObj.baseItemId] : undefined;
+                                                            const candidates = baseCandidates(liveMagic ?? itemObj, catalogue);
+                                                            if (candidates.length === 0 || (candidates.length === 1 && itemObj.baseName === candidates[0].name)) return null;
+                                                            const baseId = `equipmentmanager-made-from-${actualIndex}`;
+                                                            return (
+                                                                <div style={{ marginTop: '0.5rem' }}>
+                                                                    <label htmlFor={baseId} style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Made from</label>
+                                                                    <select id={baseId}
+                                                                        className="input"
+                                                                        value={itemObj.baseName ?? ''}
+                                                                        onChange={e => {
+                                                                            const base = candidates.find(c => c.name === e.target.value);
+                                                                            if (base) handleUpdateItem(actualIndex, remakeFrom(itemObj, base, liveMagic));
+                                                                        }}
+                                                                    >
+                                                                        {!itemObj.baseName && <option value="">Choose what it is…</option>}
+                                                                        {candidates.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                                                                    </select>
+                                                                </div>
+                                                            );
+                                                        })()}
                                                         {(isWeapon(itemObj) || isArmor(itemObj) || isShield(itemObj)) && (() => {
                                                             // Magic bonus: set here, or read from the name/text ("Pistol, +1", "Shield +2") until set
                                                             const forWeapon = isWeapon(itemObj);
@@ -721,6 +782,46 @@ export default function EquipmentManager({
                     </div>
                 )}
             </div>
+        </div>
+    );
+}
+
+/** Adding a magic weapon, armor or shield that fits several base items: "Which weapon is your Flame Tongue?" */
+function ChooseBase({ item, candidates, onChoose, onBack }: {
+    item: CharacterItem;
+    candidates: CharacterItem[];
+    onChoose: (base: CharacterItem) => void;
+    onBack: () => void;
+}) {
+    const [search, setSearch] = useState('');
+    const kind = item.appliesTo?.kind ?? item.type ?? 'weapon';
+    const shown = candidates.filter(c => c.name.toLowerCase().includes(search.trim().toLowerCase()));
+    return (
+        <div className="choose-base">
+            <p className="choose-base-question">Which {kind} is your <strong>{item.name}</strong>?</p>
+            {candidates.length > 8 && (
+                <input
+                    type="search"
+                    className="input"
+                    aria-label={`Search ${kind}s`}
+                    placeholder={`Search ${kind}s`}
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                />
+            )}
+            <ul className="choose-base-list">
+                {shown.map(c => (
+                    <li key={c.name}>
+                        <button type="button" className="choose-base-option" onClick={() => onChoose(c)}>
+                            <span className="choose-base-name">{c.name}</span>
+                            <span className="choose-base-stats">
+                                {c.damage ? `${c.damage} ${c.damageType ?? ''}`.trim() : c.baseAC != null ? `AC ${c.baseAC}${c.category === 'shield' ? ' bonus' : ''}` : ''}
+                            </span>
+                        </button>
+                    </li>
+                ))}
+            </ul>
+            <button type="button" className="btn btn-secondary" onClick={onBack}>Back</button>
         </div>
     );
 }

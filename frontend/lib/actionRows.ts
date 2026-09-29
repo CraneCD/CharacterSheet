@@ -159,7 +159,9 @@ export function spellRow(spell: SpellSource, castable: CastableSpell, characterL
 }
 
 export function weaponRow(attack: WeaponAttack, index: number, hasWeaponMastery: boolean, masteryWeapons: string[] | null): ActionRow {
-    const masteryId = hasWeaponMastery && (!masteryWeapons || masteryWeapons.includes(attack.name.trim().toLowerCase()))
+    // Mastery choices name kinds of weapon: a "Flame Tongue (Longsword)" uses the Longsword's
+    const kinds = [attack.name, attack.baseName].filter(Boolean).map((n) => String(n).trim().toLowerCase());
+    const masteryId = hasWeaponMastery && (!masteryWeapons || kinds.some((k) => masteryWeapons.includes(k)))
         ? getMasteryForWeapon(attack.name, attack.mastery)
         : undefined;
     const mastery = masteryId ? MASTERY_INFO[masteryId] : undefined;

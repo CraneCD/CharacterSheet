@@ -5,6 +5,8 @@
 // SRD 5.2 is summarized in our own words. `legacy: true` marks pre-2024
 // content kept for existing characters; pickers hide it by default.
 
+import { finishCatalogue } from './magicItems';
+
 export type ItemCategory = 'armor' | 'weapon' | 'shield' | 'tool' | 'magic-item' | 'potion' | 'scroll' | 'miscellaneous';
 
 export interface BaseItem {
@@ -33,9 +35,31 @@ export interface BaseItem {
     isBaseItem?: boolean;
     source?: string;
     legacy?: boolean;
+    /** Magic weapons, armor and shields: what they can be made from (see magicItems.ts) */
+    appliesTo?: AppliesTo;
+    /** +N to attack and damage rolls (weapons) or to AC (armor, shields) */
+    magicBonus?: number;
+    /** The base item a +1/+2/+3 version is made from ("Longsword") */
+    baseName?: string;
+    /** Base-item fields this magic item changes (Mithral: no Stealth Disadvantage, no Strength requirement) */
+    overrides?: { stealthDisadvantage?: boolean; strengthRequirement?: null };
 }
 
-export const baseItems: BaseItem[] = [
+/** Which base items a magic weapon, armor or shield can be; no names/filters = any of that kind. */
+export interface AppliesTo {
+    kind: 'weapon' | 'armor' | 'shield';
+    /** Base item names it can be ("Longsword", "Scale Mail") */
+    names?: string[];
+    melee?: boolean;
+    ranged?: boolean;
+    armorMethods?: ('light' | 'medium' | 'heavy')[];
+    /** Armor it can't be ("Hide Armor") */
+    except?: string[];
+}
+
+// The hand-written catalogue. Only ever append (keys are slugs assigned in order);
+// `baseItems` below adds magic-item data and the generated +1/+2/+3 items after it.
+const catalogue: BaseItem[] = [
     {
         "name": "Padded Armor",
         "category": "armor",
@@ -10248,3 +10272,5 @@ export const baseItems: BaseItem[] = [
         "source": "SRD 5.2"
     }
 ];
+
+export const baseItems: BaseItem[] = finishCatalogue(catalogue);
