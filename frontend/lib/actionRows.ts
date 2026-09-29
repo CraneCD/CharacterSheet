@@ -4,7 +4,7 @@
  * Copies the app used to store for spells, weapon attacks and weapon mastery are hidden.
  */
 import { CharacterAction, ClassResource, ClassResources } from './types';
-import { featureUsesTiming } from './featureUses';
+import { featureUsesTiming, freeCastCounter } from './featureUses';
 import { WeaponAttack } from './attacks';
 import { MASTERY_INFO, getMasteryForWeapon } from './weaponMastery';
 import { findActionSpell, SpellActionSource } from './spellActions';
@@ -292,7 +292,11 @@ export function buildActionRows(input: BuildActionRowsInput): ActionRow[] {
             .filter((c, i, all) => all.findIndex((o) => o.id === c.id) === i)
             .flatMap((c) => {
                 const spell = spellById.get(c.id);
-                return spell ? [spellRow(spell, c, input.characterLevel, input.spellcasting)] : [];
+                if (!spell) return [];
+                const row = spellRow(spell, c, input.characterLevel, input.spellcasting);
+                // Species free casts (Elven Lineage, ...): what's left without a spell slot
+                const free = freeCastCounter(input.resources, c.id);
+                return [free ? { ...row, uses: `${free[1].current} / ${free[1].max} free` } : row];
             }),
         ...storedRows(input.storedActions, input.spells),
     ];

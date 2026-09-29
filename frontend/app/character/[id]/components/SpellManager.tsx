@@ -5,6 +5,9 @@ import { api } from '@/lib/api';
 import { Spell, CharacterSpell, CharacterData } from '@/lib/types';
 import { calculateMulticlassSpellcasterLevel, getSpellcastingClasses, calculatePreparedSpellsLimitForClass, getCantripsKnown, getKnownSpellsLimit } from '@/lib/multiclassSpellcasting';
 import { ELVEN_LINEAGE_SPELLS, SUBCLASS_BONUS_SPELLS, MAGIC_INITIATE_CLASSES } from '@/lib/wizardReference';
+import { freeCastCounter } from '@/lib/featureUses';
+import { useOptionalSheetLimitedUses } from './sections/ClassResourcesSection';
+import UsesTracker from './UsesTracker';
 import { getSlotsForClass, getPactMagic, THIRD_CASTER_SPELLS_KNOWN, getThirdCasterCantrips } from '@/lib/spellSlots';
 import SpellDetailsModal from './SpellDetailsModal';
 import MagicInitiateConfigModal from './MagicInitiateConfigModal';
@@ -74,6 +77,8 @@ interface SpellManagerProps {
 
 export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, initialPactSlotsUsed = 0, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel, subclassSpells, classFeatureSpells = [], bonusCantrips = 0, speciesSpells, magicInitiate, onMagicInitiateUpdate, magicInitiateSpell1Used = 1, onMagicInitiateSlotChange, onCastableChange }: SpellManagerProps) {
     const readOnly = useSheetReadOnly();
+    // Free casts of species spells, tracked with the sheet's other limited uses
+    const limitedUses = useOptionalSheetLimitedUses();
     const toast = useToast();
     const [mySpells, setMySpells] = useState<CharacterSpell[]>(Array.isArray(initialSpells) ? initialSpells : []);
     const [slotsUsed, setSlotsUsed] = useState<{ [level: number]: number }>(initialSlotsUsed || {});
@@ -1185,6 +1190,16 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                             )}
                                         </div>
                                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{spell.school}</div>
+                                        {spell.level > 0 && isElvenLineageSpell && (() => {
+                                            const free = limitedUses && freeCastCounter(limitedUses.resources, spell.id);
+                                            if (!free) return null;
+                                            return (
+                                                <div className="spell-free-cast">
+                                                    <span className="spell-free-cast-label" aria-hidden="true">Free cast</span>
+                                                    <UsesTracker resource={free[1]} onChange={(current) => limitedUses.setCurrent(free[0], current)} />
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                                         {fullSpell && (

@@ -6,7 +6,8 @@ import { CharacterData, ClassResource, ClassResources } from '@/lib/types';
 import { reconcileClassResources, RESOURCE_RULES_VERSION } from '@/lib/classResources';
 import { calculateAllClassResources } from '@/lib/subclasses';
 import { getChoiceResources } from '@/lib/classChoices';
-import { computeFeatureUses, mergeFeatureUses } from '@/lib/featureUses';
+import { computeFeatureUses, computeSpeciesSpellUses, mergeFeatureUses } from '@/lib/featureUses';
+import type { SpeciesSpellEntry } from '@/lib/wizardReference';
 import { useOptimisticSave } from '@/app/components/ui';
 
 interface ResolveInput {
@@ -17,13 +18,15 @@ interface ResolveInput {
     abilityScores: Record<string, number>;
     racialTraits: string[];
     level: number;
-    /** Names of class-choice spells (Mystic Arcanum, Signature Spells); null while loading. */
+    /** Spell names by id, for class-choice spells (Mystic Arcanum, Signature Spells) and species free casts; null while loading. */
     choiceSpellNames: Record<string, string> | null;
     hasChoiceSpells: boolean;
     /** Stored features plus the current class/subclass features, for trait, feat and subclass uses */
     features?: Array<{ name?: string }>;
     /** Ability modifiers after feature increases (defaults to the raw scores') */
     modifiers?: Record<string, number>;
+    /** Spells from the species (free casts once per Long Rest, ...) */
+    speciesSpells?: SpeciesSpellEntry[];
 }
 
 const abilityMod = (score: number | undefined) => Math.floor(((score ?? 10) - 10) / 2);
@@ -50,14 +53,24 @@ export function resolveClassResources(input: ResolveInput): { resources: ClassRe
 
     // Species traits (Heroic Inspiration, Breath Weapon, ...), feats and subclass features
     const modifiers = input.modifiers ?? Object.fromEntries(Object.entries(abilityScores).map(([k, v]) => [k, abilityMod(v)]));
+    const proficiencyBonus = Math.ceil(level / 4) + 1;
     const featureUses = computeFeatureUses({
         features: input.features ?? [],
         racialTraits,
         level,
-        proficiencyBonus: Math.ceil(level / 4) + 1,
+        proficiencyBonus,
         modifiers,
     });
-    const merged = mergeFeatureUses(resources || {}, featureUses);
+    // Free casts of species spells are named after the spell: until the names load, keep what's stored
+    const speciesSpellUses: ClassResources = {};
+    if ((input.speciesSpells ?? []).some((e) => e.free)) {
+        if (choiceSpellNames) {
+            Object.assign(speciesSpellUses, computeSpeciesSpellUses(input.speciesSpells ?? [], level, proficiencyBonus, choiceSpellNames));
+        } else {
+            for (const [name, res] of Object.entries(resources || {})) if (res?.spellId) speciesSpellUses[name] = res;
+        }
+    }
+    const merged = mergeFeatureUses(resources || {}, { ...featureUses, ...speciesSpellUses });
     resources = merged.resources;
     if (merged.changed) changed = true;
 
@@ -207,4 +220,9 @@ export function useSheetLimitedUses(): LimitedUses {
     const uses = useContext(LimitedUsesContext);
     if (!uses) throw new Error('useSheetLimitedUses must be used inside LimitedUsesProvider');
     return uses;
+}
+
+/** The sheet's counters, or null outside the sheet (e.g. component tests) */
+export function useOptionalSheetLimitedUses(): LimitedUses | null {
+    return useContext(LimitedUsesContext);
 }
