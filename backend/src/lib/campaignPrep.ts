@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from './prisma';
 import { monsterSchema } from './monsterSchema';
@@ -140,6 +141,7 @@ export async function exportPrep(campaignId: string) {
             value: i.value,
             dmNotes: i.dmNotes,
             ...(normalizeCoins(i.coins) ? { coins: normalizeCoins(i.coins)! } : {}),
+            ...(i.item && typeof i.item === 'object' && !normalizeCoins(i.coins) ? { item: i.item as Record<string, unknown> } : {}),
             revealed: false,
         })),
     };
@@ -201,9 +203,16 @@ export function planImport(prep: CampaignPrep, campaignId: string, dmId: string,
         shared: s.shared ?? false,
     }));
 
-    const items = prep.items.map(({ coins, ...item }, i) => {
+    const items = prep.items.map(({ coins, item: linked, ...item }, i) => {
         const pile = normalizeCoins(coins);
-        return { ...item, ...(pile ? { coins: pile } : {}), campaignId, name: item.name, revealed: item.revealed ?? false, ...stamp(i) };
+        return {
+            ...item,
+            ...(pile ? { coins: pile } : linked ? { item: linked as Prisma.InputJsonValue } : {}),
+            campaignId,
+            name: item.name,
+            revealed: item.revealed ?? false,
+            ...stamp(i),
+        };
     });
 
     return { monsters, encounters, sessions, items };

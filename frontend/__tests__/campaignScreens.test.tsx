@@ -291,6 +291,47 @@ describe('loot', () => {
         await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith('/campaigns/camp-1/items', expect.objectContaining({ name: 'Coin purse', coins: { gp: 25, cp: 7 }, quantity: 1 })));
     });
 
+    it('links an item to the item list, made from the base the DM picks', async () => {
+        const longsword = { id: 'longsword', name: 'Longsword', category: 'weapon', type: 'weapon', damage: '1d8', damageType: 'slashing', properties: ['versatile (1d10)'], mastery: 'sap' };
+        const shortsword = { id: 'shortsword', name: 'Shortsword', category: 'weapon', type: 'weapon', damage: '1d6', damageType: 'piercing', properties: ['finesse', 'light'] };
+        const flameTongue = { id: 'flame-tongue', name: 'Flame Tongue', category: 'magic-item', type: 'weapon', rarity: 'Rare', attunement: true, description: 'Fire damage.', appliesTo: { kind: 'weapon', melee: true } };
+        routeGets({ '/campaigns/camp-1/items': [], '/reference/base-items': [longsword, shortsword, flameTongue] });
+        mockApi.post.mockImplementation(async (_url: string, body: any) => ({ ...potion, ...body, id: 'i9' }));
+        renderWithToasts(<LootPanel campaignId="camp-1" isDm party={party} />);
+        fireEvent.click(await screen.findByRole('button', { name: '+ Add item' }));
+        const search = screen.getByLabelText('Find in the item list');
+        await waitFor(() => expect(search).toBeEnabled());
+        fireEvent.change(search, { target: { value: 'flame' } });
+        fireEvent.click(screen.getByRole('button', { name: /Flame Tongue/ }));
+        expect(screen.getByLabelText('Name')).toHaveValue('Flame Tongue');
+        expect(screen.getByLabelText('Rarity')).toHaveValue('rare');
+        expect(screen.getByLabelText('Made from')).toHaveValue('');
+        fireEvent.change(screen.getByLabelText('Made from'), { target: { value: 'Longsword' } });
+        expect(screen.getByLabelText('Name')).toHaveValue('Flame Tongue (Longsword)');
+        expect(screen.getByText(/1d8 slashing, attunement/)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Save item' }));
+        await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith('/campaigns/camp-1/items', expect.objectContaining({
+            name: 'Flame Tongue (Longsword)',
+            description: 'Fire damage.',
+            item: expect.objectContaining({ name: 'Flame Tongue (Longsword)', damage: '1d8', mastery: 'sap', baseName: 'Longsword', baseItemId: 'flame-tongue' }),
+        })));
+        expect(await screen.findByText(/Rare · 1d8 slashing, attunement/)).toBeInTheDocument();
+    });
+
+    it('unlinks an item, keeping what the DM wrote', async () => {
+        const linked = { ...potion, id: 'i4', name: 'Longsword, +1', item: { name: 'Longsword, +1', category: 'magic-item', type: 'weapon', damage: '1d8', damageType: 'slashing', magicBonus: 1, baseItemId: 'longsword-1' } };
+        routeGets({ '/campaigns/camp-1/items': [linked], '/reference/base-items': [] });
+        mockApi.put.mockImplementation(async (_url: string, body: any) => ({ ...linked, ...body }));
+        renderWithToasts(<LootPanel campaignId="camp-1" isDm party={party} />);
+        expect(await screen.findByText('Common · 1d8 slashing, +1 · 50 gp')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'More for Longsword, +1' }));
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Unlink' }));
+        expect(screen.getByLabelText('Find in the item list')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Save item' }));
+        await waitFor(() => expect(mockApi.put).toHaveBeenCalledWith('/campaigns/camp-1/items/i4', expect.objectContaining({ name: 'Longsword, +1', item: null })));
+    });
+
     it('adds an item', async () => {
         routeGets({ '/campaigns/camp-1/items': [] });
         mockApi.post.mockImplementation(async (_url: string, body: any) => ({ ...potion, ...body, id: 'i9' }));

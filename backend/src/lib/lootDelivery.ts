@@ -2,11 +2,15 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from './prisma';
 import { coinsSchema } from './itemSchema';
+import { getReferenceRows } from './referenceCache';
 
 // Giving campaign loot to characters: a player claims (or takes a share of)
 // something the party found, or the DM hands it out or splits it. What's
 // given lands on the character's sheet (equipment, or currency for coins) in
 // the same transaction that updates the loot list, so the two can't disagree.
+// Loot linked to the item list (CampaignItem.item) arrives with its stats, so
+// a magic sword attacks and magic armor counts toward AC; unlinked loot whose
+// name is in the item list is matched when it's handed out.
 
 export const DENOMINATIONS = ['pp', 'gp', 'ep', 'sp', 'cp'] as const;
 export type Denomination = typeof DENOMINATIONS[number];
@@ -54,6 +58,8 @@ export interface LootItem {
     value: string;
     heldBy: string | null;
     coins: unknown;
+    /** The linked sheet item (catalogue entry), if any */
+    item?: unknown;
 }
 
 export type DistributionPlan =
@@ -110,9 +116,53 @@ function itemCategory(item: LootItem): string {
 const entryName = (entry: unknown) =>
     (typeof entry === 'string' ? entry : (entry as { name?: unknown } | null)?.name ?? '').toString().trim().toLowerCase();
 
+const asObject = (value: unknown): Record<string, unknown> | null =>
+    (value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null);
+
+const normalName = (name: string) => name.trim().toLowerCase();
+
+/**
+ * The item-list entry an unlinked loot item is ("Potion of Healing", "+1 Longsword" as
+ * "Longsword, +1"), in the sheet's shape; null for coins and names that aren't in the list.
+ */
+export async function catalogueMatch(item: LootItem): Promise<Record<string, unknown> | null> {
+    if (normalizeCoins(item.coins) || asObject(item.item)) return null;
+    const plus = /^\+([1-3])\s+(.+)$/.exec(item.name.trim());
+    const names = [normalName(item.name), ...(plus ? [normalName(`${plus[2]}, +${plus[1]}`)] : [])];
+    const rows = await getReferenceRows('baseItem');
+    const row = rows.find((r) => !r.data?.legacy && typeof r.data?.name === 'string' && names.includes(normalName(r.data.name)));
+    if (!row) return null;
+    const { id: _id, ...data } = row.data as Record<string, unknown>;
+    return { ...data, baseItemId: row.key };
+}
+
+/** The sheet entry for loot: the linked item's stats (attacks, AC, bonus) under the loot's name and text. */
+function newEntry(item: LootItem, quantity: number, campaignName: string): Record<string, unknown> {
+    const rarity = item.rarity && item.rarity !== 'mundane' ? item.rarity[0].toUpperCase() + item.rarity.slice(1) : '';
+    const notes = [`Loot from ${campaignName}`, rarity, item.value && `Worth ${item.value}`].filter(Boolean).join(' · ');
+    const linked = asObject(item.item);
+    if (!linked) {
+        return {
+            name: item.name,
+            quantity,
+            ...(item.description ? { description: item.description } : {}),
+            category: itemCategory(item),
+            notes,
+        };
+    }
+    const { id: _id, equipped: _e, quantity: _q, notes: _n, ...stats } = linked;
+    const entry: Record<string, unknown> = { ...stats, name: item.name, quantity, equipped: false, notes };
+    if (item.description) entry.description = item.description;
+    if (!entry.category) entry.category = itemCategory(item);
+    // The sheet shows the item list's current name and text for linked entries: not for ones the DM renamed or reworded
+    if (item.name !== linked.name || (item.description && item.description !== linked.description)) delete entry.baseItemId;
+    return entry;
+}
+
 /**
  * A character's sheet data with loot added: coins go into currency; items
- * stack onto an entry with the same name or are added to the equipment list.
+ * stack onto an entry with the same name or are added to the equipment list
+ * (with the linked item's stats, if any).
  */
 export function addLootToSheet(data: unknown, item: LootItem, share: { quantity: number; coins: Coins | null }, campaignName: string) {
     const sheet = { ...((data && typeof data === 'object' ? data : {}) as Record<string, unknown>) };
@@ -128,15 +178,7 @@ export function addLootToSheet(data: unknown, item: LootItem, share: { quantity:
         obj.quantity = (Number(obj.quantity) || 1) + share.quantity;
         equipment[at] = obj;
     } else {
-        const rarity = item.rarity && item.rarity !== 'mundane' ? item.rarity[0].toUpperCase() + item.rarity.slice(1) : '';
-        const notes = [`Loot from ${campaignName}`, rarity, item.value && `Worth ${item.value}`].filter(Boolean).join(' · ');
-        equipment.push({
-            name: item.name,
-            quantity: share.quantity,
-            ...(item.description ? { description: item.description } : {}),
-            category: itemCategory(item),
-            notes,
-        });
+        equipment.push(newEntry(item, share.quantity, campaignName));
     }
     sheet.equipment = equipment;
     return sheet;
@@ -152,6 +194,7 @@ export class LootError extends Error {
 class Conflict extends Error {}
 
 const jsonCoins = (coins: Coins | null) => (coins ? (coins as Prisma.InputJsonValue) : Prisma.DbNull);
+const jsonItem = (item: unknown) => (asObject(item) ? (item as Prisma.InputJsonValue) : Prisma.DbNull);
 
 /**
  * Give an item (or shares of it) to characters in the campaign: each sheet
@@ -205,17 +248,19 @@ export async function distributeItem(options: {
                             dmNotes: item.dmNotes,
                             quantity: s.quantity,
                             coins: jsonCoins(s.coins),
+                            item: jsonItem(item.item),
                             heldBy: s.characterId,
                             revealed: true,
                         })),
                     });
                 }
 
+                const loot: LootItem = { ...item, item: item.item ?? (await catalogueMatch(item)) };
                 for (const share of plan.shares) {
                     const c = characters.find((x) => x.id === share.characterId)!;
                     const { count } = await tx.character.updateMany({
                         where: { id: c.id, updatedAt: c.updatedAt },
-                        data: { data: addLootToSheet(c.data, item, share, options.campaign.name) as Prisma.InputJsonValue },
+                        data: { data: addLootToSheet(c.data, loot, share, options.campaign.name) as Prisma.InputJsonValue },
                     });
                     if (count === 0) throw new Conflict();
                 }

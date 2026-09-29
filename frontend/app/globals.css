@@ -5916,3 +5916,39 @@ a.party-card-head:hover .party-card-name {
   font-size: var(--font-size-xs);
   color: var(--text-muted);
 }
+
+/* Loot linked to the item list (LootCatalogueField) */
+.loot-link {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+}
+
+.loot-link .field {
+  margin: 0;
+}
+
+.loot-link-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.loot-link-stats {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.loot-link-results {
+  display: grid;
+  gap: var(--space-1);
+  max-height: 16rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

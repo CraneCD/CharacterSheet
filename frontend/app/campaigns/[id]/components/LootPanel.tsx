@@ -6,7 +6,9 @@ import { CampaignItemEntry, PartyMemberBasic } from '@/lib/campaigns';
 import { RARITIES } from '@/lib/campaignPrep';
 import { DENOMINATIONS, formatCoins, normalizeCoins } from '@/lib/loot';
 import { Button, ConfirmDialog, describeError, Field, Menu, Modal, SectionHeader, Skeleton, TextField, useOptimisticSave, useToast } from '@/app/components/ui';
+import { lootStats } from '@/lib/lootCatalogue';
 import GiveLootDialog, { describeGiven } from './GiveLootDialog';
+import LootCatalogueField, { LootLink, useItemCatalogue } from './LootCatalogueField';
 
 interface LootPanelProps {
     campaignId: string;
@@ -16,7 +18,7 @@ interface LootPanelProps {
 
 type ItemDraft = Omit<CampaignItemEntry, 'id' | 'campaignId' | 'createdAt' | 'updatedAt'> & { id?: string };
 
-const BLANK: ItemDraft = { name: '', description: '', rarity: '', quantity: 1, value: '', revealed: false, heldBy: null, coins: null, dmNotes: '' };
+const BLANK: ItemDraft = { name: '', description: '', rarity: '', quantity: 1, value: '', revealed: false, heldBy: null, coins: null, item: null, dmNotes: '' };
 
 function ItemForm({ draft, party, campaignId, onClose, onSaved }: {
     draft: ItemDraft;
@@ -33,6 +35,11 @@ function ItemForm({ draft, party, campaignId, onClose, onSaved }: {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const set = (patch: Partial<ItemDraft>) => setValue((v) => ({ ...v, ...patch }));
+    const { catalogue, failed } = useItemCatalogue();
+
+    const link = (l: LootLink) => set({ name: l.name, description: l.description, rarity: l.rarity, value: l.value, item: l.item });
+    // A new base changes the stats, and the name unless the DM renamed it
+    const rebase = (l: LootLink) => setValue((v) => ({ ...v, item: l.item, name: v.name === v.item?.name ? l.name : v.name }));
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -53,6 +60,7 @@ function ItemForm({ draft, party, campaignId, onClose, onSaved }: {
             name: value.name.trim(),
             quantity: isCoins ? 1 : Math.min(9999, Math.max(1, Number(quantity) || 1)),
             coins: pile,
+            item: isCoins ? null : value.item ?? null,
             ...(isCoins ? { rarity: '' } : {}),
         };
         try {
@@ -69,11 +77,24 @@ function ItemForm({ draft, party, campaignId, onClose, onSaved }: {
     return (
         <Modal title={value.id ? `Edit ${draft.name}` : 'New item'} onClose={onClose} dismissible={!saving}>
             <form onSubmit={submit} className="stack">
-                <TextField label="Name" value={value.name} onChange={(e) => set({ name: e.target.value })} maxLength={150} autoFocus />
+                {!isCoins && (
+                    <LootCatalogueField
+                        catalogue={catalogue}
+                        failed={failed}
+                        linked={value.item}
+                        autoFocus={!value.id}
+                        onLink={link}
+                        onRebase={rebase}
+                        onUnlink={() => set({ item: null })}
+                    />
+                )}
+                <TextField label="Name" value={value.name} onChange={(e) => set({ name: e.target.value })} maxLength={150} autoFocus={!!value.id} />
+                {!value.item && (
                 <label className="checkbox-row">
                     <input type="checkbox" checked={isCoins} onChange={(e) => setIsCoins(e.target.checked)} />
                     It&apos;s coins (players can split it; it goes into their currency)
                 </label>
+                )}
                 {isCoins ? (
                     <div className="form-row loot-coin-inputs">
                         {DENOMINATIONS.map((d) => (
@@ -137,7 +158,8 @@ function ItemRow({ item, holder, isDm, canTake, claiming, onEdit, onToggleReveal
     onGive: () => void;
 }) {
     const pile = formatCoins(item.coins);
-    const meta = [pile, !pile && item.rarity && item.rarity[0].toUpperCase() + item.rarity.slice(1), item.value, holder ? `Held by ${holder}` : null].filter(Boolean).join(' · ');
+    const stats = pile ? '' : lootStats(item.item);
+    const meta = [pile, !pile && item.rarity && item.rarity[0].toUpperCase() + item.rarity.slice(1), stats, item.value, holder ? `Held by ${holder}` : null].filter(Boolean).join(' · ');
     const splittable = !!pile || item.quantity > 1;
     return (
         <li className="loot-row">

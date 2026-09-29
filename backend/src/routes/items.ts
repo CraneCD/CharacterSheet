@@ -24,11 +24,17 @@ function sendValidationError(res: express.Response, error: z.ZodError) {
     return res.status(400).json({ error: error.errors });
 }
 
-/** Coins as stored: zero amounts dropped, and no coins at all stored as NULL. */
-function withCoins<T extends { coins?: unknown }>(fields: T) {
-    if (!('coins' in fields)) return fields;
-    const coins = normalizeCoins(fields.coins);
-    return { ...fields, coins: coins ? (coins as Prisma.InputJsonValue) : Prisma.DbNull };
+/** Coins as stored: zero amounts dropped, and no coins at all stored as NULL; an unlinked item's `item` is NULL too. */
+function asStored<T extends { coins?: unknown; item?: unknown }>(fields: T) {
+    const out: Record<string, unknown> = { ...fields };
+    if ('coins' in fields) {
+        const coins = normalizeCoins(fields.coins);
+        out.coins = coins ? (coins as Prisma.InputJsonValue) : Prisma.DbNull;
+    }
+    if ('item' in fields) out.item = fields.item ? (fields.item as Prisma.InputJsonValue) : Prisma.DbNull;
+    // Coins aren't a sheet item
+    if (out.coins && out.coins !== Prisma.DbNull) out.item = Prisma.DbNull;
+    return out as Omit<T, 'coins' | 'item'> & { coins?: Prisma.InputJsonValue | typeof Prisma.DbNull; item?: Prisma.InputJsonValue | typeof Prisma.DbNull };
 }
 
 /** heldBy must be a character in this campaign. */
@@ -67,7 +73,7 @@ router.post('/', async (req: AuthRequest, res) => {
         if (!(await checkHolder(loaded.campaign.id, parsed.data.heldBy))) {
             return res.status(400).json({ error: "That character isn't in this campaign" });
         }
-        const item = await prisma.campaignItem.create({ data: { ...withCoins(parsed.data), campaignId: loaded.campaign.id, name: parsed.data.name } });
+        const item = await prisma.campaignItem.create({ data: { ...asStored(parsed.data), campaignId: loaded.campaign.id, name: parsed.data.name } });
         res.status(201).json(item);
     } catch (error) {
         res.status(500).json({ error: 'Failed to add item' });
@@ -85,7 +91,7 @@ router.put('/:itemId', async (req: AuthRequest, res) => {
         if (!(await checkHolder(loaded.campaign.id, parsed.data.heldBy))) {
             return res.status(400).json({ error: "That character isn't in this campaign" });
         }
-        const item = await prisma.campaignItem.update({ where: { id: existing.id }, data: withCoins(parsed.data) });
+        const item = await prisma.campaignItem.update({ where: { id: existing.id }, data: asStored(parsed.data) });
         res.json(item);
     } catch (error) {
         res.status(500).json({ error: 'Failed to save item' });

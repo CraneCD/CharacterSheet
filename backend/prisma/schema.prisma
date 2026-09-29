@@ -137,6 +137,8 @@ model CampaignItem {
   revealed    Boolean  @default(false)
   heldBy      String?
   coins       Json?
+  /// The sheet item it becomes: a catalogue entry (magic gear already made from its base); null = a plain item
+  item        Json?
   dmNotes     String   @default("")
 
   createdAt DateTime @default(now())
