@@ -3,7 +3,8 @@
  * spells, class resources) except custom and magic-item actions, which are stored in data.actions.
  * Copies the app used to store for spells, weapon attacks and weapon mastery are hidden.
  */
-import { CharacterAction, ClassResources } from './types';
+import { CharacterAction, ClassResource, ClassResources } from './types';
+import { featureUsesTiming } from './featureUses';
 import { WeaponAttack } from './attacks';
 import { MASTERY_INFO, getMasteryForWeapon } from './weaponMastery';
 import { findActionSpell, SpellActionSource } from './spellActions';
@@ -219,13 +220,19 @@ const RESOURCE_TIMING: Record<string, ActionTiming> = {
     'Psionic Energy Dice': 'other',
 };
 
+/** When a counter is spent: class resources above, species traits, feats and subclass features from lib/featureUses. */
+function resourceTiming(r: ClassResource, primaryClass: string): ActionTiming | undefined {
+    // Paladins' Channel Divinity options are Bonus Actions (Divine Sense); Clerics' are Magic actions
+    if (r.name === 'Channel Divinity') return primaryClass === 'paladin' ? 'bonus' : 'action';
+    return RESOURCE_TIMING[r.name] ?? featureUsesTiming(r);
+}
+
 export function featureRows(resources: ClassResources | undefined, primaryClass: string): ActionRow[] {
     return Object.values(resources || {})
-        .filter((r) => r && (RESOURCE_TIMING[r.name] || r.name === 'Channel Divinity'))
+        .filter((r) => r && resourceTiming(r, primaryClass))
         .map((r) => ({
             key: `feature:${r.name}`,
-            // Paladins' Channel Divinity options are Bonus Actions (Divine Sense); Clerics' are Magic actions
-            timing: r.name === 'Channel Divinity' ? (primaryClass === 'paladin' ? 'bonus' : 'action') : RESOURCE_TIMING[r.name],
+            timing: resourceTiming(r, primaryClass)!,
             name: r.name,
             source: 'feature' as const,
             sourceLabel: 'Feature',

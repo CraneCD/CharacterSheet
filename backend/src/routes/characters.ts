@@ -442,10 +442,42 @@ router.patch('/:id/magic-initiate-spell-used', authenticateToken, (req: AuthRequ
 );
 
 // Update Character Class Resources
+// One limited-use counter (class resource, species trait, feat, subclass or custom feature uses)
+const resourceSchema = z.object({
+    name: z.string().trim().min(1).max(100),
+    current: z.number().int().min(0).max(999),
+    max: z.number().int().min(0).max(999),
+    resetType: z.enum(['short', 'long', 'none']),
+    shortRestRegain: z.number().int().min(1).max(999).optional(),
+    description: z.string().max(5000).optional(),
+    source: z.enum(['class', 'species', 'feat', 'subclass', 'custom']).optional(),
+    feature: z.string().max(200).optional(),
+    maxEdited: z.boolean().optional(),
+});
+
 router.patch('/:id/class-resources', authenticateToken, (req: AuthRequest, res) =>
     mutateCharacterData(req, res, 'Failed to update class resources', (data) => {
-        const { resourceName, current, resetType, resources } = req.body;
+        const { resourceName, current, resetType, resources, resource, remove } = req.body;
         let classResources = data.classResources || {};
+        if (resourceName !== undefined && (typeof resourceName !== 'string' || ['__proto__', 'constructor', 'prototype'].includes(resourceName))) {
+            return { status: 400, error: 'Invalid resource name' };
+        }
+
+        // Add or replace one counter, or remove it, without touching the others
+        if (resourceName && remove === true) {
+            delete classResources[resourceName];
+            data.classResources = classResources;
+            return;
+        }
+        if (resourceName && resource !== undefined) {
+            const parsed = resourceSchema.safeParse(resource);
+            if (!parsed.success || parsed.data.name !== resourceName) {
+                return { status: 400, error: 'Invalid resource' };
+            }
+            classResources[resourceName] = { ...parsed.data, current: Math.min(parsed.data.current, parsed.data.max) };
+            data.classResources = classResources;
+            return;
+        }
 
         // If resetType is provided, reset all resources of that type
         if (resetType) {
@@ -1107,19 +1139,47 @@ router.post('/:id/features', authenticateToken, (req: AuthRequest, res) =>
     })
 );
 
+/**
+ * Position of a stored feature. With a name, the index only counts if the feature there has that
+ * name (else the first feature with the name), so a client working from a filtered or stale list
+ * can't hit a different feature.
+ */
+function findFeatureIndex(features: any[], index: unknown, name: unknown): number {
+    const validIndex = typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < features.length;
+    if (typeof name === 'string' && name) {
+        if (validIndex && features[index as number]?.name === name) return index as number;
+        return features.findIndex((f: any) => f?.name === name);
+    }
+    return validIndex ? index as number : -1;
+}
+
+const featureSchema = z.object({
+    name: z.string().trim().min(1).max(200),
+    source: z.string().max(200),
+    description: z.string().max(20000),
+}).passthrough();
+
+// Edit Feature (custom features: name, source, description)
+router.put('/:id/features', authenticateToken, (req: AuthRequest, res) =>
+    mutateCharacterData(req, res, 'Failed to update feature', (data) => {
+        const { index, name, feature } = req.body;
+        const parsed = featureSchema.safeParse(feature);
+        if (!parsed.success) return { status: 400, error: 'Invalid feature' };
+        const features = data.features || [];
+        const idx = findFeatureIndex(features, index, name);
+        if (idx === -1) return { status: 404, error: 'Feature not found' };
+        features[idx] = { ...features[idx], ...parsed.data };
+        data.features = features;
+    })
+);
+
 // Remove Feature
 router.delete('/:id/features', authenticateToken, (req: AuthRequest, res) =>
     mutateCharacterData(req, res, 'Failed to remove feature', (data) => {
         const { index, name } = req.body;
         const features = data.features || [];
-
-        if (index !== undefined && index >= 0 && index < features.length) {
-            features.splice(index, 1);
-        } else if (name) {
-            const idx = features.findIndex((f: any) => f.name === name);
-            if (idx !== -1) features.splice(idx, 1);
-        }
-
+        const idx = findFeatureIndex(features, index, name);
+        if (idx !== -1) features.splice(idx, 1);
         data.features = features;
     })
 );

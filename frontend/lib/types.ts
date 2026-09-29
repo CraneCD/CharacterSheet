@@ -71,7 +71,15 @@ export interface ClassResource {
     /** If set, short rest restores this many uses (e.g. 1 for Second Wind) instead of full reset. */
     shortRestRegain?: number;
     description?: string; // Optional description
+    /** Where the uses come from; missing means a class resource */
+    source?: ResourceSource;
+    /** The feature, trait or feat these are uses of (e.g. "Lucky" for Luck Points) */
+    feature?: string;
+    /** The player set the maximum by hand; the sheet stops recalculating it */
+    maxEdited?: boolean;
 }
+
+export type ResourceSource = 'class' | 'species' | 'feat' | 'subclass' | 'custom';
 
 export interface ClassResources {
     [resourceName: string]: ClassResource;
@@ -175,6 +183,8 @@ export interface CharacterFeature {
     level?: number;
     /** Reference id of the feat this was added from, if any. Used to merge in live admin edits at render time. */
     featId?: string;
+    /** Added by the player on the sheet (editable there) */
+    custom?: boolean;
 }
 
 export interface LineageOption {

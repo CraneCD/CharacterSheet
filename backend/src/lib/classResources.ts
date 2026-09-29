@@ -9,6 +9,12 @@ export interface ClassResource {
     resetType: 'short' | 'long' | 'none';
     shortRestRegain?: number;
     description?: string;
+    /** Where the uses come from; missing means a class resource */
+    source?: 'class' | 'species' | 'feat' | 'subclass' | 'custom';
+    /** The feature, trait or feat these are uses of */
+    feature?: string;
+    /** The player set the maximum by hand; the sheet stops recalculating it */
+    maxEdited?: boolean;
 }
 
 export type ClassResources = Record<string, ClassResource>;

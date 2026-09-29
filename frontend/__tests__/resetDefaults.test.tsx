@@ -3,8 +3,10 @@ import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import { defaultSpeed, overrideToStore, resolveOverride } from '@/lib/sheetDefaults';
 import { EditableStat } from '@/app/components/ui';
-import ClassResourcesManager from '@/app/character/[id]/components/ClassResourcesManager';
-import { defaultResourceMaximums } from '@/app/character/[id]/components/sections/ClassResourcesSection';
+import { useState } from 'react';
+import LimitedUsesCard from '@/app/character/[id]/components/LimitedUsesCard';
+import { defaultResourceMaximums, LimitedUsesProvider } from '@/app/character/[id]/components/sections/ClassResourcesSection';
+import { RESOURCE_RULES_VERSION } from '@/lib/classResources';
 import { api } from '@/lib/api';
 
 expect.extend(toHaveNoViolations);
@@ -51,23 +53,32 @@ describe('EditableStat reset', () => {
 });
 
 describe('class resource maximum reset', () => {
-    const resources = {
-        'Second Wind': { name: 'Second Wind', current: 2, max: 5, resetType: 'long' as const },
-        'Action Surge': { name: 'Action Surge', current: 1, max: 1, resetType: 'short' as const },
-    };
+    const input = { classLevels: { fighter: 3 }, subclassMap: {}, abilityScores: { str: 16, dex: 12, con: 14, int: 10, wis: 10, cha: 8 }, racialTraits: [], level: 3, choiceSpellNames: null, hasChoiceSpells: false };
+
+    function Sheet({ initial }: { initial: Record<string, any> }) {
+        const [data, setData] = useState(initial);
+        return (
+            <LimitedUsesProvider {...input} characterId="c1" data={data} onUpdate={(u) => setData((d) => ({ ...d, ...u }))}>
+                <LimitedUsesCard />
+            </LimitedUsesProvider>
+        );
+    }
 
     it('offers reset for edited maximums and saves the calculated one', async () => {
-        const onUpdate = jest.fn();
-        render(<ClassResourcesManager characterId="c1" initialResources={resources} onUpdate={onUpdate} defaultMax={{ 'Second Wind': 2, 'Action Surge': 1 }} />);
+        const defaults = defaultResourceMaximums({ ...input, data: {} });
+        const resources = {
+            'Second Wind': { name: 'Second Wind', current: 2, max: 5, resetType: 'long' as const, maxEdited: true },
+            'Action Surge': { name: 'Action Surge', current: 1, max: 1, resetType: 'short' as const },
+        };
+        render(<Sheet initial={{ classResources: resources, classResourcesRules: RESOURCE_RULES_VERSION }} />);
 
         expect(screen.queryByRole('button', { name: /Reset Action Surge/ })).not.toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'Reset Second Wind maximum to 2' }));
+        fireEvent.click(screen.getByRole('button', { name: `Reset Second Wind maximum to ${defaults['Second Wind']}` }));
 
-        await waitFor(() => expect(onUpdate).toHaveBeenCalled());
-        expect(api.patch).toHaveBeenCalledWith('/characters/c1/class-resources', {
-            resources: { ...resources, 'Second Wind': { ...resources['Second Wind'], max: 2, current: 2 } },
-        });
-        expect(screen.getByText('2 / 2')).toBeInTheDocument();
+        await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/characters/c1/class-resources', {
+            resourceName: 'Second Wind',
+            resource: { name: 'Second Wind', current: 2, max: defaults['Second Wind'], resetType: 'long' },
+        }));
         expect(screen.queryByRole('button', { name: /Reset Second Wind/ })).not.toBeInTheDocument();
     });
 
