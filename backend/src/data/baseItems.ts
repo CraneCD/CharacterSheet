@@ -3291,7 +3291,7 @@ export const baseItems: BaseItem[] = [
         "name": "Shield, +1, +2, +3",
         "category": "magic-item",
         "type": "shield",
-        "baseAC": 3,
+        "baseAC": 2,
         "description": "While holding this shield, you have a bonus to AC. The bonus is determined by the shield's rarity.",
         "equipped": false,
         "isBaseItem": true
