@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { CharacterItem, ItemCategory } from '@/lib/types';
+import { detectedMagicBonus } from '@/lib/magicBonus';
 import { describeError, Modal, useToast } from '@/app/components/ui';
 import { useSheetReadOnly } from '../SheetReadOnly';
 
@@ -639,6 +640,27 @@ export default function EquipmentManager({
                                                                 </select>
                                                             </div>
                                                         )}
+                                                        {isWeapon(itemObj) && (() => {
+                                                            // Magic bonus: set here, or read from the name/text ("Pistol, +1") until set
+                                                            const detected = detectedMagicBonus(itemObj);
+                                                            const bonusId = `equipmentmanager-magic-bonus-${actualIndex}`;
+                                                            return (
+                                                                <div style={{ marginTop: '0.5rem' }}>
+                                                                    <label htmlFor={bonusId} style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Magic bonus (attack and damage)</label>
+                                                                    <select id={bonusId}
+                                                                        className="input"
+                                                                        value={typeof itemObj.magicBonus === 'number' ? String(itemObj.magicBonus) : 'auto'}
+                                                                        onChange={e => handleUpdateItem(actualIndex, { magicBonus: e.target.value === 'auto' ? null : Number(e.target.value) } as Partial<CharacterItem>)}
+                                                                    >
+                                                                        <option value="auto">{detected ? `From the item: +${detected}` : 'From the item: none'}</option>
+                                                                        <option value="0">None</option>
+                                                                        <option value="1">+1</option>
+                                                                        <option value="2">+2</option>
+                                                                        <option value="3">+3</option>
+                                                                    </select>
+                                                                </div>
+                                                            );
+                                                        })()}
                                                         {isWeapon(itemObj) && (
                                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
                                                                 <div>

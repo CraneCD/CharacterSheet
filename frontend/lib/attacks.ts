@@ -1,4 +1,5 @@
 import { CharacterItem } from './types';
+import { weaponMagicBonus } from './magicBonus';
 
 /** One equipped weapon's attack: to-hit, damage and the notes that go with it. */
 export interface WeaponAttack {
@@ -16,6 +17,8 @@ export interface WeaponAttack {
     sneakAttackDice: number;
     /** The item's own mastery property id, if it names one */
     mastery?: string;
+    /** Magic weapon bonus already included in toHit and damageMod (+1 to +3) */
+    magicBonus: number;
 }
 
 export interface WeaponAttackInput {
@@ -51,13 +54,16 @@ export function getWeaponAttacks({ equipment, strMod, dexMod, profBonus, fightin
         const ranged = isRanged(weapon);
         const mod = isFinesse(weapon) ? Math.max(strMod, dexMod) : ranged ? dexMod : strMod;
 
-        let toHit = mod + profBonus;
+        // A +1/+2/+3 weapon adds its bonus to attack and damage rolls
+        const magicBonus = weaponMagicBonus(weapon);
+        let toHit = mod + profBonus + magicBonus;
         if (has('archery') && ranged) toHit += 2;
 
         let damageMod = mod;
         if (has('dueling') && oneMeleeNoOther && !ranged) damageMod += 2;
-        // The off-hand light weapon adds its modifier only with Two-Weapon Fighting
+        // The off-hand light weapon adds its modifier only with Two-Weapon Fighting (its magic bonus always applies)
         if (twoLightMelee && index === 1) damageMod = has('two-weapon-fighting') ? mod : 0;
+        damageMod += magicBonus;
 
         return {
             name: weapon.name,
@@ -70,6 +76,7 @@ export function getWeaponAttacks({ equipment, strMod, dexMod, profBonus, fightin
             gwf: has('great-weapon-fighting') && isTwoHandedOrVersatile(weapon),
             sneakAttackDice: sneak > 0 && (isFinesse(weapon) || ranged) ? sneak : 0,
             mastery: weapon.mastery,
+            magicBonus,
         };
     });
 }

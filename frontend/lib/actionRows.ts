@@ -166,6 +166,7 @@ export function weaponRow(attack: WeaponAttack, index: number, hasWeaponMastery:
     const facts: [string, string][] = [];
     if (attack.properties.length > 0) facts.push(['Properties', attack.properties.join(', ')]);
     if (attack.gwf) facts.push(['Great Weapon Fighting', 'Treat any 1 or 2 on a damage die as a 3']);
+    if (attack.magicBonus) facts.push(['Magic weapon', `+${attack.magicBonus} to attack and damage rolls (included)`]);
     return {
         key: `weapon:${index}:${attack.name}`,
         timing: 'action',
