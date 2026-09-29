@@ -273,6 +273,8 @@ export interface BuildActionRowsInput {
     castable: CastableSpell[];
     spells: SpellSource[];
     spellcasting: SpellcastingNumbers | null;
+    /** Spells granted with their own ability, by grantedBy ("Species", "Magic Initiate") */
+    spellcastingBySource?: Record<string, SpellcastingNumbers>;
     characterLevel: number;
     resources?: ClassResources;
     primaryClass: string;
@@ -293,7 +295,8 @@ export function buildActionRows(input: BuildActionRowsInput): ActionRow[] {
             .flatMap((c) => {
                 const spell = spellById.get(c.id);
                 if (!spell) return [];
-                const row = spellRow(spell, c, input.characterLevel, input.spellcasting);
+                const numbers = (c.grantedBy && input.spellcastingBySource?.[c.grantedBy]) || input.spellcasting;
+                const row = spellRow(spell, c, input.characterLevel, numbers);
                 // Species free casts (Elven Lineage, ...): what's left without a spell slot
                 const free = freeCastCounter(input.resources, c.id);
                 return [free ? { ...row, uses: `${free[1].current} / ${free[1].max} free` } : row];

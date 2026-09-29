@@ -131,7 +131,7 @@ describe('HPManager', () => {
     });
 });
 
-const restCtx = { warlockLevel: 0, multiclass: false, hasMagicInitiateSpell: false };
+const restCtx = { warlockLevel: 0, multiclass: false };
 
 describe('Rest dialogs', () => {
     it('previews a long rest and confirms it', () => {

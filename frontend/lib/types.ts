@@ -140,7 +140,12 @@ export interface CharacterData {
     spells: CharacterSpell[];
     spellSlotsUsed?: { [level: number]: number };
     /** Magic Initiate: 1st-level spell uses remaining (1 = available, 0 = used). Resets on long rest. */
-    magicInitiateSpell1Used?: number;
+    /** Before counters: Magic Initiate's free cast (1 = ready, 0 = spent); cleared once its counter exists */
+    magicInitiateSpell1Used?: number | null;
+    /** Spellcasting ability for species spells (Elven Lineage, Githyanki Psionics, ...); Charisma if unset */
+    speciesSpellAbility?: 'int' | 'wis' | 'cha';
+    /** Kobold Legacy (Draconic Sorcery): the chosen Sorcerer cantrip */
+    speciesCantrip?: string | null;
     /** Wizard only: spell IDs in the spellbook. Spells can only be prepared if in the spellbook. */
     spellbook?: string[];
     features: CharacterFeature[];

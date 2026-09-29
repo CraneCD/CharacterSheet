@@ -32,6 +32,8 @@ interface SetupInput {
     characterSubclasses: { classId: string; classLevel: number; subclass: any }[];
     level: number;
     hasSpeciesSpells: boolean;
+    /** Ability chosen for species spells (Charisma if unset) */
+    speciesSpellAbility?: string;
     hasMagicInitiateFeat: boolean;
     magicInitiateAbility?: string;
 }
@@ -48,7 +50,7 @@ export function findCasterSubclass(characterSubclasses: SetupInput['characterSub
  * subclass, else species spells, else Magic Initiate. Null when the character has no spells.
  */
 export function getSpellcastingSetup(input: SetupInput): SpellcastingSetup | null {
-    const { characterClasses, gameClasses, characterSubclasses, level, hasSpeciesSpells, hasMagicInitiateFeat, magicInitiateAbility } = input;
+    const { characterClasses, gameClasses, characterSubclasses, level, hasSpeciesSpells, speciesSpellAbility, hasMagicInitiateFeat, magicInitiateAbility } = input;
 
     const spellcastingClasses: SpellcastingClass[] = characterClasses
         .map((c) => ({
@@ -82,8 +84,8 @@ export function getSpellcastingSetup(input: SetupInput): SpellcastingSetup | nul
         };
         ability = subclass.spellcasting.spellcastingAbility;
     } else if (!primary && hasSpeciesSpells) {
-        primary = { id: 'innate', name: 'Species Spells', level, classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: 'cha' } };
-        ability = 'cha';
+        ability = speciesSpellAbility || 'cha';
+        primary = { id: 'innate', name: 'Species Spells', level, classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: ability } };
     } else if (!primary && hasMagicInitiateFeat) {
         ability = magicInitiateAbility || 'int';
         primary = { id: 'magic_initiate', name: 'Magic Initiate', level, classInfo: { spellcaster: true, preparedCaster: false, spellcastingAbility: ability } };

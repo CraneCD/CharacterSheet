@@ -64,7 +64,7 @@ describe('hit dice', () => {
     });
 });
 
-const ctx = { warlockLevel: 0, multiclass: false, hasMagicInitiateSpell: false };
+const ctx = { warlockLevel: 0, multiclass: false };
 const resources = {
     'Second Wind': { name: 'Second Wind', current: 0, max: 3, resetType: 'short' as const, shortRestRegain: 1 },
     'Action Surge': { name: 'Action Surge', current: 0, max: 1, resetType: 'short' as const },
@@ -104,10 +104,12 @@ describe('planLongRest', () => {
         expect(plan.resetsResources).toBe(false);
     });
 
-    it('readies the Magic Initiate spell', () => {
-        const plan = planLongRest({ magicInitiateSpell1Used: 0 }, { ...ctx, hasMagicInitiateSpell: true });
-        expect(plan.updates.magicInitiateSpell1Used).toBe(1);
-        expect(plan.summary).toContain('Magic Initiate spell ready');
+    it('readies the Magic Initiate spell with the other counters', () => {
+        const spent = { name: 'Bless (Magic Initiate)', current: 0, max: 1, resetType: 'long' as const, source: 'feat' as const, feature: 'Magic Initiate', spellId: 'bless' };
+        const plan = planLongRest({ classResources: { [spent.name]: spent } }, ctx);
+        expect(plan.resetsResources).toBe(true);
+        expect(plan.resources[spent.name].current).toBe(1);
+        expect(plan.summary).toContain('Bless (Magic Initiate) restored');
     });
 });
 

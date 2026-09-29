@@ -118,7 +118,7 @@ describe('accessibility (axe)', () => {
         render(
             <ShortRestDialog
                 data={{ hp: { current: 5, max: 20, temp: 0 }, hitDice: { total: 3, spent: 0, dieType: 10 } }}
-                context={{ warlockLevel: 0, multiclass: false, hasMagicInitiateSpell: false }}
+                context={{ warlockLevel: 0, multiclass: false }}
                 conModifier={2}
                 busy={false}
                 onConfirm={() => {}}

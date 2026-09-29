@@ -6,6 +6,8 @@ import { getBonusCantrips, getChoiceSpellIds } from '@/lib/classChoices';
 import { SpellcastingSetup } from '@/lib/spellcastingSetup';
 import { describeError, useToast } from '@/app/components/ui';
 import SpellManager from '../SpellManager';
+import SpeciesSpellSettings from './SpeciesSpellSettings';
+import type { SpeciesSpellEntry, SpellAbility } from '@/lib/wizardReference';
 import { formatMod } from './format';
 import type { CastableSummary } from '@/lib/actionRows';
 
@@ -17,7 +19,11 @@ interface SpellcastingSectionProps {
     modifiers: Record<string, number>;
     abilityScores: Record<string, number>;
     gameClasses: any[];
-    speciesSpells: any[];
+    speciesSpells: SpeciesSpellEntry[];
+    speciesSpellAbility: SpellAbility;
+    /** Kobold Legacy (Draconic Sorcery): pick the cantrip here */
+    choosesSpeciesCantrip: boolean;
+    persistData: (updates: Partial<CharacterData>, errorMessage: string) => Promise<unknown>;
     hasMagicInitiateFeat: boolean;
     setCharacter: (updater: any) => void;
     onUpdate: (updates: Partial<CharacterData>) => void;
@@ -27,7 +33,7 @@ interface SpellcastingSectionProps {
 
 export default function SpellcastingSection({
     character, setup, level, proficiencyBonus, modifiers, abilityScores, gameClasses,
-    speciesSpells, hasMagicInitiateFeat, setCharacter, onUpdate, onCastableChange,
+    speciesSpells, speciesSpellAbility, choosesSpeciesCantrip, persistData, hasMagicInitiateFeat, setCharacter, onUpdate, onCastableChange,
 }: SpellcastingSectionProps) {
     const toast = useToast();
     const data: Partial<CharacterData> & Record<string, any> = character.data || {};
@@ -36,7 +42,6 @@ export default function SpellcastingSection({
     const otherAbilities = spellcastingClasses
         .map((sc) => sc.classInfo?.spellcastingAbility?.toUpperCase())
         .filter((v, i, all): v is string => !!v && all.indexOf(v) === i);
-    const magicInitiateSpell = hasMagicInitiateFeat && !!data.magicInitiate?.spell1;
 
     return (
         <div className="card">
@@ -61,6 +66,18 @@ export default function SpellcastingSection({
                 </dl>
             </div>
 
+            {(speciesSpells.length > 0 || choosesSpeciesCantrip) && (
+                <SpeciesSpellSettings
+                    speciesSpells={speciesSpells}
+                    ability={speciesSpellAbility}
+                    choosesCantrip={choosesSpeciesCantrip}
+                    cantrip={data.speciesCantrip}
+                    proficiencyBonus={proficiencyBonus}
+                    modifiers={modifiers}
+                    persistData={persistData}
+                />
+            )}
+
             <SpellManager
                 characterId={character.id}
                 classId={character.classId || primary.id}
@@ -81,15 +98,6 @@ export default function SpellcastingSection({
                             toast.error(describeError("Couldn't save Magic Initiate choices", err));
                         });
                 }}
-                magicInitiateSpell1Used={magicInitiateSpell ? (data.magicInitiateSpell1Used ?? 1) : 1}
-                onMagicInitiateSlotChange={magicInitiateSpell ? async (used: number) => {
-                    try {
-                        setCharacter(await api.patch(`/characters/${character.id}/magic-initiate-spell-used`, { used }));
-                    } catch (err) {
-                        console.error('Failed to update Magic Initiate spell slot', err);
-                        toast.error(describeError("Couldn't update your Magic Initiate spell", err));
-                    }
-                } : undefined}
                 initialSpells={Array.isArray(data.spells) ? data.spells : []}
                 initialSlotsUsed={data.spellSlotsUsed || {}}
                 initialPactSlotsUsed={Number(data.pactSlotsUsed) || 0}

@@ -6,7 +6,7 @@ import { CharacterData, ClassResource, ClassResources } from '@/lib/types';
 import { reconcileClassResources, RESOURCE_RULES_VERSION } from '@/lib/classResources';
 import { calculateAllClassResources } from '@/lib/subclasses';
 import { getChoiceResources } from '@/lib/classChoices';
-import { computeFeatureUses, computeSpeciesSpellUses, mergeFeatureUses } from '@/lib/featureUses';
+import { computeFeatureUses, computeMagicInitiateUses, computeSpeciesSpellUses, MAGIC_INITIATE, mergeFeatureUses } from '@/lib/featureUses';
 import type { SpeciesSpellEntry } from '@/lib/wizardReference';
 import { useOptimisticSave } from '@/app/components/ui';
 
@@ -27,6 +27,8 @@ interface ResolveInput {
     modifiers?: Record<string, number>;
     /** Spells from the species (free casts once per Long Rest, ...) */
     speciesSpells?: SpeciesSpellEntry[];
+    /** Magic Initiate's level 1 spell (one free cast per Long Rest) */
+    magicInitiateSpell?: string | null;
 }
 
 const abilityMod = (score: number | undefined) => Math.floor(((score ?? 10) - 10) / 2);
@@ -61,16 +63,20 @@ export function resolveClassResources(input: ResolveInput): { resources: ClassRe
         proficiencyBonus,
         modifiers,
     });
-    // Free casts of species spells are named after the spell: until the names load, keep what's stored
-    const speciesSpellUses: ClassResources = {};
-    if ((input.speciesSpells ?? []).some((e) => e.free)) {
+    // Free casts (species spells, Magic Initiate) are named after the spell: until the names load, keep what's stored
+    const spellUses: ClassResources = {};
+    if ((input.speciesSpells ?? []).some((e) => e.free) || input.magicInitiateSpell) {
         if (choiceSpellNames) {
-            Object.assign(speciesSpellUses, computeSpeciesSpellUses(input.speciesSpells ?? [], level, proficiencyBonus, choiceSpellNames));
+            Object.assign(
+                spellUses,
+                computeSpeciesSpellUses(input.speciesSpells ?? [], level, proficiencyBonus, choiceSpellNames),
+                computeMagicInitiateUses(input.magicInitiateSpell, choiceSpellNames, data.magicInitiateSpell1Used),
+            );
         } else {
-            for (const [name, res] of Object.entries(resources || {})) if (res?.spellId) speciesSpellUses[name] = res;
+            for (const [name, res] of Object.entries(resources || {})) if (res?.spellId) spellUses[name] = res;
         }
     }
-    const merged = mergeFeatureUses(resources || {}, { ...featureUses, ...speciesSpellUses });
+    const merged = mergeFeatureUses(resources || {}, { ...featureUses, ...spellUses });
     resources = merged.resources;
     if (merged.changed) changed = true;
 
@@ -145,7 +151,10 @@ interface UseLimitedUsesInput extends ResolveInput {
 export function useLimitedUses({ characterId, onUpdate, readOnly = false, ...input }: UseLimitedUsesInput): LimitedUses {
     const optimisticSave = useOptimisticSave();
     const { resources, psiWarrior, needsSave } = resolveClassResources(input);
-    const saveKey = needsSave && !readOnly ? JSON.stringify(resources) : '';
+    // Magic Initiate's old used/unused flag is folded into its counter; clear it once the counter exists
+    const clearLegacyMagicInitiate = input.data.magicInitiateSpell1Used != null
+        && Object.values(resources).some((r) => r.feature === MAGIC_INITIATE);
+    const saveKey = (needsSave || clearLegacyMagicInitiate) && !readOnly ? JSON.stringify(resources) : '';
     // Latest counters for the callbacks (they run after renders that may have changed them)
     const latest = useRef(resources);
     latest.current = resources;
@@ -153,8 +162,10 @@ export function useLimitedUses({ characterId, onUpdate, readOnly = false, ...inp
     useEffect(() => {
         if (!saveKey) return;
         const toSave = JSON.parse(saveKey) as ClassResources;
-        onUpdate({ classResources: toSave, classResourcesRules: RESOURCE_RULES_VERSION });
-        api.patch(`/characters/${characterId}/data`, { classResources: toSave, classResourcesRules: RESOURCE_RULES_VERSION })
+        const updates: Partial<CharacterData> = { classResources: toSave, classResourcesRules: RESOURCE_RULES_VERSION };
+        if (clearLegacyMagicInitiate) updates.magicInitiateSpell1Used = null;
+        onUpdate(updates);
+        api.patch(`/characters/${characterId}/data`, updates)
             .catch((err) => console.error('Failed to persist class resources', err));
         // Save once per distinct change
         // eslint-disable-next-line react-hooks/exhaustive-deps

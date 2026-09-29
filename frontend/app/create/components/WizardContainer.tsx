@@ -11,7 +11,7 @@ import StepReview from './StepReview';
 import { Race, ClassInfo, Subclass, CharacterItem, Background } from '@/lib/types';
 import { calculateClassResources, mergeHeroicInspiration, RESOURCE_RULES_VERSION } from '@/lib/classResources';
 import { hasDwarvenToughness, hasResourceful, hasSkillful, hasVersatile, hasKeenSensesChoice, getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
-import { getRaceTraits, getBackgroundSkills, getBackgroundAbilityOptions, isValidBackgroundAsi, getRaceLanguages, getRaceLanguageChoices } from '@/lib/wizardReference';
+import { getRaceTraits, getBackgroundSkills, getBackgroundAbilityOptions, isValidBackgroundAsi, getRaceLanguages, getRaceLanguageChoices, getSpeciesSpellEntries, KOBOLD_SORCERY, speciesSpellAbility } from '@/lib/wizardReference';
 import { splitEquipmentChoice, itemNameToCharacterItem, parseCurrency } from '@/lib/equipmentMapping';
 import { buildChoicePayload, getClassChoices } from '@/lib/classChoices';
 import ClassChoicesPicker, { choicesComplete } from '@/app/character/[id]/components/ClassChoicesPicker';
@@ -54,6 +54,9 @@ function initialFormData() {
         versatileFeatId: '' as string,
         elvenLineageChoice: '' as string,
         speciesLineageChoice: '' as string,
+        /** Species spells' ability (Intelligence, Wisdom or Charisma) and the Kobold's Draconic Sorcery cantrip */
+        speciesSpellAbilityChoice: '' as string,
+        speciesCantripChoice: '' as string,
         sizeChoice: '' as string,
         keenSensesChoice: '' as string,
         startingEquipmentChoices: [] as string[],
@@ -259,6 +262,9 @@ export default function WizardContainer() {
                 racialTraits: raceTraits,
                 ...(formData.elvenLineageChoice && formData.raceId === 'elf' ? { elvenLineage: formData.elvenLineageChoice } : {}),
                 ...(lineageId ? { speciesLineage: lineageId } : {}),
+                ...(getSpeciesSpellEntries(formData.raceId, lineageId).length > 0 || lineageId === KOBOLD_SORCERY
+                    ? { speciesSpellAbility: speciesSpellAbility(formData.speciesSpellAbilityChoice) } : {}),
+                ...(lineageId === KOBOLD_SORCERY && formData.speciesCantripChoice ? { speciesCantrip: formData.speciesCantripChoice } : {}),
                 ...(formData.sizeChoice ? { size: formData.sizeChoice } : {}),
                 ...(formData.keenSensesChoice && hasKeenSensesChoice(raceTraits) ? { keenSensesChoice: formData.keenSensesChoice } : {}),
                 ...(formData.elvenLineageChoice === 'wood_elf' ? { speed: 35 } : {}),
@@ -360,6 +366,7 @@ export default function WizardContainer() {
             case 6: {
                 const rt = currentRaceTraits();
                 if (selectedRace?.lineageOptions && !lineageId) return false;
+                if (lineageId === KOBOLD_SORCERY && !formData.speciesCantripChoice) return false;
                 if (formData.raceId === 'elf' && !formData.elvenLineageChoice) return false;
                 if ((selectedRace?.size || '').toLowerCase().includes(' or ') && !formData.sizeChoice) return false;
                 if (hasKeenSensesChoice(rt) && !formData.keenSensesChoice) return false;

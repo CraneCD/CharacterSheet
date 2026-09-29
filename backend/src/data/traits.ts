@@ -687,6 +687,18 @@ export const traits: { [key: string]: Trait } = {
         "name": "Kobold Legacy",
         "description": "Choose one: Craftiness (proficiency in one of Arcana, Investigation, Medicine, Sleight of Hand, or Survival), Draconic Defiance (Advantage on saving throws to avoid or end the Frightened condition), or Draconic Sorcery (you know one cantrip of your choice from the Sorcerer spell list; Intelligence, Wisdom, or Charisma is your spellcasting ability for it)."
     },
+    "Kobold Legacy (Craftiness)": {
+        "name": "Kobold Legacy (Craftiness)",
+        "description": "You have proficiency in one of the following skills of your choice: Arcana, Investigation, Medicine, Sleight of Hand, or Survival."
+    },
+    "Kobold Legacy (Draconic Defiance)": {
+        "name": "Kobold Legacy (Draconic Defiance)",
+        "description": "You have Advantage on saving throws you make to avoid or end the Frightened condition."
+    },
+    "Kobold Legacy (Draconic Sorcery)": {
+        "name": "Kobold Legacy (Draconic Sorcery)",
+        "description": "You know one cantrip of your choice from the Sorcerer spell list. Intelligence, Wisdom, or Charisma is your spellcasting ability for that cantrip (choose when you select this species)."
+    },
     "Hold Breath (1 hour)": {
         "name": "Hold Breath (1 hour)",
         "description": "You can hold your breath for up to 1 hour."
