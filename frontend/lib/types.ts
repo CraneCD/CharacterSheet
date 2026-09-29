@@ -45,7 +45,7 @@ export interface CharacterItem {
     properties?: string[]; // ["finesse", "heavy", "versatile (1d10)", "thrown (range 20/60)"]
     /** 2024 weapon mastery property id (e.g. "sap"). */
     mastery?: string;
-    /** Magic weapon's bonus to attack and damage rolls (+1 to +3); when unset it's read from the name or text (lib/magicBonus) */
+    /** Magic bonus (+1 to +3): to attack and damage for weapons, to AC for armor and shields; when unset it's read from the name or text (lib/magicBonus) */
     magicBonus?: number | null;
     notes?: string;
     isBaseItem?: boolean; // To distinguish base items from custom items

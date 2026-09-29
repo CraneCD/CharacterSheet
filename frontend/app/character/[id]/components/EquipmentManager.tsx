@@ -640,17 +640,20 @@ export default function EquipmentManager({
                                                                 </select>
                                                             </div>
                                                         )}
-                                                        {isWeapon(itemObj) && (() => {
-                                                            // Magic bonus: set here, or read from the name/text ("Pistol, +1") until set
-                                                            const detected = detectedMagicBonus(itemObj);
+                                                        {(isWeapon(itemObj) || isArmor(itemObj) || isShield(itemObj)) && (() => {
+                                                            // Magic bonus: set here, or read from the name/text ("Pistol, +1", "Shield +2") until set
+                                                            const forWeapon = isWeapon(itemObj);
+                                                            const detected = detectedMagicBonus(itemObj, forWeapon ? 'weapon' : 'armor');
                                                             const bonusId = `equipmentmanager-magic-bonus-${actualIndex}`;
                                                             return (
                                                                 <div style={{ marginTop: '0.5rem' }}>
-                                                                    <label htmlFor={bonusId} style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Magic bonus (attack and damage)</label>
+                                                                    <label htmlFor={bonusId} style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                                                        {forWeapon ? 'Magic bonus (attack and damage)' : 'Magic bonus (AC)'}
+                                                                    </label>
                                                                     <select id={bonusId}
                                                                         className="input"
                                                                         value={typeof itemObj.magicBonus === 'number' ? String(itemObj.magicBonus) : 'auto'}
-                                                                        onChange={e => handleUpdateItem(actualIndex, { magicBonus: e.target.value === 'auto' ? null : Number(e.target.value) } as Partial<CharacterItem>)}
+                                                                        onChange={e => handleUpdateItem(actualIndex, { magicBonus: e.target.value === 'auto' ? null : Number(e.target.value) })}
                                                                     >
                                                                         <option value="auto">{detected ? `From the item: +${detected}` : 'From the item: none'}</option>
                                                                         <option value="0">None</option>

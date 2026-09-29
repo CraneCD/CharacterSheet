@@ -1,4 +1,5 @@
 import { CharacterItem } from './types';
+import { armorMagicBonus } from './magicBonus';
 
 export type UnarmoredMethod = 'standard' | 'unarmored-monk' | 'unarmored-barbarian';
 
@@ -78,9 +79,21 @@ export function calculateArmorClass(input: ArmorClassInput): ArmorClassResult {
         parts = ['Natural Armor 13', dexPart()];
     }
 
+    // Magic armor (+1 to +3) adds to AC while worn
+    const armorBonus = armor ? armorMagicBonus(armor) : 0;
+    if (armorBonus) {
+        value += armorBonus;
+        parts.push(`Magic armor +${armorBonus}`);
+    }
+
     if (shield) {
         value += shield.baseAC ?? 2;
         parts.push(`${shield.name || 'Shield'} +${shield.baseAC ?? 2}`);
+        const shieldBonus = armorMagicBonus(shield);
+        if (shieldBonus) {
+            value += shieldBonus;
+            parts.push(`Magic shield +${shieldBonus}`);
+        }
     }
 
     // Defense fighting style: +1 while wearing armor
