@@ -28,6 +28,7 @@ import {
     getSavingThrowProficienciesFromFeatures
 } from '@/lib/featureStatModifiers';
 import { getWeaponAttacks } from '@/lib/attacks';
+import { describeInitiative, getInitiative } from '@/lib/initiativeBonus';
 import type { CastableSummary } from '@/lib/actionRows';
 import { getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
 import { getRaceTraits, getBackgroundSkills, getSpeciesSpellEntries } from '@/lib/wizardReference';
@@ -323,6 +324,21 @@ export default function CharacterSheet() {
         return { ...skill, total, isProficient, hasExpertise };
     });
 
+    // Initiative: Dex plus Alert, Dread Ambusher, Hare-Trigger, ...; Advantage from Feral Instinct, ...
+    const initiative = getInitiative({
+        features: allFeatures,
+        racialTraits,
+        backgroundFeatureName: background?.feature?.name,
+        modifiers: effectiveModifiers,
+        proficiencyBonus: pb,
+    });
+    const initiativeDescription = describeInitiative(initiative, effectiveModifiers.dex);
+    const initiativeFeatureBonus = initiative.total - effectiveModifiers.dex;
+    const initiativeSublabel = [
+        initiativeFeatureBonus > 0 && `+${initiativeFeatureBonus} from features`,
+        initiative.advantage.length > 0 && 'Advantage',
+    ].filter(Boolean).join(', ') || undefined;
+
     // Weapons chosen for Weapon Mastery (null for characters from before the choice existed)
     const masteryWeapons = getWeaponMasteries(data.classChoices);
 
@@ -530,7 +546,7 @@ export default function CharacterSheet() {
     const derivedStats = buildDerivedStats({
         ac,
         speed: speedNow.speed,
-        initiative: effectiveModifiers.dex,
+        initiative: initiative.total,
         passives,
         spellSaveDc: spellNumbers?.dc,
     });
@@ -644,7 +660,15 @@ export default function CharacterSheet() {
                         onReset={speedStat.overridden ? () => persistData({ speed: null }, "Couldn't reset speed") : undefined}
                         resetLabel={`Reset speed to ${speedStat.calculated} ft.`}
                     />}
-                    <Stat label="Initiative" value={<RollButton label="Initiative" modifier={effectiveModifiers.dex} kind="initiative" ability="dex">{formatMod(effectiveModifiers.dex)}</RollButton>} />
+                    <Stat
+                        label="Initiative"
+                        value={
+                            <RollButton label="Initiative" modifier={initiative.total} kind="initiative" ability="dex" advantage={initiative.advantage}>
+                                <span title={initiativeDescription}>{formatMod(initiative.total)}</span>
+                            </RollButton>
+                        }
+                        sublabel={initiativeSublabel && `(${initiativeSublabel})`}
+                    />
                     {readOnly ? (
                         <Stat label="AC" value={<AcShield value={ac} />} highlight />
                     ) : <EditableStat
