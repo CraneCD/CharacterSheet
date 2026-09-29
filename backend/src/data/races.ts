@@ -704,6 +704,27 @@ export const races: Race[] = [
             "Draconic Cry",
             "Kobold Legacy"
         ],
+        "lineageOptions": {
+            "trait": "Kobold Legacy",
+            "label": "Kobold Legacy",
+            "options": [
+                {
+                    "id": "craftiness",
+                    "name": "Craftiness",
+                    "description": "Proficiency in Arcana, Investigation, Medicine, Sleight of Hand, or Survival."
+                },
+                {
+                    "id": "draconic_defiance",
+                    "name": "Draconic Defiance",
+                    "description": "Advantage on saving throws to avoid or end the Frightened condition."
+                },
+                {
+                    "id": "draconic_sorcery",
+                    "name": "Draconic Sorcery",
+                    "description": "You know one cantrip of your choice from the Sorcerer spell list."
+                }
+            ]
+        },
         "languages": [
             "Common",
             "Two standard languages of your choice"

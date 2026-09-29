@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
 import { Spell, CharacterSpell, CharacterData } from '@/lib/types';
 import { calculateMulticlassSpellcasterLevel, getSpellcastingClasses, calculatePreparedSpellsLimitForClass, getCantripsKnown, getKnownSpellsLimit } from '@/lib/multiclassSpellcasting';
 import { ELVEN_LINEAGE_SPELLS, SUBCLASS_BONUS_SPELLS, MAGIC_INITIATE_CLASSES } from '@/lib/wizardReference';
-import { freeCastCounter } from '@/lib/featureUses';
+import { freeCastCounter, MAGIC_INITIATE } from '@/lib/featureUses';
 import { useOptionalSheetLimitedUses } from './sections/ClassResourcesSection';
 import UsesTracker from './UsesTracker';
 import { getSlotsForClass, getPactMagic, THIRD_CASTER_SPELLS_KNOWN, getThirdCasterCantrips } from '@/lib/spellSlots';
@@ -69,13 +69,9 @@ interface SpellManagerProps {
     onMagicInitiateUpdate?: (magicInitiate: NonNullable<SpellManagerProps['magicInitiate']>) => void;
     /** Called with the spells you can cast now and the slots left (the sheet's Actions card lists them). */
     onCastableChange?: (summary: CastableSummary) => void;
-    /** Magic Initiate: 1st-level spell uses remaining (1 = available, 0 = used). Resets on long rest. */
-    magicInitiateSpell1Used?: number;
-    /** Called when Magic Initiate 1st-level slot is toggled. used: 0 = used, 1 = available. */
-    onMagicInitiateSlotChange?: (used: number) => void;
 }
 
-export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, initialPactSlotsUsed = 0, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel, subclassSpells, classFeatureSpells = [], bonusCantrips = 0, speciesSpells, magicInitiate, onMagicInitiateUpdate, magicInitiateSpell1Used = 1, onMagicInitiateSlotChange, onCastableChange }: SpellManagerProps) {
+export default function SpellManager({ characterId, classId, level, initialSpells, initialSlotsUsed, initialPactSlotsUsed = 0, spellcastingAbility, preparedCaster = false, abilityScores, onUpdate, classes: classesData, allClasses: allClassesData, subclassSpellcasting, spellbook: spellbookProp, elvenLineage, subclassId: subclassIdProp, subclassClassLevel, subclassSpells, classFeatureSpells = [], bonusCantrips = 0, speciesSpells, magicInitiate, onMagicInitiateUpdate, onCastableChange }: SpellManagerProps) {
     const readOnly = useSheetReadOnly();
     // Free casts of species spells, tracked with the sheet's other limited uses
     const limitedUses = useOptionalSheetLimitedUses();
@@ -723,25 +719,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                                         Ability: {(spellcastingAbility || 'int').toUpperCase()}
                                     </span>
-                                    {mi?.spell1 && onMagicInitiateSlotChange && !readOnly && (
-                                        <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '0.75rem' }}>1st-level slot:</span>
-                                            <div
-                                                onClick={() => {
-                                                    const current = magicInitiateSpell1Used ?? 1;
-                                                    const next = current === 1 ? 0 : 1;
-                                                    onMagicInitiateSlotChange(next);
-                                                }}
-                                                style={{
-                                                    width: '12px', height: '12px', borderRadius: '50%',
-                                                    border: '1px solid var(--primary)',
-                                                    backgroundColor: (magicInitiateSpell1Used ?? 1) === 0 ? 'var(--primary)' : 'transparent',
-                                                    cursor: 'pointer'
-                                                }}
-                                                title="Toggle Magic Initiate 1st-level spell slot"
-                                            />
-                                        </div>
-                                    )}
+                                    {mi?.spell1 && <MagicInitiateFreeCast spellId={mi.spell1} />}
                                 </div>
                                 {!readOnly && (
                                     <button className="btn btn-secondary" onClick={() => setMagicInitiateModalOpen(true)} style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>
@@ -1292,25 +1270,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
                             Always prepared; don&apos;t count toward your prepared spell limit.
                         </p>
-                        {magicInitiate.spell1 && onMagicInitiateSlotChange && (
-                            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                                <span style={{ fontSize: '0.75rem' }}>1st-level slot:</span>
-                                <div
-                                    onClick={() => {
-                                        const current = magicInitiateSpell1Used ?? 1;
-                                        const next = current === 1 ? 0 : 1;
-                                        onMagicInitiateSlotChange(next);
-                                    }}
-                                    style={{
-                                        width: '12px', height: '12px', borderRadius: '50%',
-                                        border: '1px solid var(--primary)',
-                                        backgroundColor: (magicInitiateSpell1Used ?? 1) === 0 ? 'var(--primary)' : 'transparent',
-                                        cursor: 'pointer'
-                                    }}
-                                    title="Toggle Magic Initiate 1st-level spell slot"
-                                />
-                            </div>
-                        )}
+                        {magicInitiate.spell1 && <MagicInitiateFreeCast spellId={magicInitiate.spell1} />}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                         {[...(magicInitiate.cantrips || []), ...(magicInitiate.spell1 ? [magicInitiate.spell1] : [])].map(spellId => {
@@ -1333,6 +1293,19 @@ export default function SpellManager({ characterId, classId, level, initialSpell
                     />
                 </div>
             )}
+        </div>
+    );
+}
+
+/** Magic Initiate's level 1 spell: one cast without a slot per Long Rest, tracked with the sheet's limited uses. */
+function MagicInitiateFreeCast({ spellId }: { spellId: string }) {
+    const limitedUses = useOptionalSheetLimitedUses();
+    const free = limitedUses && freeCastCounter(limitedUses.resources, spellId, MAGIC_INITIATE);
+    if (!free) return null;
+    return (
+        <div className="spell-free-cast">
+            <span className="spell-free-cast-label" aria-hidden="true">Free cast</span>
+            <UsesTracker resource={free[1]} onChange={(current) => limitedUses.setCurrent(free[0], current)} />
         </div>
     );
 }

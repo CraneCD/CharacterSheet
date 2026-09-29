@@ -296,7 +296,32 @@ export function countersForFeature(resources: ClassResources, featureName: strin
     return single ? [single] : [];
 }
 
-/** The free-cast counter for a spell, if the character has one. */
-export function freeCastCounter(resources: ClassResources | undefined, spellId: string): [string, ClassResource] | undefined {
-    return Object.entries(resources || {}).find(([, r]) => r?.spellId === spellId);
+/** The free-cast counter for a spell, if the character has one (optionally from one feature). */
+export function freeCastCounter(resources: ClassResources | undefined, spellId: string, feature?: string): [string, ClassResource] | undefined {
+    return Object.entries(resources || {}).find(([, r]) => r?.spellId === spellId && (!feature || r.feature === feature));
+}
+
+export const MAGIC_INITIATE = 'Magic Initiate';
+
+/**
+ * Magic Initiate's level 1 spell, cast once per Long Rest without a slot. `legacyUsed` is the
+ * old `magicInitiateSpell1Used` flag (0 = spent), so a cast spent before counters isn't refilled.
+ */
+export function computeMagicInitiateUses(spellId: string | null | undefined, spellNames: Record<string, string>, legacyUsed?: number | null): ClassResources {
+    if (!spellId) return {};
+    const spell = spellNames[spellId] || spellNameFromId(spellId);
+    const name = `${spell} (${MAGIC_INITIATE})`;
+    const current = legacyUsed === 0 ? 0 : 1;
+    return {
+        [name]: {
+            name,
+            current,
+            max: 1,
+            resetType: 'long',
+            description: `Cast ${spell} once without a spell slot. Regain on a Long Rest.`,
+            source: 'feat',
+            feature: MAGIC_INITIATE,
+            spellId,
+        },
+    };
 }

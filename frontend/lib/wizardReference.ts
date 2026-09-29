@@ -64,14 +64,38 @@ export const SPECIES_LINEAGE_SPELLS: Record<string, SpeciesSpellEntry[]> = {
 export const ELVEN_LINEAGE_SPELLS = SPECIES_LINEAGE_SPELLS;
 
 /** Spells a character gets from their species (and lineage choice) at a character level. */
-export function getSpeciesSpellEntries(raceId: string, lineageId?: string): SpeciesSpellEntry[] {
+export function getSpeciesSpellEntries(raceId: string, lineageId?: string, speciesCantrip?: string | null): SpeciesSpellEntry[] {
     const out: SpeciesSpellEntry[] = [];
     // Species ids use hyphens ("deep-gnome"); older characters may store the name ("Deep Gnome")
     const r = (raceId || '').trim().toLowerCase().replace(/[\s_]+/g, '-');
     const l = (lineageId || '').toLowerCase().replace(/\s+/g, '_');
     if (SPECIES_LINEAGE_SPELLS[r]) out.push(...SPECIES_LINEAGE_SPELLS[r]);
     if (l && SPECIES_LINEAGE_SPELLS[l]) out.push(...SPECIES_LINEAGE_SPELLS[l]);
+    // Kobold Legacy (Draconic Sorcery): a Sorcerer cantrip of the player's choice
+    if (l === KOBOLD_SORCERY && speciesCantrip) out.push(cantrip(speciesCantrip, 'Kobold Legacy'));
     return out;
+}
+
+/** Kobold Legacy option that grants a Sorcerer cantrip (data.speciesCantrip). */
+export const KOBOLD_SORCERY = 'draconic_sorcery';
+
+/** Kobolds pick a cantrip with Draconic Sorcery; older kobolds (no legacy stored) can still choose it. */
+export function canChooseSpeciesCantrip(raceId: string, lineageId?: string): boolean {
+    const r = (raceId || '').trim().toLowerCase();
+    return r === 'kobold' && (!lineageId || lineageId === KOBOLD_SORCERY);
+}
+
+export type SpellAbility = 'int' | 'wis' | 'cha';
+
+/** Species spells let the player pick Intelligence, Wisdom or Charisma (2024); Charisma until they do. */
+export const SPECIES_SPELL_ABILITIES: { id: SpellAbility; name: string }[] = [
+    { id: 'int', name: 'Intelligence' },
+    { id: 'wis', name: 'Wisdom' },
+    { id: 'cha', name: 'Charisma' },
+];
+
+export function speciesSpellAbility(value: unknown): SpellAbility {
+    return value === 'int' || value === 'wis' || value === 'cha' ? value : 'cha';
 }
 
 /** Fallback subclass spells when the subclass record has no `spells` list. Level = class level. */

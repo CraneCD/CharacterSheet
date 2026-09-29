@@ -433,14 +433,6 @@ router.patch('/:id/hit-dice', authenticateToken, (req: AuthRequest, res) =>
     })
 );
 
-// Update Magic Initiate 1st-level spell use (1 = available, 0 = used)
-router.patch('/:id/magic-initiate-spell-used', authenticateToken, (req: AuthRequest, res) =>
-    mutateCharacterData(req, res, 'Failed to update Magic Initiate spell use', (data) => {
-        const { used } = req.body; // 0 = used, 1 = available
-        data.magicInitiateSpell1Used = used !== undefined ? used : 0;
-    })
-);
-
 // Update Character Class Resources
 // One limited-use counter (class resource, species trait, feat, subclass or custom feature uses)
 const resourceSchema = z.object({

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Race, Background } from '@/lib/types';
 import { hasSkillful, hasVersatile, hasKeenSensesChoice } from '@/lib/racialTraitBonuses';
-import { ORIGIN_FEAT_IDS, SKILLS_FOR_SKILLFUL, STANDARD_LANGUAGES_2024, ELVEN_LINEAGES, KEEN_SENSES_SKILLS, getRaceLanguageChoices } from '@/lib/wizardReference';
+import { ORIGIN_FEAT_IDS, SKILLS_FOR_SKILLFUL, STANDARD_LANGUAGES_2024, ELVEN_LINEAGES, KEEN_SENSES_SKILLS, KOBOLD_SORCERY, SPECIES_SPELL_ABILITIES, getRaceLanguageChoices, getSpeciesSpellEntries } from '@/lib/wizardReference';
 
 interface StepReviewProps {
     data: any;
@@ -86,6 +86,22 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
     const expertiseCount: number = needsExpertise ? 2 : 0;
     const expertiseChoices = (data.expertiseChoices || []) as string[];
 
+    // Species spells: the player picks Intelligence, Wisdom or Charisma; Draconic Sorcery also picks a cantrip
+    const lineageChoice = isElf ? data.elvenLineageChoice : data.speciesLineageChoice;
+    const needsSpeciesCantrip = lineageChoice === KOBOLD_SORCERY;
+    const needsSpeciesAbility = needsSpeciesCantrip || getSpeciesSpellEntries(raceId || '', lineageChoice).length > 0;
+    const [sorcererCantrips, setSorcererCantrips] = useState<{ id: string; name: string }[] | null>(null);
+    useEffect(() => {
+        if (!needsSpeciesCantrip) return;
+        api.get('/reference/spells/summary')
+            .then((list: { id: string; name: string; level: number; classes?: string[]; legacy?: boolean }[]) => setSorcererCantrips(
+                (Array.isArray(list) ? list : [])
+                    .filter((s) => s.level === 0 && !s.legacy && (s.classes || []).some((c) => c.toLowerCase() === 'sorcerer'))
+                    .sort((a, b) => a.name.localeCompare(b.name)),
+            ))
+            .catch(() => setSorcererCantrips([]));
+    }, [needsSpeciesCantrip]);
+
     const totalLangChoices = getRaceLanguageChoices(raceId || '');
     const languageChoices = (data.languageChoices || []) as string[];
 
@@ -107,7 +123,7 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
     // The background already grants its origin feat; only repeatable feats can be taken twice.
     const versatileOptions = feats.filter(f => f.id !== background?.originFeat || f.repeatable);
 
-    const hasChoices = needsSkillful || needsVersatile || needsKeenSenses || !!lineage || needsSize || needsClassSkills || needsExpertise || totalLangChoices > 0;
+    const hasChoices = needsSkillful || needsVersatile || needsKeenSenses || !!lineage || needsSize || needsClassSkills || needsExpertise || totalLangChoices > 0 || needsSpeciesAbility;
 
     return (
         <div>
@@ -139,6 +155,25 @@ export default function StepReview({ data, onUpdate, raceName, className, backgr
                             <select id="field-lineage" className="input" data-testid="lineage" value={data.elvenLineageChoice || ''} onChange={(e) => onUpdate({ elvenLineageChoice: e.target.value })}>
                                 <option value="">Select a lineage...</option>
                                 {ELVEN_LINEAGES.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                            </select>
+                        </div>
+                    )}
+
+                    {needsSpeciesCantrip && (
+                        <div>
+                            <label htmlFor="field-species-cantrip" style={labelStyle}>Draconic Sorcery — choose a Sorcerer cantrip</label>
+                            <select id="field-species-cantrip" className="input" data-testid="species-cantrip" value={data.speciesCantripChoice || ''} onChange={(e) => onUpdate({ speciesCantripChoice: e.target.value })} disabled={sorcererCantrips === null}>
+                                <option value="">{sorcererCantrips === null ? 'Loading cantrips…' : 'Select a cantrip...'}</option>
+                                {(sorcererCantrips ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        </div>
+                    )}
+
+                    {needsSpeciesAbility && (
+                        <div>
+                            <label htmlFor="field-species-ability" style={labelStyle}>Spellcasting ability for species spells</label>
+                            <select id="field-species-ability" className="input" data-testid="species-ability" value={data.speciesSpellAbilityChoice || 'cha'} onChange={(e) => onUpdate({ speciesSpellAbilityChoice: e.target.value })}>
+                                {SPECIES_SPELL_ABILITIES.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                             </select>
                         </div>
                     )}

@@ -30,7 +30,7 @@ import { getWeaponAttacks } from '@/lib/attacks';
 import { describeInitiative, getInitiative } from '@/lib/initiativeBonus';
 import type { CastableSummary } from '@/lib/actionRows';
 import { getSkillProficienciesFromTraits } from '@/lib/racialTraitBonuses';
-import { getRaceTraits, getBackgroundSkills, getSpeciesSpellEntries } from '@/lib/wizardReference';
+import { canChooseSpeciesCantrip, getRaceTraits, getBackgroundSkills, getSpeciesSpellEntries, speciesSpellAbility } from '@/lib/wizardReference';
 import { useCharacterSheetData } from './useCharacterSheetData';
 import { getCharacterSubclasses, getSubclassMap } from '@/lib/subclasses';
 import { getChoiceSkillBonuses, getChoiceSpellIds, getWeaponMasteries } from '@/lib/classChoices';
@@ -93,7 +93,7 @@ export default function CharacterSheet() {
     const choiceSpellIdsKey = getChoiceSpellIds(character?.data?.classChoices).join(',');
     // Species free casts (Elven Lineage, Githyanki Psionics, ...) are named after their spells too
     const hasSpeciesFreeCasts = getSpeciesSpellEntries(character?.race, character?.data?.speciesLineage || character?.data?.elvenLineage).some((e) => e.free);
-    const needsSpellNames = !!choiceSpellIdsKey || hasSpeciesFreeCasts;
+    const needsSpellNames = !!choiceSpellIdsKey || hasSpeciesFreeCasts || !!character?.data?.magicInitiate?.spell1;
     // Live feat text, so admin edits to a feat show on characters that already have it
     const [featsById, setFeatsById] = useState<Record<string, { name: string; description: string }>>({});
     useEffect(() => {
@@ -447,14 +447,19 @@ export default function CharacterSheet() {
     };
 
     // Check if character has spellcasting from base class or subclass (Arcane Trickster, Eldritch Knight)
-    const speciesSpells = getSpeciesSpellEntries(character.race, data.speciesLineage || data.elvenLineage);
+    const speciesLineage = data.speciesLineage || data.elvenLineage;
+    const speciesSpells = getSpeciesSpellEntries(character.race, speciesLineage, data.speciesCantrip);
+    // Kobolds with Draconic Sorcery (or no legacy stored yet) pick their cantrip on the Spells tab
+    const choosesSpeciesCantrip = canChooseSpeciesCantrip(character.race, data.speciesLineage);
+    const speciesAbility = speciesSpellAbility(data.speciesSpellAbility);
     const hasMagicInitiateFeat = (data.features || []).some((f: any) => (f.name || '').toLowerCase() === 'magic initiate');
     const spellcasting = getSpellcastingSetup({
         characterClasses,
         gameClasses: gameData.classes || [],
         characterSubclasses,
         level,
-        hasSpeciesSpells: speciesSpells.length > 0,
+        hasSpeciesSpells: speciesSpells.length > 0 || choosesSpeciesCantrip,
+        speciesSpellAbility: speciesAbility,
         hasMagicInitiateFeat,
         magicInitiateAbility: data.magicInitiate?.ability,
     });
@@ -474,6 +479,15 @@ export default function CharacterSheet() {
     const extraAttacks = featureNames.has('Three Extra Attacks') ? 3 : featureNames.has('Two Extra Attacks') ? 2 : featureNames.has('Extra Attack') ? 1 : 0;
     const spellMod = spellcasting ? (effectiveModifiers as Record<string, number>)[spellcasting.ability] ?? 0 : 0;
     const spellNumbers = spellcasting ? { attack: pb + spellMod, dc: 8 + pb + spellMod, modifier: spellMod } : null;
+    // Species and Magic Initiate spells use the ability chosen for them, not the class's
+    const numbersFor = (ability: string) => {
+        const m = (effectiveModifiers as Record<string, number>)[ability] ?? 0;
+        return { attack: pb + m, dc: 8 + pb + m, modifier: m };
+    };
+    const spellcastingBySource = {
+        ...(speciesSpells.length > 0 ? { Species: numbersFor(speciesAbility) } : {}),
+        ...(hasMagicInitiateFeat && data.magicInitiate?.ability ? { 'Magic Initiate': numbersFor(data.magicInitiate.ability) } : {}),
+    };
 
     const hpForVitals = { current: 0, max: 0, temp: 0, ...(data.hp || {}) };
     const sheetTabs: { id: SheetTabId; label: string }[] = [
@@ -490,7 +504,6 @@ export default function CharacterSheet() {
     const restContext: RestContext = {
         warlockLevel: classLevels.warlock ?? 0,
         multiclass: characterClasses.length > 1,
-        hasMagicInitiateSpell: !!data.magicInitiate?.spell1,
     };
 
     const handleRest = async (kind: 'short' | 'long', hitDiceRolls: number[] = []) => {
@@ -547,6 +560,7 @@ export default function CharacterSheet() {
             hasChoiceSpells={!!choiceSpellIdsKey}
             features={allFeatures}
             speciesSpells={speciesSpells}
+            magicInitiateSpell={hasMagicInitiateFeat ? data.magicInitiate?.spell1 : null}
             modifiers={effectiveModifiers}
             readOnly={readOnly}
             onUpdate={handleUpdateCharacter}
@@ -830,6 +844,7 @@ export default function CharacterSheet() {
                             masteryWeapons={masteryWeapons}
                             castable={hasSpellcasting ? castable : null}
                             spellcasting={spellNumbers}
+                            spellcastingBySource={spellcastingBySource}
                             characterLevel={level}
                             resources={data.classResources}
                             primaryClass={primaryClass}
@@ -901,6 +916,9 @@ export default function CharacterSheet() {
                         abilityScores={effectiveAbilityScores}
                         gameClasses={gameData.classes || []}
                         speciesSpells={speciesSpells}
+                        speciesSpellAbility={speciesAbility}
+                        choosesSpeciesCantrip={choosesSpeciesCantrip}
+                        persistData={persistData}
                         hasMagicInitiateFeat={hasMagicInitiateFeat}
                         setCharacter={setCharacter}
                         onUpdate={handleUpdateCharacter}

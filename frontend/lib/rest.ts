@@ -12,8 +12,6 @@ export interface RestContext {
     warlockLevel: number;
     /** More than one class: Pact Magic slots are tracked apart from other slots. */
     multiclass: boolean;
-    /** Magic Initiate's 1st-level spell has a free casting that returns on a Long Rest. */
-    hasMagicInitiateSpell: boolean;
 }
 
 export interface RestPlan {
@@ -92,11 +90,6 @@ export function planLongRest(data: Partial<CharacterData>, ctx: RestContext): Re
     }
 
     if (anySlotsUsed(data.spellSlotsUsed) || Number(data.pactSlotsUsed) > 0) summary.push('Spell slots restored');
-
-    if (ctx.hasMagicInitiateSpell) {
-        updates.magicInitiateSpell1Used = 1;
-        if (data.magicInitiateSpell1Used === 0) summary.push('Magic Initiate spell ready');
-    }
 
     const resources = data.classResources || {};
     const recovered = recoverResources(resources, 'long');

@@ -20,6 +20,8 @@ interface ActionsCardProps {
     /** Spells you can cast and slots left, from the spell list (null until it has loaded, or without spellcasting) */
     castable: CastableSummary | null;
     spellcasting: SpellcastingNumbers | null;
+    /** Species and Magic Initiate spells use their own ability */
+    spellcastingBySource?: Record<string, SpellcastingNumbers>;
     characterLevel: number;
     resources?: ClassResources;
     primaryClass: string;
@@ -134,7 +136,7 @@ function ActionRowItem({ row, castable, open, onToggle, onRemove }: {
  * prepared spells, class features, items and your own actions. Rows start collapsed.
  */
 export default function ActionsCard({
-    characterId, attacks, hasWeaponMastery, masteryWeapons, castable, spellcasting, characterLevel,
+    characterId, attacks, hasWeaponMastery, masteryWeapons, castable, spellcasting, spellcastingBySource, characterLevel,
     resources, primaryClass, storedActions, extraAttacks, onUpdate,
 }: ActionsCardProps) {
     const toast = useToast();
@@ -160,9 +162,9 @@ export default function ActionsCard({
     const rows = useMemo(() => buildActionRows({
         attacks, hasWeaponMastery, masteryWeapons,
         castable: castable?.spells ?? [],
-        spells, spellcasting, characterLevel, resources, primaryClass,
+        spells, spellcasting, spellcastingBySource, characterLevel, resources, primaryClass,
         storedActions: actions,
-    }), [attacks, hasWeaponMastery, masteryWeapons, castable, spells, spellcasting, characterLevel, resources, primaryClass, actions]);
+    }), [attacks, hasWeaponMastery, masteryWeapons, castable, spells, spellcasting, spellcastingBySource, characterLevel, resources, primaryClass, actions]);
 
     const byTiming = (t: ActionTiming) => rows.filter((r) => r.timing === t);
 
