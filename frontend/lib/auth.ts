@@ -51,3 +51,15 @@ export function getStoredUserId(): string | null {
         return null;
     }
 }
+
+/** The signed-in user's email, from the user stored at login (display only). */
+export function getStoredUserEmail(): string | null {
+    if (typeof window === 'undefined') return null;
+    try {
+        const raw = localStorage.getItem('user');
+        const user = raw ? JSON.parse(raw) : null;
+        return typeof user?.email === 'string' ? user.email : null;
+    } catch {
+        return null;
+    }
+}

@@ -57,3 +57,43 @@ describe('Auth Routes', () => {
         expect(res.body).toEqual({ error: 'Invalid email or password.' });
     });
 });
+
+describe('POST /auth/change-password', () => {
+    const jwt = require('jsonwebtoken');
+    const bcrypt = require('bcryptjs');
+    const secret = 'test-secret';
+    let token: string;
+    let prisma: any;
+
+    beforeAll(() => {
+        process.env.JWT_SECRET = secret;
+        token = jwt.sign({ id: 'user-1', email: 'u@example.com' }, secret);
+    });
+
+    beforeEach(async () => {
+        prisma = new PrismaClient();
+        prisma.user.update = jest.fn().mockResolvedValue({});
+        (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-1', email: 'u@example.com', passwordHash: await bcrypt.hash('old-password', 4) });
+    });
+
+    const send = (body: object, auth = true) => {
+        const req = request(app).post('/auth/change-password');
+        return (auth ? req.set('Authorization', `Bearer ${token}`) : req).send(body);
+    };
+
+    it('changes the password when the current one is right', async () => {
+        const res = await send({ currentPassword: 'old-password', newPassword: 'new-password' });
+        expect(res.status).toBe(200);
+        const saved = prisma.user.update.mock.calls[0][0];
+        expect(saved.where).toEqual({ id: 'user-1' });
+        expect(await bcrypt.compare('new-password', saved.data.passwordHash)).toBe(true);
+    });
+
+    it('rejects a wrong current password, a reused or short new one, and anonymous requests', async () => {
+        expect((await send({ currentPassword: 'nope', newPassword: 'new-password' })).body.error).toBe('Your current password is incorrect.');
+        expect((await send({ currentPassword: 'old-password', newPassword: 'old-password' })).status).toBe(400);
+        expect((await send({ currentPassword: 'old-password', newPassword: '123' })).status).toBe(400);
+        expect((await send({ currentPassword: 'old-password', newPassword: 'new-password' }, false)).status).toBe(401);
+        expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+});

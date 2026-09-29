@@ -91,7 +91,7 @@ API errors are thrown as `ApiError` (`status` + the server's `error` text as `me
 ### Backend API Structure
 
 Routes are mounted in `backend/src/index.ts`:
-- `/api/auth` — register, login
+- `/api/auth` — register, login, `POST /change-password` (signed in; needs the current password). All rate-limited (`authLimiter`). The frontend's `/account` page (nav: Account) uses it
 - `/api/characters` — CRUD; protected by `authenticateToken` middleware
 - `/api/campaigns` — CRUD, join by code, leave/remove members, `PUT /assign-character`; nested `/:id/encounters` (DM only), `/:id/sessions` and `/:id/items` (loot, `POST /:itemId/distribute` to hand it out). Prep files: `POST /import` (new campaign), `GET|POST /:id/prep` (export / import into), one transaction each, in `backend/src/lib/campaignPrep.ts`. Access checks go through `loadCampaign` in `backend/src/lib/campaignAccess.ts` (404 for campaigns you aren't in)
 - `/api/monsters` — a DM's custom monsters (same shape as SRD monsters, `backend/src/lib/monsterSchema.ts`)
