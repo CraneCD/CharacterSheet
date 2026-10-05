@@ -15,6 +15,8 @@ export interface RollRequest {
     ability?: string;
     /** Features that give Advantage on this roll (e.g. Feral Instinct on Initiative) */
     advantage?: string[];
+    /** Gear that gives Disadvantage on this roll (e.g. armor on Stealth) */
+    disadvantage?: string[];
     /** Attacks: offered as "Roll damage" after the attack roll (dice doubled on a natural 20). */
     damage?: { expression: string; modifier: number; /** Tray title, e.g. "Cure Wounds healing" */ label?: string };
 }
@@ -94,7 +96,7 @@ export function DiceProvider({ children, conditions = NO_CONDITIONS }: { childre
             show(rollD20(request.label, request.modifier, mode), request);
             return;
         }
-        const adj = rollAdjustment(request.kind, request.ability, conditionsRef.current, request.advantage);
+        const adj = rollAdjustment(request.kind, request.ability, conditionsRef.current, request.advantage, request.disadvantage);
         if (adj.autoFail) {
             show({ ...autoFailedD20(request.label, request.modifier, adj.autoFail), notes: adj.reasons }, request);
             return;
@@ -213,25 +215,26 @@ interface RollButtonProps {
     kind?: RollKind;
     ability?: string;
     advantage?: RollRequest['advantage'];
+    disadvantage?: RollRequest['disadvantage'];
     damage?: RollRequest['damage'];
     className?: string;
     children: React.ReactNode;
 }
 
 /** A modifier you can tap to roll. Plain text when there's no DiceProvider (e.g. print previews, tests). */
-export function RollButton({ label, modifier, kind, ability, advantage, damage, className, children }: RollButtonProps) {
+export function RollButton({ label, modifier, kind, ability, advantage, disadvantage, damage, className, children }: RollButtonProps) {
     const dice = useDice();
     if (!dice) return <span className={className}>{children}</span>;
     const sign = modifier >= 0 ? `+${modifier}` : `−${Math.abs(modifier)}`;
-    const affected = kind ? isRollAffected(kind, ability, dice.conditions) : false;
-    // Flagged only when conditions change the roll; the reasons also say if a feature's Advantage cancels them
-    const reasons = affected && kind ? rollAdjustment(kind, ability, dice.conditions, advantage).reasons.join(', ') : '';
+    const affected = kind ? isRollAffected(kind, ability, dice.conditions) || !!disadvantage?.length : false;
+    // Flagged only when conditions or gear change the roll; the reasons also say if a feature's Advantage cancels them
+    const reasons = affected && kind ? rollAdjustment(kind, ability, dice.conditions, advantage, disadvantage).reasons.join(', ') : '';
     const classes = ['roll-button', className, affected && 'is-affected'].filter(Boolean).join(' ');
     return (
         <button
             type="button"
             className={classes}
-            onClick={() => dice.roll({ label, modifier, damage, kind, ability, advantage })}
+            onClick={() => dice.roll({ label, modifier, damage, kind, ability, advantage, disadvantage })}
             aria-label={`Roll ${label}, ${sign}${reasons ? ` (${reasons})` : ''}`}
             title={reasons ? `Roll ${label}: ${reasons}` : `Roll ${label}`}
         >

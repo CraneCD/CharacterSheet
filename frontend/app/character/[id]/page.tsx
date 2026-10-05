@@ -17,6 +17,7 @@ import { getHpStatus } from '@/lib/hp';
 import { planLongRest, planShortRest, RestContext } from '@/lib/rest';
 import { downloadCharacterJson } from '@/lib/characterTransfer';
 import { calculateArmorClass } from '@/lib/armorClass';
+import { armorPenalties } from '@/lib/armorPenalties';
 import { defaultSpeed, overrideToStore, resolveOverride } from '@/lib/sheetDefaults';
 import { classColorStyle } from '@/lib/classColors';
 import { CharacterItem } from '@/lib/types';
@@ -267,14 +268,18 @@ export default function CharacterSheet() {
     const speedStat = resolveOverride(data.speed, defaultSpeed(race.speed, data.elvenLineage));
     const baseSpeed = speedStat.value;
     const speedBonus = calculateSpeedBonusFromFeatures(allFeatures, primaryClass, level);
-    const speed = baseSpeed + speedBonus;
+    // Armor you lack the Strength for costs 10 ft.; armor like Chain Mail gives Disadvantage on Stealth
+    const armorEffects = armorPenalties(equipment, effectiveAbilityScores.str);
+    const speed = Math.max(0, baseSpeed + speedBonus - armorEffects.speedPenalty);
     
     // Store speedBonus for display
     const speedBonusDisplay = speedBonus;
 
     // Conditions and Exhaustion change rolls (dice tray) and Speed
     const activeConditions = normalizeConditions(data.conditions, data.exhaustion);
-    const speedNow = speedWithConditions(speed, activeConditions);
+    const conditionSpeed = speedWithConditions(speed, activeConditions);
+    const speedReasons = [armorEffects.speedReason, conditionSpeed.reason].filter(Boolean);
+    const speedNow = { speed: conditionSpeed.speed, reason: speedReasons.length > 0 ? speedReasons.join(', ') : undefined };
 
     // Saving Throws - include feature-granted proficiencies
     const savingThrowProficiencies = getSavingThrowProficienciesFromFeatures(
@@ -334,7 +339,8 @@ export default function CharacterSheet() {
         const hasExpertise = expertiseSkills.includes(skill.name);
         const proficiencyBonus = hasExpertise ? pb * 2 : (isProficient ? pb : 0);
         const total = effectiveModifiers[skill.stat] + proficiencyBonus + (choiceSkillBonuses[skill.name] || 0);
-        return { ...skill, total, isProficient, hasExpertise };
+        const disadvantage = skill.name === 'Stealth' && armorEffects.stealthDisadvantage.length > 0 ? armorEffects.stealthDisadvantage : undefined;
+        return { ...skill, total, isProficient, hasExpertise, disadvantage };
     });
 
     // Initiative: Dex plus Alert, Dread Ambusher, Hare-Trigger, ...; Advantage from Feral Instinct, ...

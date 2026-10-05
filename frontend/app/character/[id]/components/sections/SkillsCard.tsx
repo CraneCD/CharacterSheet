@@ -11,6 +11,8 @@ export interface SkillRow {
     total: number;
     isProficient: boolean;
     hasExpertise: boolean;
+    /** Gear giving Disadvantage on this skill (armor on Stealth) */
+    disadvantage?: string[];
 }
 
 interface SkillsCardProps {
@@ -43,8 +45,13 @@ export default function SkillsCard({ skills, onToggleProficiency }: SkillsCardPr
                             )}
                             {skill.name}
                             <span className="skill-stat">({skill.stat.toUpperCase()})</span>
+                            {skill.disadvantage && skill.disadvantage.length > 0 && (
+                                <span className="disadvantage-badge" title={`Disadvantage from ${skill.disadvantage.join(', ')}`}>
+                                    D<span className="visually-hidden">isadvantage from {skill.disadvantage.join(', ')}</span>
+                                </span>
+                            )}
                         </span>
-                        <RollButton label={skill.name} modifier={skill.total} kind="check" ability={skill.stat} className="stat-list-total">
+                        <RollButton label={skill.name} modifier={skill.total} kind="check" ability={skill.stat} disadvantage={skill.disadvantage} className="stat-list-total">
                             {formatMod(skill.total)}
                         </RollButton>
                     </li>

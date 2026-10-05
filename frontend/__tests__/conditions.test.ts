@@ -28,6 +28,12 @@ describe('conditions', () => {
         expect(rollAdjustment('initiative', 'dex', active(['Invisible'])).mode).toBe('advantage');
     });
 
+    it('adds Disadvantage from gear, which conditions and features can cancel', () => {
+        expect(rollAdjustment('check', 'dex', active([]), [], ['Chain Mail'])).toMatchObject({ mode: 'disadvantage', reasons: ['Disadvantage (Chain Mail)'] });
+        expect(rollAdjustment('check', 'dex', active(['Poisoned']), [], ['Chain Mail']).reasons).toEqual(['Disadvantage (Chain Mail, Poisoned)']);
+        expect(rollAdjustment('check', 'dex', active([]), ['Cloak of Elvenkind'], ['Chain Mail']).mode).toBe('normal');
+    });
+
     it('fails Strength and Dexterity saves automatically while Stunned and the like', () => {
         expect(rollAdjustment('save', 'dex', active(['Stunned'])).autoFail).toBe('Stunned');
         expect(rollAdjustment('save', 'str', active(['Unconscious'])).autoFail).toBe('Unconscious');
