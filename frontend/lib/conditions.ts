@@ -67,8 +67,10 @@ export function rollAdjustment(
     active: ActiveConditions,
     /** Features that always give Advantage on this roll (e.g. Feral Instinct on Initiative) */
     featureAdvantage: string[] = [],
+    /** Gear that always gives Disadvantage on this roll (e.g. Chain Mail on Stealth) */
+    featureDisadvantage: string[] = [],
 ): RollAdjustment {
-    const disadvantage: string[] = [];
+    const disadvantage: string[] = [...featureDisadvantage];
     const advantage: string[] = [...featureAdvantage];
 
     if (kind === 'check' || kind === 'initiative') {

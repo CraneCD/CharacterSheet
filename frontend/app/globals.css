@@ -1077,6 +1077,22 @@ button {
   line-height: 1;
 }
 
+.disadvantage-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-left: var(--space-1);
+  border-radius: 50%;
+  background-color: var(--error-strong);
+  color: #fff;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+
 .ability-abbr {
   font-size: var(--font-size-xs);
   font-weight: 800;
@@ -3701,7 +3717,7 @@ button {
 }
 
 /* ---------- Conditions in rolls ---------- */
-/* A roll the active conditions change (disadvantage, Exhaustion penalty, automatic failure) */
+/* A roll the active conditions or worn gear change (disadvantage, Exhaustion penalty, automatic failure) */
 .roll-button.is-affected {
   color: var(--error);
   border-bottom-color: color-mix(in srgb, var(--error) 60%, transparent);
@@ -5866,6 +5882,12 @@ a.party-card-head:hover .party-card-name {
 .item-bonus-tag {
   font-weight: 700;
   color: var(--primary);
+}
+
+.item-penalty-tag {
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  color: var(--error);
 }
 
 .choose-base {

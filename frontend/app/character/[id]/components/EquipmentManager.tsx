@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { CharacterItem, ItemCategory } from '@/lib/types';
 import { armorMagicBonus, detectedMagicBonus, weaponMagicBonus } from '@/lib/magicBonus';
+import { hasStealthDisadvantage, strengthRequirement } from '@/lib/armorPenalties';
 import { baseCandidates, composeMagicItem, isMagicGear, liveName, needsBase, remakeFrom } from '@/lib/itemComposition';
 import { describeError, Modal, useToast } from '@/app/components/ui';
 import { useSheetReadOnly } from '../SheetReadOnly';
@@ -547,6 +548,9 @@ export default function EquipmentManager({
                                                                 return bonus > 0 && !itemObj.name.includes(`+${bonus}`)
                                                                     ? <span className="item-bonus-tag"> +{bonus}</span> : null;
                                                             })()}
+                                                            {isArmor(itemObj) && hasStealthDisadvantage(itemObj) && (
+                                                                <span className="item-penalty-tag" title="Disadvantage on Dexterity (Stealth) checks while worn"> Stealth Disadv.</span>
+                                                            )}
                                                             {itemObj.equipped && ' ✓'}
                                                         </span>
                                                     </div>
@@ -676,6 +680,19 @@ export default function EquipmentManager({
                                                                     <option value="medium">Medium (Max +2 Dex)</option>
                                                                     <option value="heavy">Heavy (No Dex)</option>
                                                                 </select>
+                                                                <label className="checkbox-row" style={{ marginTop: '0.5rem', marginBottom: 0 }}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={hasStealthDisadvantage(itemObj)}
+                                                                        onChange={e => handleUpdateItem(actualIndex, { stealthDisadvantage: e.target.checked })}
+                                                                    />
+                                                                    Disadvantage on Stealth checks
+                                                                </label>
+                                                                {strengthRequirement(itemObj) !== null && (
+                                                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                                                        Needs Strength {strengthRequirement(itemObj)}, or your Speed drops by 10 ft.
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         )}
                                                         {isMagicGear(itemObj) && (() => {

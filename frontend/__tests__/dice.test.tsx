@@ -86,6 +86,21 @@ describe('DiceTray', () => {
         expect(await axe(container)).toHaveNoViolations();
     });
 
+    it('flags and applies Disadvantage from worn armor', () => {
+        render(
+            <DiceProvider>
+                <SkillsCard skills={[{ name: 'Stealth', stat: 'dex', total: 5, isProficient: true, hasExpertise: false, disadvantage: ['Chain Mail'] }]} onToggleProficiency={() => {}} />
+            </DiceProvider>
+        );
+        expect(screen.getByText('isadvantage from Chain Mail')).toBeInTheDocument();
+        const button = screen.getByRole('button', { name: 'Roll Stealth, +5 (Disadvantage (Chain Mail))' });
+        expect(button).toHaveClass('is-affected');
+        fireEvent.click(button);
+        act(() => { jest.advanceTimersByTime(700); });
+        expect(screen.getByRole('status')).toHaveTextContent('Stealth with disadvantage');
+        expect(screen.getByRole('region', { name: 'Dice tray' })).toHaveTextContent('Disadvantage (Chain Mail)');
+    });
+
     it('offers damage after an attack roll', () => {
         render(
             <DiceProvider>
