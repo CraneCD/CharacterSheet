@@ -5974,3 +5974,114 @@ a.party-card-head:hover .party-card-name {
   padding: 0;
   list-style: none;
 }
+
+/* ---------- Mage Armor toggle (under AC), saves note ---------- */
+.ac-stat-group {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.effect-chip {
+  align-self: center;
+  min-height: 1.5rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background-color: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.effect-chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.effect-chip[aria-pressed="true"] {
+  border-color: var(--arcane);
+  background-color: var(--arcane-soft);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.effect-chip:disabled {
+  cursor: default;
+}
+
+.stat-list-note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+@media screen and (max-width: 767px) {
+  .sheet-vitals .effect-chip {
+    min-height: 0;
+    padding: 0 var(--space-1);
+    font-size: 0.625rem;
+  }
+}
+
+@media print {
+  .effect-chip[aria-pressed="false"] {
+    display: none;
+  }
+}
+
+/* ---------- Ammunition (Actions card weapon rows, Gear tab) ---------- */
+.action-ammo {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.action-ammo.is-empty {
+  color: var(--error);
+  font-weight: 700;
+}
+
+.action-ammo-step {
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.action-ammo-step:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.action-ammo-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media print {
+  .action-ammo-step {
+    display: none;
+  }
+}
+
+.worn-bonus-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--space-2);
+}

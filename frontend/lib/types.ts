@@ -63,6 +63,22 @@ export interface CharacterItem {
     baseName?: string;
     /** Base-item fields the magic item changes (Mithral: no Stealth Disadvantage, no Strength requirement) */
     overrides?: { stealthDisadvantage?: boolean; strengthRequirement?: null };
+    /** Worn magic items (rings, cloaks, bracers): bonuses while equipped; when unset they're read from the text (lib/wornItems) */
+    wornBonus?: WornBonus | null;
+    /** Weapons with the Ammunition property: name of the gear item they shoot ("Arrows"); unset or empty = found by kind, null = not tracked (lib/ammunition) */
+    ammunition?: string | null;
+}
+
+/** What a worn magic item adds while equipped (Ring of Protection: { ac: 1, saves: 1 }). */
+export interface WornBonus {
+    ac?: number;
+    saves?: number;
+    /** To weapon attack and damage rolls; with `weapons`, only those (lowercase names: "longbow") */
+    attack?: number;
+    damage?: number;
+    weapons?: string[];
+    /** The AC bonus only counts without armor and shield (Bracers of Defense) */
+    unarmored?: boolean;
 }
 
 /** Which base items a magic weapon, armor or shield can be; no names/filters = any of that kind. */
@@ -128,6 +144,8 @@ export interface CharacterData {
     classResourcesRules?: string;
     /** Manual AC override; null/missing = calculated from armor and features. */
     ac?: number | null;
+    /** Mage Armor is on you: base AC 13 + DEX while you wear no armor (ends on a Long Rest) */
+    mageArmor?: boolean;
     /** Manual base speed override; null/missing = species default. */
     speed?: number | null;
     abilityScores: {

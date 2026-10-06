@@ -1,5 +1,7 @@
 import { CharacterItem } from './types';
 import { weaponMagicBonus } from './magicBonus';
+import { appliesToWeapon, wornEffects } from './wornItems';
+import { WeaponAmmunition, weaponAmmunition } from './ammunition';
 
 /** One equipped weapon's attack: to-hit, damage and the notes that go with it. */
 export interface WeaponAttack {
@@ -21,6 +23,10 @@ export interface WeaponAttack {
     magicBonus: number;
     /** What a magic weapon is made from ("Longsword"), for Weapon Mastery choices */
     baseName?: string;
+    /** Worn items' bonuses already included ("Bracers of Archery", +2 damage) */
+    itemBonuses: { name: string; attack: number; damage: number }[];
+    /** Ammunition it fires from your gear, if tracked */
+    ammo?: WeaponAmmunition;
 }
 
 export interface WeaponAttackInput {
@@ -51,6 +57,7 @@ export function getWeaponAttacks({ equipment, strMod, dexMod, profBonus, fightin
     const oneMeleeNoOther = weapons.length === 1 && !isRanged(weapons[0]);
     const twoLightMelee = weapons.length === 2 && weapons.every((w) => !isRanged(w) && isLight(w));
     const sneak = rogueLevel ? sneakAttackDice(rogueLevel) : 0;
+    const worn = wornEffects(equipment).filter((e) => e.bonus.attack || e.bonus.damage);
 
     return weapons.map((weapon, index) => {
         const ranged = isRanged(weapon);
@@ -67,6 +74,16 @@ export function getWeaponAttacks({ equipment, strMod, dexMod, profBonus, fightin
         if (twoLightMelee && index === 1) damageMod = has('two-weapon-fighting') ? mod : 0;
         damageMod += magicBonus;
 
+        // Worn items: Bracers of Archery (+2 damage with Longbows and Shortbows), ...
+        const itemBonuses = worn
+            .filter((e) => appliesToWeapon(e.bonus, weapon))
+            .map((e) => ({ name: e.name, attack: e.bonus.attack || 0, damage: e.bonus.damage || 0 }));
+        for (const b of itemBonuses) {
+            toHit += b.attack;
+            damageMod += b.damage;
+        }
+        const ammo = weaponAmmunition(weapon, equipment);
+
         return {
             name: weapon.name,
             toHit,
@@ -80,6 +97,8 @@ export function getWeaponAttacks({ equipment, strMod, dexMod, profBonus, fightin
             mastery: weapon.mastery,
             magicBonus,
             ...(weapon.baseName && { baseName: weapon.baseName }),
+            itemBonuses,
+            ...(ammo && { ammo }),
         };
     });
 }
