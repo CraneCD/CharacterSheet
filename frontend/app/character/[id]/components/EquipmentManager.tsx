@@ -10,6 +10,7 @@ import { describeWornBonus, detectedWornBonus, hasWornBonus, isWearable } from '
 import { ammunitionChoices, standardAmmunition, usesAmmunition, weaponAmmunition } from '@/lib/ammunition';
 import { describeError, Markdown, Modal, useToast } from '@/app/components/ui';
 import { stripMarkdown } from '@/lib/markdown';
+import { formatValue, gearValue, itemValue } from '@/lib/itemValue';
 import { useSheetReadOnly } from '../SheetReadOnly';
 
 interface EquipmentManagerProps {
@@ -158,6 +159,7 @@ export default function EquipmentManager({
                 category: newCustomItem.category || 'miscellaneous',
                 quantity: newCustomItem.quantity || 1,
                 description: newCustomItem.description,
+                ...(newCustomItem.value?.trim() ? { value: newCustomItem.value.trim() } : {}),
                 type: newCustomItem.type,
                 armorMethod: newCustomItem.armorMethod,
                 baseAC: newCustomItem.baseAC,
@@ -445,6 +447,15 @@ export default function EquipmentManager({
                                 rows={3}
                             />
                             <MarkdownHint id="equipmentmanager-markdown-hint" />
+                            <label htmlFor="equipmentmanager-new-value" style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Value (each, optional)</label>
+                            <input id="equipmentmanager-new-value"
+                                type="text"
+                                className="input"
+                                placeholder="e.g. 50 gp"
+                                maxLength={60}
+                                value={newCustomItem.value || ''}
+                                onChange={e => setNewCustomItem({ ...newCustomItem, value: e.target.value })}
+                            />
                             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                                 <button className="btn" onClick={handleAddCustomItem}>Add</button>
                                 <button className="btn btn-secondary" onClick={() => setIsAdding(false)}>Cancel</button>
@@ -572,6 +583,11 @@ export default function EquipmentManager({
                                                             onClick={() => setExpandedIndex(isItemExpanded ? null : actualIndex)}
                                                         >
                                                             {itemObj.name} {typeof itemObj.quantity === 'number' && itemObj.quantity !== 1 ? `(x${itemObj.quantity})` : ''}
+                                                            {itemValue(itemObj) && (
+                                                                <span className="item-value-tag" title="Value of one">
+                                                                    {' '}{itemValue(itemObj)}{typeof itemObj.quantity === 'number' && itemObj.quantity > 1 ? ' each' : ''}
+                                                                </span>
+                                                            )}
                                                             {(() => {
                                                                 // A +N set on a plain item ("Longsword" made +1) shows next to its name
                                                                 const bonus = isWeapon(itemObj) ? weaponMagicBonus(itemObj) : isArmor(itemObj) || isShield(itemObj) ? armorMagicBonus(itemObj) : 0;
@@ -671,6 +687,22 @@ export default function EquipmentManager({
                                                                             e.currentTarget.blur();
                                                                         }
                                                                     }}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label htmlFor={`equipmentmanager-value-${actualIndex}`} style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Value (each)</label>
+                                                                <input id={`equipmentmanager-value-${actualIndex}`}
+                                                                    key={itemObj.value ?? ''}
+                                                                    type="text"
+                                                                    className="input"
+                                                                    maxLength={60}
+                                                                    placeholder={itemObj.cost ? `Item list: ${itemObj.cost}` : 'e.g. 50 gp'}
+                                                                    defaultValue={itemObj.value ?? ''}
+                                                                    onBlur={e => {
+                                                                        const value = e.target.value.trim();
+                                                                        if (value !== (itemObj.value ?? '')) handleUpdateItem(actualIndex, { value });
+                                                                    }}
+                                                                    onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                                                                 />
                                                             </div>
                                                             {(isArmor(itemObj) || isShield(itemObj)) && (
@@ -865,6 +897,15 @@ export default function EquipmentManager({
                     )}
                 </div>
 
+                {(() => {
+                    const total = gearValue(equipment);
+                    return total.counted > 0 ? (
+                        <p className="gear-value-total">
+                            Value of your gear: <strong>{formatValue(total.copper)}</strong>
+                            {' '}({total.counted} item{total.counted === 1 ? '' : 's'} with a value)
+                        </p>
+                    ) : null;
+                })()}
                 {equipment.length > 0 && (
                     <div style={{ 
                         display: 'flex', 

@@ -104,19 +104,30 @@ describe('addLootToSheet', () => {
     it('adds a new entry with where it came from', () => {
         const sheet = addLootToSheet({ equipment: ['Rope'] }, potion as unknown as LootItem, { quantity: 2, coins: null }, 'Obelisk');
         expect(sheet.equipment).toEqual(['Rope', {
-            name: 'Potion of Healing', quantity: 2, description: 'Heals 2d4 + 2.', category: 'potion', notes: 'Loot from Obelisk · Common · Worth 50 gp',
+            name: 'Potion of Healing', quantity: 2, description: 'Heals 2d4 + 2.', category: 'potion', value: '50 gp', notes: 'Loot from Obelisk · Common · Worth 50 gp',
         }]);
+    });
+
+    it('takes the value from the description when the loot has none, and none for coins', () => {
+        const gem = { ...potion, name: 'Ruby', value: '', description: 'A deep red gem worth 1,000 gold pieces.' } as unknown as LootItem;
+        expect((addLootToSheet({}, gem, { quantity: 1, coins: null }, 'Obelisk').equipment as Record<string, unknown>[])[0])
+            .toMatchObject({ name: 'Ruby', value: '1,000 gp', notes: 'Loot from Obelisk · Common · Worth 1,000 gp' });
+        const plain = { ...potion, name: 'Rock', value: '', description: 'Just a rock.' } as unknown as LootItem;
+        expect((addLootToSheet({}, plain, { quantity: 1, coins: null }, 'Obelisk').equipment as Record<string, unknown>[])[0]).not.toHaveProperty('value');
     });
 
     it('stacks onto an entry with the same name', () => {
         const sheet = addLootToSheet(borin.data, potion as unknown as LootItem, { quantity: 2, coins: null }, 'Obelisk');
-        expect(sheet.equipment).toEqual([{ name: 'potion of healing', quantity: 3 }]);
+        expect(sheet.equipment).toEqual([{ name: 'potion of healing', quantity: 3, value: '50 gp' }]);
+        // A value the sheet already has (or the player cleared) is kept
+        const priced = addLootToSheet({ equipment: [{ name: 'Potion of Healing', quantity: 1, value: '' }] }, potion as unknown as LootItem, { quantity: 1, coins: null }, 'Obelisk');
+        expect(priced.equipment).toEqual([{ name: 'Potion of Healing', quantity: 2, value: '' }]);
     });
 
     it("gives a linked item its stats, under the loot's name and text", () => {
         const sheet = addLootToSheet({ equipment: [] }, sword as unknown as LootItem, { quantity: 1, coins: null }, 'Obelisk');
         const { equipped: _e, ...stats } = flameTongue;
-        expect(sheet.equipment).toEqual([{ ...stats, quantity: 1, equipped: false, notes: 'Loot from Obelisk · Rare · Worth 50 gp' }]);
+        expect(sheet.equipment).toEqual([{ ...stats, quantity: 1, equipped: false, value: '50 gp', notes: 'Loot from Obelisk · Rare · Worth 50 gp' }]);
     });
 
     it("doesn't tie a renamed or reworded linked item to the item list's live text", () => {
