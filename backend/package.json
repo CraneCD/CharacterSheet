@@ -14,7 +14,8 @@
         "prisma:seed": "ts-node prisma/seed.ts",
         "make-admin": "ts-node src/scripts/makeAdmin.ts",
         "backfill-reference-ids": "ts-node src/scripts/backfillReferenceIds.ts",
-        "sync-reference": "ts-node src/scripts/syncReferenceData.ts"
+        "sync-reference": "ts-node src/scripts/syncReferenceData.ts",
+        "backfill-loot-values": "ts-node src/tasks/backfillLootValues.ts"
     },
     "prisma": {
         "seed": "ts-node prisma/seed.ts"

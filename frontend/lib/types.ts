@@ -53,6 +53,10 @@ export interface CharacterItem {
     notes?: string;
     isBaseItem?: boolean; // To distinguish base items from custom items
     weight?: number;
+    /** What one is worth, free text ("50 gp"); from campaign loot or set in the Gear tab; '' = cleared (lib/itemValue) */
+    value?: string;
+    /** The item list's price ("1 GP"); often for a bundle, so only a hint */
+    cost?: string;
     weaponCategory?: 'simple' | 'martial';
     strengthRequirement?: number | null;
     stealthDisadvantage?: boolean;

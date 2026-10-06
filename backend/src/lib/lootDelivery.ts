@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from './prisma';
 import { coinsSchema } from './itemSchema';
 import { getReferenceRows } from './referenceCache';
+import { lootValue } from './lootValues';
 
 // Giving campaign loot to characters: a player claims (or takes a share of)
 // something the party found, or the DM hands it out or splits it. What's
@@ -136,10 +137,11 @@ export async function catalogueMatch(item: LootItem): Promise<Record<string, unk
     return { ...data, baseItemId: row.key };
 }
 
-/** The sheet entry for loot: the linked item's stats (attacks, AC, bonus) under the loot's name and text. */
+/** The sheet entry for loot: the linked item's stats (attacks, AC, bonus) under the loot's name and text, and its value. */
 function newEntry(item: LootItem, quantity: number, campaignName: string): Record<string, unknown> {
     const rarity = item.rarity && item.rarity !== 'mundane' ? item.rarity[0].toUpperCase() + item.rarity.slice(1) : '';
-    const notes = [`Loot from ${campaignName}`, rarity, item.value && `Worth ${item.value}`].filter(Boolean).join(' · ');
+    const value = lootValue(item);
+    const notes = [`Loot from ${campaignName}`, rarity, value && `Worth ${value}`].filter(Boolean).join(' · ');
     const linked = asObject(item.item);
     if (!linked) {
         return {
@@ -147,11 +149,12 @@ function newEntry(item: LootItem, quantity: number, campaignName: string): Recor
             quantity,
             ...(item.description ? { description: item.description } : {}),
             category: itemCategory(item),
+            ...(value ? { value } : {}),
             notes,
         };
     }
     const { id: _id, equipped: _e, quantity: _q, notes: _n, ...stats } = linked;
-    const entry: Record<string, unknown> = { ...stats, name: item.name, quantity, equipped: false, notes };
+    const entry: Record<string, unknown> = { ...stats, name: item.name, quantity, equipped: false, ...(value ? { value } : {}), notes };
     if (item.description) entry.description = item.description;
     if (!entry.category) entry.category = itemCategory(item);
     // The sheet shows the item list's current name and text for linked entries: not for ones the DM renamed or reworded
@@ -174,8 +177,11 @@ export function addLootToSheet(data: unknown, item: LootItem, share: { quantity:
     const at = equipment.findIndex((e) => entryName(e) === item.name.trim().toLowerCase());
     if (at >= 0) {
         const existing = equipment[at];
-        const obj: { name?: unknown; quantity?: number } = typeof existing === 'string' ? { name: existing } : { ...(existing as object) };
+        const obj: { name?: unknown; quantity?: number; value?: unknown } = typeof existing === 'string' ? { name: existing } : { ...(existing as object) };
         obj.quantity = (Number(obj.quantity) || 1) + share.quantity;
+        // A stack the sheet had no value for takes the loot's
+        const value = lootValue(item);
+        if (value && obj.value === undefined) obj.value = value;
         equipment[at] = obj;
     } else {
         equipment.push(newEntry(item, share.quantity, campaignName));

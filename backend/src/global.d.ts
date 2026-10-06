@@ -9,6 +9,8 @@ declare var process: {
         DATABASE_URL?: string;
         NODE_ENV?: string;
     };
+    argv: string[];
+    exitCode?: number;
 };
 
 declare var console: {

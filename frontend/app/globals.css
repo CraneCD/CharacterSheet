@@ -6173,3 +6173,21 @@ a.party-card-head:hover .party-card-name {
   font-size: var(--font-size-xs);
   color: var(--text-muted);
 }
+
+/* ---------- Item values (Gear tab) ---------- */
+.item-value-tag {
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.gear-value-total {
+  margin: var(--space-3) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.gear-value-total strong {
+  color: var(--text);
+}
