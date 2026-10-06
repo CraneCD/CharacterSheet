@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
-import { CharacterItem, ItemCategory } from '@/lib/types';
+import { CharacterItem, ItemCategory, WornBonus } from '@/lib/types';
 import { armorMagicBonus, detectedMagicBonus, weaponMagicBonus } from '@/lib/magicBonus';
 import { hasStealthDisadvantage, strengthRequirement } from '@/lib/armorPenalties';
 import { baseCandidates, composeMagicItem, isMagicGear, liveName, needsBase, remakeFrom } from '@/lib/itemComposition';
+import { describeWornBonus, detectedWornBonus, hasWornBonus, isWearable } from '@/lib/wornItems';
+import { ammunitionChoices, standardAmmunition, usesAmmunition, weaponAmmunition } from '@/lib/ammunition';
 import { describeError, Modal, useToast } from '@/app/components/ui';
 import { useSheetReadOnly } from '../SheetReadOnly';
 
@@ -197,7 +199,27 @@ export default function EquipmentManager({
     const isArmor = (i: CharacterItem) => i.category === 'armor' || i.type === 'armor';
     const isShield = (i: CharacterItem) => i.category === 'shield' || i.type === 'shield';
     const isWeapon = (i: CharacterItem) => i.category === 'weapon' || i.type === 'weapon';
-    const isEquipable = (i: CharacterItem) => isArmor(i) || isShield(i) || isWeapon(i);
+    // Worn magic items (rings, cloaks, bracers) give their bonuses while equipped
+    const isEquipable = (i: CharacterItem) => isArmor(i) || isShield(i) || isWeapon(i) || isWearable(i);
+
+    /** Ammunition for a ranged weapon: the catalogue's bundle ("Arrows", 20) or a plain item of that name. */
+    const addAmmunition = async (name: string, bundle: number) => {
+        const base = catalogue.find(c => c.name.toLowerCase() === name.toLowerCase());
+        const { id: _id, ...rest } = (base ?? {}) as CharacterItem & { id?: string };
+        const itemToAdd: CharacterItem = base
+            ? { ...rest, baseItemId: base.id, equipped: false, quantity: bundle }
+            : { name, category: 'miscellaneous', type: 'other', equipped: false, isBaseItem: false, quantity: bundle };
+        try {
+            await api.post(`/characters/${characterId}/equipment`, { item: itemToAdd });
+            const newEquipment = [...equipment, itemToAdd];
+            setEquipment(newEquipment);
+            onUpdate(newEquipment);
+            toast.success(`Added ${bundle} ${name}.`);
+        } catch (err) {
+            console.error('Failed to add ammunition', err);
+            toast.error(describeError(`Couldn't add ${name}`, err));
+        }
+    };
 
     const handleEquipToggle = async (index: number, item: CharacterItem) => {
         const newEquipped = !item.equipped;
@@ -530,7 +552,8 @@ export default function EquipmentManager({
                                                                 checked={!!itemObj.equipped}
                                                                 disabled={readOnly}
                                                                 onChange={() => handleEquipToggle(actualIndex, itemObj)}
-                                                                title="Equipped?"
+                                                                title={isWearable(itemObj) ? (itemObj.attunement ? 'Worn and attuned?' : 'Worn?') : 'Equipped?'}
+                                                                aria-label={`${isWearable(itemObj) ? 'Wear' : 'Equip'} ${itemObj.name}`}
                                                             />
                                                         )}
                                                         <span
@@ -541,10 +564,10 @@ export default function EquipmentManager({
                                                             }}
                                                             onClick={() => setExpandedIndex(isItemExpanded ? null : actualIndex)}
                                                         >
-                                                            {itemObj.name} {itemObj.quantity && itemObj.quantity > 1 ? `(x${itemObj.quantity})` : ''}
+                                                            {itemObj.name} {typeof itemObj.quantity === 'number' && itemObj.quantity !== 1 ? `(x${itemObj.quantity})` : ''}
                                                             {(() => {
                                                                 // A +N set on a plain item ("Longsword" made +1) shows next to its name
-                                                                const bonus = isWeapon(itemObj) ? weaponMagicBonus(itemObj) : isEquipable(itemObj) ? armorMagicBonus(itemObj) : 0;
+                                                                const bonus = isWeapon(itemObj) ? weaponMagicBonus(itemObj) : isArmor(itemObj) || isShield(itemObj) ? armorMagicBonus(itemObj) : 0;
                                                                 return bonus > 0 && !itemObj.name.includes(`+${bonus}`)
                                                                     ? <span className="item-bonus-tag"> +{bonus}</span> : null;
                                                             })()}
@@ -613,7 +636,7 @@ export default function EquipmentManager({
                                                                     className="input"
                                                                     value={editingQuantity[actualIndex] !== undefined 
                                                                         ? editingQuantity[actualIndex] 
-                                                                        : (itemObj.quantity === 0 ? '' : (itemObj.quantity || 1).toString())}
+                                                                        : String(itemObj.quantity ?? 1)}
                                                                     onChange={e => {
                                                                         const val = e.target.value;
                                                                         if (val === '' || /^\d+$/.test(val)) {
@@ -622,7 +645,8 @@ export default function EquipmentManager({
                                                                     }}
                                                                     onBlur={e => {
                                                                         const val = e.target.value;
-                                                                        const quantity = val === '' ? 1 : (parseInt(val) || 1);
+                                                                        const parsed = parseInt(val, 10);
+                                                                        const quantity = val === '' || Number.isNaN(parsed) ? 1 : parsed;
                                                                         handleUpdateItem(actualIndex, { quantity });
                                                                         const newEditing = { ...editingQuantity };
                                                                         delete newEditing[actualIndex];
@@ -742,6 +766,57 @@ export default function EquipmentManager({
                                                                 </div>
                                                             );
                                                         })()}
+                                                        {isWeapon(itemObj) && usesAmmunition(itemObj) && (() => {
+                                                            // Which gear this weapon shoots: found by kind (bows use Arrows) unless chosen here
+                                                            const ammoId = `equipmentmanager-ammo-${actualIndex}`;
+                                                            const names = Array.from(new Set(ammunitionChoices(equipment).map(c => c.item.name)));
+                                                            const auto = weaponAmmunition({ ...itemObj, ammunition: undefined }, equipment);
+                                                            const current = weaponAmmunition(itemObj, equipment);
+                                                            const standard = standardAmmunition(itemObj);
+                                                            const countOf = (name: string) => weaponAmmunition({ ...itemObj, ammunition: name }, equipment)?.count ?? 0;
+                                                            const value = itemObj.ammunition === null ? 'none' : itemObj.ammunition || 'auto';
+                                                            return (
+                                                                <div style={{ marginTop: '0.5rem' }}>
+                                                                    <label htmlFor={ammoId} style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Ammunition</label>
+                                                                    <select id={ammoId}
+                                                                        className="input"
+                                                                        value={value}
+                                                                        onChange={e => handleUpdateItem(actualIndex, { ammunition: e.target.value === 'none' ? null : e.target.value === 'auto' ? '' : e.target.value })}
+                                                                    >
+                                                                        <option value="auto">{auto ? `Automatic: ${auto.name} (${auto.count})` : 'Automatic (none in your gear)'}</option>
+                                                                        {names.map(n => <option key={n} value={n}>{n} ({countOf(n)})</option>)}
+                                                                        {itemObj.ammunition && !names.includes(itemObj.ammunition) && (
+                                                                            <option value={itemObj.ammunition}>{itemObj.ammunition} (not in your gear)</option>
+                                                                        )}
+                                                                        <option value="none">Don&apos;t track ammunition</option>
+                                                                    </select>
+                                                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                                                        {current
+                                                                            ? `Each attack roll in Actions spends one of your ${current.name}.`
+                                                                            : itemObj.ammunition === null ? 'Ammunition isn’t tracked for this weapon.' : 'No ammunition for this weapon in your gear.'}
+                                                                    </div>
+                                                                    {!readOnly && itemObj.ammunition !== null && standard && (
+                                                                        <button
+                                                                            type="button"
+                                                                            className="btn btn-secondary btn-sm"
+                                                                            style={{ marginTop: '0.25rem' }}
+                                                                            onClick={() => current && current.name.toLowerCase() === standard.item.toLowerCase()
+                                                                                ? handleUpdateItem(current.index, { quantity: current.count + standard.bundle })
+                                                                                : addAmmunition(standard.item, standard.bundle)}
+                                                                        >
+                                                                            + {standard.bundle} {standard.item}
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                        {isWearable(itemObj) && (
+                                                            <WornBonusEditor
+                                                                index={actualIndex}
+                                                                item={itemObj}
+                                                                onChange={(wornBonus) => handleUpdateItem(actualIndex, { wornBonus })}
+                                                            />
+                                                        )}
                                                         {isWeapon(itemObj) && (
                                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
                                                                 <div>
@@ -839,6 +914,91 @@ function ChooseBase({ item, candidates, onChoose, onBack }: {
                 ))}
             </ul>
             <button type="button" className="btn btn-secondary" onClick={onBack}>Back</button>
+        </div>
+    );
+}
+
+const BONUS_FIELDS: { key: 'ac' | 'saves' | 'attack' | 'damage'; label: string }[] = [
+    { key: 'ac', label: 'AC' },
+    { key: 'saves', label: 'Saving throws' },
+    { key: 'attack', label: 'Weapon attack rolls' },
+    { key: 'damage', label: 'Weapon damage rolls' },
+];
+
+/** A worn item's bonuses (Ring of Protection: +1 AC and saves): read from its text until set here. */
+function WornBonusEditor({ index, item, onChange }: {
+    index: number;
+    item: CharacterItem;
+    onChange: (bonus: WornBonus | null) => void;
+}) {
+    const detected = detectedWornBonus(item);
+    const set = item.wornBonus ?? null;
+    const current = set ?? detected;
+    const idBase = `equipmentmanager-worn-${index}`;
+    const update = (changes: Partial<WornBonus>) => {
+        const next: WornBonus = { ...current, ...changes };
+        // Drop empty fields so the stored bonus stays small
+        (Object.keys(next) as (keyof WornBonus)[]).forEach((k) => {
+            const v = next[k];
+            if (v === undefined || v === 0 || v === false || (Array.isArray(v) && v.length === 0)) delete next[k];
+        });
+        onChange(next);
+    };
+    const summary = hasWornBonus(current) ? describeWornBonus(current) : 'No bonuses';
+    return (
+        <div style={{ marginTop: '0.5rem' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                While worn{item.attunement ? ' and attuned' : ''}: <strong style={{ color: 'var(--text)' }}>{summary}</strong>
+                {' '}({set ? 'set by hand' : 'from the item'})
+            </div>
+            <div className="worn-bonus-grid" style={{ marginTop: '0.25rem' }}>
+                {BONUS_FIELDS.map(({ key, label }) => (
+                    <div key={key}>
+                        <label htmlFor={`${idBase}-${key}`} style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{label}</label>
+                        <select id={`${idBase}-${key}`}
+                            className="input"
+                            value={String(current[key] ?? 0)}
+                            onChange={e => update({ [key]: Number(e.target.value) })}
+                        >
+                            <option value="0">None</option>
+                            {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>+{n}</option>)}
+                        </select>
+                    </div>
+                ))}
+            </div>
+            {(current.attack || current.damage) ? (
+                <div style={{ marginTop: '0.25rem' }}>
+                    <label htmlFor={`${idBase}-weapons`} style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        Only with these weapons (blank = any weapon)
+                    </label>
+                    <input id={`${idBase}-weapons`}
+                        key={(current.weapons || []).join(',')}
+                        type="text"
+                        className="input"
+                        placeholder="e.g. Longbow, Shortbow"
+                        defaultValue={(current.weapons || []).map(w => w.replace(/\b\w/g, c => c.toUpperCase())).join(', ')}
+                        onBlur={e => {
+                            const weapons = e.target.value.split(',').map(w => w.trim().toLowerCase()).filter(Boolean);
+                            if (weapons.join(',') !== (current.weapons || []).join(',')) update({ weapons });
+                        }}
+                    />
+                </div>
+            ) : null}
+            {current.ac ? (
+                <label className="checkbox-row" style={{ marginTop: '0.25rem', marginBottom: 0 }}>
+                    <input
+                        type="checkbox"
+                        checked={!!current.unarmored}
+                        onChange={e => update({ unarmored: e.target.checked })}
+                    />
+                    AC bonus only without armor or a shield
+                </label>
+            ) : null}
+            {set && (
+                <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: '0.25rem' }} onClick={() => onChange(null)}>
+                    Use the item&apos;s text{hasWornBonus(detected) ? ` (${describeWornBonus(detected)})` : ''}
+                </button>
+            )}
         </div>
     );
 }

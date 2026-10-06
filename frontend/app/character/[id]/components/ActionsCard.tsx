@@ -2,13 +2,14 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
-import { CharacterAction, CharacterData, ClassResources } from '@/lib/types';
+import { CharacterAction, CharacterData, CharacterItem, ClassResources } from '@/lib/types';
 import { WeaponAttack } from '@/lib/attacks';
+import { WeaponAmmunition } from '@/lib/ammunition';
 import { formatBonus } from '@/lib/dice';
 import {
     ACTION_TIMINGS, ActionRow, ActionTiming, BASIC_ACTIONS, buildActionRows, CastableSummary, SpellcastingNumbers, SpellSource,
 } from '@/lib/actionRows';
-import { Button, describeError, Field, SectionHeader, TextField, useToast } from '@/app/components/ui';
+import { Button, describeError, Field, SectionHeader, TextField, useOptimisticSave, useToast } from '@/app/components/ui';
 import { EffectRollButton, RollButton } from '@/app/components/dice/DiceTray';
 import { useSheetReadOnly } from '../SheetReadOnly';
 
@@ -28,6 +29,8 @@ interface ActionsCardProps {
     storedActions: CharacterAction[];
     /** Extra attacks from Extra Attack (1), Two Extra Attacks (2), ... */
     extraAttacks: number;
+    /** The character's gear, for spending ammunition */
+    equipment?: (string | CharacterItem)[];
     onUpdate: (updates: Partial<CharacterData>) => void;
 }
 
@@ -55,15 +58,34 @@ function SlotPipsReadOnly({ row, castable }: { row: ActionRow; castable: Castabl
     );
 }
 
-function ActionRowItem({ row, castable, open, onToggle, onRemove }: {
+/** "Arrows 18" with − / + to spend or recover a piece by hand (rolling the attack spends one too). */
+function AmmoCounter({ ammo, onSet }: { ammo: WeaponAmmunition; onSet?: (count: number) => void }) {
+    const empty = ammo.count === 0;
+    return (
+        <span className={empty ? 'action-ammo is-empty' : 'action-ammo'}>
+            {onSet && (
+                <button type="button" className="action-ammo-step" disabled={empty} onClick={() => onSet(ammo.count - 1)} aria-label={`Spend one of your ${ammo.name}`}>−</button>
+            )}
+            <span>{ammo.name} {ammo.count}</span>
+            {onSet && (
+                <button type="button" className="action-ammo-step" onClick={() => onSet(ammo.count + 1)} aria-label={`Add one to your ${ammo.name}`}>+</button>
+            )}
+        </span>
+    );
+}
+
+function ActionRowItem({ row, castable, open, onToggle, onRemove, onSetAmmo }: {
     row: ActionRow;
     castable: CastableSummary | null;
     open: boolean;
     onToggle: () => void;
     onRemove?: () => void;
+    /** Ranged weapons: change how much ammunition is left */
+    onSetAmmo?: (ammo: WeaponAmmunition, count: number) => void;
 }) {
     const detailId = useId();
     const effect = row.effect;
+    const ammo = row.ammo;
     return (
         <li className="action-row">
             <div className="action-row-main">
@@ -79,8 +101,10 @@ function ActionRowItem({ row, castable, open, onToggle, onRemove }: {
                         {row.concentration && <span className="action-tag is-concentration">Concentration</span>}
                         <SlotPipsReadOnly row={row} castable={castable} />
                         {row.uses && <span className="action-uses">{row.uses}</span>}
+                        {ammo && <AmmoCounter ammo={ammo} onSet={onSetAmmo ? (count) => onSetAmmo(ammo, count) : undefined} />}
                     </span>
                     {row.note && <span className="action-row-note">{row.note}</span>}
+                    {ammo && ammo.count === 0 && <span className="action-row-note">Out of {ammo.name.toLowerCase()}.</span>}
                 </div>
                 <span className="action-row-nums">
                     {row.toHit !== undefined && (
@@ -90,6 +114,7 @@ function ActionRowItem({ row, castable, open, onToggle, onRemove }: {
                             kind="attack"
                             damage={effect?.kind === 'damage' ? { expression: effect.dice, modifier: effect.modifier } : undefined}
                             className="action-hit"
+                            onRoll={ammo && ammo.count > 0 && onSetAmmo ? () => onSetAmmo(ammo, ammo.count - 1) : undefined}
                         >
                             {row.toHit >= 0 ? `+${row.toHit}` : `−${Math.abs(row.toHit)}`} <small>hit</small>
                         </RollButton>
@@ -137,9 +162,10 @@ function ActionRowItem({ row, castable, open, onToggle, onRemove }: {
  */
 export default function ActionsCard({
     characterId, attacks, hasWeaponMastery, masteryWeapons, castable, spellcasting, spellcastingBySource, characterLevel,
-    resources, primaryClass, storedActions, extraAttacks, onUpdate,
+    resources, primaryClass, storedActions, extraAttacks, equipment, onUpdate,
 }: ActionsCardProps) {
     const toast = useToast();
+    const optimisticSave = useOptimisticSave();
     const [tab, setTab] = useState<ActionTiming>('action');
     const [open, setOpen] = useState<Record<string, boolean>>({});
     const [basicOpen, setBasicOpen] = useState<number | null>(null);
@@ -221,6 +247,21 @@ export default function ActionsCard({
             console.error('Failed to remove action', err);
             toast.error(describeError(`Couldn't remove "${target.name}"`, err));
         }
+    };
+
+    // Ammunition is a gear item ("Arrows", quantity 20): only its quantity changes
+    const setAmmo = (ammo: WeaponAmmunition, count: number) => {
+        const gear = Array.isArray(equipment) ? equipment : [];
+        const current = gear[ammo.index];
+        if (current === undefined) return;
+        const quantity = Math.max(0, count);
+        const item = typeof current === 'string' ? { name: current } : current;
+        optimisticSave({
+            apply: () => onUpdate({ equipment: gear.map((e, i) => (i === ammo.index ? { ...item, quantity } : e)) }),
+            rollback: () => onUpdate({ equipment: gear }),
+            request: () => api.patch(`/characters/${characterId}/equipment`, { index: ammo.index, item: { quantity } }),
+            errorMessage: `Couldn't update your ${ammo.name}`,
+        });
     };
 
     return (
@@ -310,6 +351,7 @@ export default function ActionsCard({
                                         open={!!open[row.key]}
                                         onToggle={() => setOpen((o) => ({ ...o, [row.key]: !o[row.key] }))}
                                         onRemove={row.storedIndex !== undefined && !readOnly ? () => removeAction(row.storedIndex!) : undefined}
+                                        onSetAmmo={readOnly || !equipment ? undefined : setAmmo}
                                     />
                                 ))}
                             </ul>

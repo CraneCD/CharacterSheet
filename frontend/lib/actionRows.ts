@@ -6,6 +6,7 @@
 import { CharacterAction, ClassResource, ClassResources } from './types';
 import { featureUsesTiming, freeCastCounter } from './featureUses';
 import { WeaponAttack } from './attacks';
+import { WeaponAmmunition } from './ammunition';
 import { MASTERY_INFO, getMasteryForWeapon } from './weaponMastery';
 import { findActionSpell, SpellActionSource } from './spellActions';
 
@@ -50,6 +51,8 @@ export interface ActionRow {
     facts?: [string, string][];
     /** Index in data.actions, for custom and item rows (so they can be removed) */
     storedIndex?: number;
+    /** Ranged weapons: the ammunition it fires (one is spent per attack roll) */
+    ammo?: WeaponAmmunition;
 }
 
 export interface CastableSpell {
@@ -79,6 +82,7 @@ const ABILITY_ABBR: Record<string, string> = {
 };
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const formatSigned = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
 
 /** Which part of your turn a casting time uses. "1 reaction, which you take when ..." is a reaction. */
 export function castingTimeToTiming(castingTime: string): ActionTiming {
@@ -169,6 +173,11 @@ export function weaponRow(attack: WeaponAttack, index: number, hasWeaponMastery:
     if (attack.properties.length > 0) facts.push(['Properties', attack.properties.join(', ')]);
     if (attack.gwf) facts.push(['Great Weapon Fighting', 'Treat any 1 or 2 on a damage die as a 3']);
     if (attack.magicBonus) facts.push(['Magic weapon', `+${attack.magicBonus} to attack and damage rolls (included)`]);
+    for (const b of attack.itemBonuses ?? []) {
+        const parts = [b.attack && `${formatSigned(b.attack)} attack`, b.damage && `${formatSigned(b.damage)} damage`].filter(Boolean);
+        facts.push([b.name, `${parts.join(' and ')} (included)`]);
+    }
+    if (attack.ammo) facts.push(['Ammunition', `${attack.ammo.name}: ${attack.ammo.count} left (one is spent when you roll the attack)`]);
     return {
         key: `weapon:${index}:${attack.name}`,
         timing: 'action',
@@ -181,6 +190,7 @@ export function weaponRow(attack: WeaponAttack, index: number, hasWeaponMastery:
         note: attack.sneakAttackDice > 0 ? `+${attack.sneakAttackDice}d6 Sneak Attack once per turn, with Advantage or an ally next to the target.` : undefined,
         description: attack.ranged ? 'Ranged weapon attack.' : 'Melee weapon attack.',
         facts,
+        ...(attack.ammo && { ammo: attack.ammo }),
     };
 }
 

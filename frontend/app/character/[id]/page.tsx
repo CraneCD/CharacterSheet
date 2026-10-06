@@ -17,6 +17,7 @@ import { getHpStatus } from '@/lib/hp';
 import { planLongRest, planShortRest, RestContext } from '@/lib/rest';
 import { downloadCharacterJson } from '@/lib/characterTransfer';
 import { calculateArmorClass } from '@/lib/armorClass';
+import { wornSaveBonus } from '@/lib/wornItems';
 import { armorPenalties } from '@/lib/armorPenalties';
 import { defaultSpeed, overrideToStore, resolveOverride } from '@/lib/sheetDefaults';
 import { classColorStyle } from '@/lib/classColors';
@@ -38,6 +39,7 @@ import { getChoiceSkillBonuses, getChoiceSpellIds, getWeaponMasteries } from '@/
 import { Button, ConfirmDialog, describeError, EditableStat, Menu, Stat, useOptimisticSave, useToast } from '@/app/components/ui';
 import { getSpellcastingSetup } from '@/lib/spellcastingSetup';
 import AcShield from './components/sections/AcShield';
+import MageArmorToggle from './components/sections/MageArmorToggle';
 import { DiceProvider, RollButton } from '@/app/components/dice/DiceTray';
 import AbilityScoresCard from './components/sections/AbilityScoresCard';
 import SavingThrowsCard from './components/sections/SavingThrowsCard';
@@ -248,14 +250,17 @@ export default function CharacterSheet() {
     // Calculate AC (use manual override if set, otherwise calculate)
     const equipment: (string | CharacterItem)[] = Array.isArray(data.equipment) ? data.equipment : [];
     const fightingStyles = (data.fightingStyles as string[] | undefined) || [];
-    const { value: calculatedAC, parts: acParts } = calculateArmorClass({
+    const acInput = {
         equipment,
         modifiers: effectiveModifiers,
         unarmoredMethod: getACCalculationFromFeatures(allFeatures, primaryClass),
         traits: (data.racialTraits && data.racialTraits.length > 0) ? data.racialTraits : (race?.traits || []),
         draconicResilience: subclassMap.sorcerer === 'draconic' && (classLevels.sorcerer ?? 0) >= 3,
         fightingStyles,
-    });
+    };
+    const { value: calculatedAC, parts: acParts } = calculateArmorClass({ ...acInput, mageArmor: !!data.mageArmor });
+    // Mage Armor is offered while it's on, or when it would raise AC (no armor worn, nothing better)
+    const mageArmorHelps = calculateArmorClass({ ...acInput, mageArmor: true }).value > calculateArmorClass(acInput).value;
 
     const acStat = resolveOverride(data.ac, calculatedAC);
     const ac = acStat.value;
@@ -286,9 +291,11 @@ export default function CharacterSheet() {
         allFeatures,
         charClass?.savingThrows || []
     );
+    // Worn items like a Ring or Cloak of Protection add to every save
+    const itemSaveBonus = wornSaveBonus(equipment);
     const saves = ['str', 'dex', 'con', 'int', 'wis', 'cha'].map(stat => {
         const isProficient = savingThrowProficiencies.includes(stat);
-        const total = effectiveModifiers[stat] + (isProficient ? pb : 0);
+        const total = effectiveModifiers[stat] + (isProficient ? pb : 0) + itemSaveBonus.total;
         return { stat, total, isProficient };
     });
 
@@ -686,21 +693,30 @@ export default function CharacterSheet() {
                         }
                         sublabel={initiativeSublabel && `(${initiativeSublabel})`}
                     />
-                    {readOnly ? (
-                        <Stat label="AC" value={<AcShield value={ac} />} highlight />
-                    ) : <EditableStat
-                        label="AC"
-                        value={ac}
-                        display={<AcShield value={ac} />}
-                        description={acDescription}
-                        sublabel={acStat.overridden ? 'set manually' : undefined}
-                        min={0}
-                        max={50}
-                        highlight
-                        onSave={(value) => persistData({ ac: overrideToStore(value, calculatedAC) }, "Couldn't update AC")}
-                        onReset={acStat.overridden ? () => persistData({ ac: null }, "Couldn't reset AC") : undefined}
-                        resetLabel={`Reset AC to calculated ${calculatedAC}`}
-                    />}
+                    <div className="ac-stat-group">
+                        {readOnly ? (
+                            <Stat label="AC" value={<AcShield value={ac} />} highlight />
+                        ) : <EditableStat
+                            label="AC"
+                            value={ac}
+                            display={<AcShield value={ac} />}
+                            description={acDescription}
+                            sublabel={acStat.overridden ? 'set manually' : undefined}
+                            min={0}
+                            max={50}
+                            highlight
+                            onSave={(value) => persistData({ ac: overrideToStore(value, calculatedAC) }, "Couldn't update AC")}
+                            onReset={acStat.overridden ? () => persistData({ ac: null }, "Couldn't reset AC") : undefined}
+                            resetLabel={`Reset AC to calculated ${calculatedAC}`}
+                        />}
+                        {(data.mageArmor || (mageArmorHelps && !readOnly)) && (
+                            <MageArmorToggle
+                                active={!!data.mageArmor}
+                                applies={!!data.mageArmor && acParts.includes('Mage Armor 13')}
+                                onChange={(on) => persistData({ mageArmor: on }, on ? "Couldn't turn on Mage Armor" : "Couldn't end Mage Armor")}
+                            />
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -764,7 +780,7 @@ export default function CharacterSheet() {
                         <AbilityScoresCard scores={abilityScores} modifiers={effectiveModifiers} onChange={handleAbilityScoreChange} />
                     </div>
                     <div data-tab="core">
-                        <SavingThrowsCard saves={saves} />
+                        <SavingThrowsCard saves={saves} note={itemSaveBonus.sources.length > 0 ? `Includes ${itemSaveBonus.sources.join(', ')}` : undefined} />
                     </div>
                     <div data-tab="core">
                         <SkillsCard skills={skills} onToggleProficiency={handleToggleSkillProficiency} />
@@ -856,6 +872,7 @@ export default function CharacterSheet() {
                             primaryClass={primaryClass}
                             storedActions={Array.isArray(data.actions) ? data.actions : []}
                             extraAttacks={extraAttacks}
+                            equipment={equipment}
                             onUpdate={handleUpdateCharacter}
                         />
                     </div>

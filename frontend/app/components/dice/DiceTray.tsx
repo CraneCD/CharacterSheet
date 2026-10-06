@@ -218,11 +218,13 @@ interface RollButtonProps {
     disadvantage?: RollRequest['disadvantage'];
     damage?: RollRequest['damage'];
     className?: string;
+    /** Called after each roll (e.g. to spend a piece of ammunition) */
+    onRoll?: () => void;
     children: React.ReactNode;
 }
 
 /** A modifier you can tap to roll. Plain text when there's no DiceProvider (e.g. print previews, tests). */
-export function RollButton({ label, modifier, kind, ability, advantage, disadvantage, damage, className, children }: RollButtonProps) {
+export function RollButton({ label, modifier, kind, ability, advantage, disadvantage, damage, className, onRoll, children }: RollButtonProps) {
     const dice = useDice();
     if (!dice) return <span className={className}>{children}</span>;
     const sign = modifier >= 0 ? `+${modifier}` : `−${Math.abs(modifier)}`;
@@ -234,7 +236,10 @@ export function RollButton({ label, modifier, kind, ability, advantage, disadvan
         <button
             type="button"
             className={classes}
-            onClick={() => dice.roll({ label, modifier, damage, kind, ability, advantage, disadvantage })}
+            onClick={() => {
+                dice.roll({ label, modifier, damage, kind, ability, advantage, disadvantage });
+                onRoll?.();
+            }}
             aria-label={`Roll ${label}, ${sign}${reasons ? ` (${reasons})` : ''}`}
             title={reasons ? `Roll ${label}: ${reasons}` : `Roll ${label}`}
         >

@@ -91,6 +91,12 @@ export function planLongRest(data: Partial<CharacterData>, ctx: RestContext): Re
 
     if (anySlotsUsed(data.spellSlotsUsed) || Number(data.pactSlotsUsed) > 0) summary.push('Spell slots restored');
 
+    // Mage Armor lasts 8 hours
+    if (data.mageArmor) {
+        updates.mageArmor = false;
+        summary.push('Mage Armor ended');
+    }
+
     const resources = data.classResources || {};
     const recovered = recoverResources(resources, 'long');
     if (recovered.restored.length > 0) summary.push(`${listNames(recovered.restored)} restored`);

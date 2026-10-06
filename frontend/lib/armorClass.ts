@@ -1,5 +1,6 @@
 import { CharacterItem } from './types';
 import { armorMagicBonus, shieldBaseAC } from './magicBonus';
+import { wornEffects } from './wornItems';
 
 export type UnarmoredMethod = 'standard' | 'unarmored-monk' | 'unarmored-barbarian';
 
@@ -13,6 +14,8 @@ export interface ArmorClassInput {
     /** Draconic Sorcery level 3+: 10 + DEX + CHA without armor. */
     draconicResilience: boolean;
     fightingStyles: string[];
+    /** Mage Armor is active: base AC 13 + DEX while not wearing armor */
+    mageArmor?: boolean;
 }
 
 export interface ArmorClassResult {
@@ -79,6 +82,12 @@ export function calculateArmorClass(input: ArmorClassInput): ArmorClassResult {
         parts = ['Natural Armor 13', dexPart()];
     }
 
+    // Mage Armor: 13 + DEX instead, when that's better (it ends if you don armor)
+    if (!armor && input.mageArmor && 13 + modifiers.dex > value) {
+        value = 13 + modifiers.dex;
+        parts = ['Mage Armor 13', dexPart()];
+    }
+
     // Magic armor (+1 to +3) adds to AC while worn
     const armorBonus = armor ? armorMagicBonus(armor) : 0;
     if (armorBonus) {
@@ -101,6 +110,14 @@ export function calculateArmorClass(input: ArmorClassInput): ArmorClassResult {
     if (armor && fightingStyles.includes('defense')) {
         value += 1;
         parts.push('Defense +1');
+    }
+
+    // Worn magic items: Ring/Cloak of Protection, Bracers of Defense (only without armor or shield), ...
+    for (const effect of wornEffects(input.equipment)) {
+        const bonus = effect.bonus.ac || 0;
+        if (!bonus || (effect.bonus.unarmored && (armor || shield))) continue;
+        value += bonus;
+        parts.push(`${effect.name} ${formatMod(bonus)}`);
     }
 
     return { value, parts };

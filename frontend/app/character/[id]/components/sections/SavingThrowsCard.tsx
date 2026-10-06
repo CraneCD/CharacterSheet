@@ -4,9 +4,11 @@ import { ABILITY_NAMES, formatMod } from './format';
 
 interface SavingThrowsCardProps {
     saves: { stat: string; total: number; isProficient: boolean }[];
+    /** Where bonuses beyond ability and proficiency come from ("Includes Ring of Protection +1") */
+    note?: string;
 }
 
-export default function SavingThrowsCard({ saves }: SavingThrowsCardProps) {
+export default function SavingThrowsCard({ saves, note }: SavingThrowsCardProps) {
     return (
         <div className="card">
             <SectionHeader title="Saving Throws" />
@@ -24,6 +26,7 @@ export default function SavingThrowsCard({ saves }: SavingThrowsCardProps) {
                     </li>
                 ))}
             </ul>
+            {note && <p className="stat-list-note">{note}</p>}
         </div>
     );
 }

@@ -9,7 +9,7 @@ import { api } from '@/lib/api';
 expect.extend(toHaveNoViolations);
 
 jest.mock('@/lib/api', () => ({
-    api: { get: jest.fn(), post: jest.fn().mockResolvedValue({}), delete: jest.fn().mockResolvedValue({}) },
+    api: { get: jest.fn(), post: jest.fn().mockResolvedValue({}), patch: jest.fn().mockResolvedValue({}), delete: jest.fn().mockResolvedValue({}) },
 }));
 
 const SPELLS = [
@@ -57,6 +57,25 @@ beforeEach(() => {
 });
 
 describe('ActionsCard', () => {
+    it('shows a ranged weapon\'s ammunition and spends one per attack roll', async () => {
+        const shortbow = { name: 'Shortbow', category: 'weapon', equipped: true, damage: '1d6', damageType: 'piercing', properties: ['ammunition (range 80/320)', 'two-handed'] } as any;
+        const equipment = [shortbow, { name: 'Arrows', category: 'miscellaneous', quantity: 2 } as any];
+        const { container, onUpdate } = renderCard({
+            attacks: getWeaponAttacks({ equipment, strMod: 0, dexMod: 3, profBonus: 2 }),
+            equipment,
+        });
+        await screen.findByText('Cure Wounds');
+        expect(screen.getByText('Arrows 2')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Roll Shortbow attack, +5' }));
+        expect(onUpdate).toHaveBeenLastCalledWith({ equipment: [shortbow, { name: 'Arrows', category: 'miscellaneous', quantity: 1 }] });
+        await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/characters/c1/equipment', { index: 1, item: { quantity: 1 } }));
+
+        fireEvent.click(screen.getByRole('button', { name: 'Add one to your Arrows' }));
+        expect(api.patch).toHaveBeenLastCalledWith('/characters/c1/equipment', { index: 1, item: { quantity: 3 } });
+        expect(await axe(container)).toHaveNoViolations();
+    });
+
     it('groups weapons, spells, features and custom actions by timing', async () => {
         const { container } = renderCard();
         await screen.findByText('Cure Wounds');
