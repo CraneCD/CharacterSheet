@@ -122,6 +122,19 @@ describe('ActionsCard', () => {
         expect(screen.getByText(/attack rolls against you have Disadvantage/)).toBeInTheDocument();
     });
 
+    it('shows Markdown in item and spell text', async () => {
+        renderCard({
+            storedActions: [{ name: 'Use Javelin of Lightning', type: 'action', description: 'Weapon (Javelin)\n**Lightning Bolt.** Turn the weapon into a bolt of lightning.\n- 4d6 Lightning damage' }],
+        });
+        await screen.findByText('Cure Wounds');
+        fireEvent.click(screen.getByRole('button', { name: 'Show details for Javelin of Lightning' }));
+        const bolt = screen.getByText('Lightning Bolt.');
+        expect(bolt.tagName).toBe('STRONG');
+        expect(bolt).toBeVisible();
+        expect(screen.getByText('4d6 Lightning damage').tagName).toBe('LI');
+        expect(screen.queryByText(/\*\*/)).toBeNull();
+    });
+
     it('adds and removes custom actions', async () => {
         const { onUpdate } = renderCard();
         await screen.findByText('Cure Wounds');

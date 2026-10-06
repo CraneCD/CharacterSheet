@@ -9,7 +9,7 @@ import { formatBonus } from '@/lib/dice';
 import {
     ACTION_TIMINGS, ActionRow, ActionTiming, BASIC_ACTIONS, buildActionRows, CastableSummary, SpellcastingNumbers, SpellSource,
 } from '@/lib/actionRows';
-import { Button, describeError, Field, SectionHeader, TextField, useOptimisticSave, useToast } from '@/app/components/ui';
+import { Button, describeError, Field, Markdown, SectionHeader, TextField, useOptimisticSave, useToast } from '@/app/components/ui';
 import { EffectRollButton, RollButton } from '@/app/components/dice/DiceTray';
 import { useSheetReadOnly } from '../SheetReadOnly';
 
@@ -35,9 +35,6 @@ interface ActionsCardProps {
 }
 
 const TIMING_NOUN: Record<ActionTiming, string> = { action: 'action', bonus: 'Bonus Action', reaction: 'Reaction', other: 'other options' };
-
-/** Stored spell text uses **bold** labels; show it as plain paragraphs. */
-const paragraphs = (text: string) => text.replace(/\*\*/g, '').split(/\n+/).map((p) => p.trim()).filter(Boolean);
 
 function SlotPipsReadOnly({ row, castable }: { row: ActionRow; castable: CastableSummary | null }) {
     if (!castable || !row.spellLevel) return null;
@@ -143,7 +140,7 @@ function ActionRowItem({ row, castable, open, onToggle, onRemove, onSetAmmo }: {
                 </button>
             </div>
             <div className="action-row-detail" id={detailId} hidden={!open}>
-                {paragraphs(row.description).map((p, i) => <p key={i}>{p}</p>)}
+                <Markdown text={row.description} className="action-row-text" />
                 {row.mastery && <p><strong className="action-mastery-name">{row.mastery.name} (mastery).</strong> {row.mastery.description}</p>}
                 {row.facts && row.facts.length > 0 && (
                     <dl className="action-facts">
@@ -290,7 +287,7 @@ export default function ActionsCard({
                             )}
                         </Field>
                     </div>
-                    <Field label="Description">
+                    <Field label="Description" hint="Markdown works: **bold**, *italic*, - lists, | tables |.">
                         {(p) => (
                             <textarea {...p} className="input" rows={3} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} required />
                         )}
