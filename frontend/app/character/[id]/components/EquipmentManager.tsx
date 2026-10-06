@@ -8,7 +8,8 @@ import { hasStealthDisadvantage, strengthRequirement } from '@/lib/armorPenaltie
 import { baseCandidates, composeMagicItem, isMagicGear, liveName, needsBase, remakeFrom } from '@/lib/itemComposition';
 import { describeWornBonus, detectedWornBonus, hasWornBonus, isWearable } from '@/lib/wornItems';
 import { ammunitionChoices, standardAmmunition, usesAmmunition, weaponAmmunition } from '@/lib/ammunition';
-import { describeError, Modal, useToast } from '@/app/components/ui';
+import { describeError, Markdown, Modal, useToast } from '@/app/components/ui';
+import { stripMarkdown } from '@/lib/markdown';
 import { useSheetReadOnly } from '../SheetReadOnly';
 
 interface EquipmentManagerProps {
@@ -83,7 +84,7 @@ export default function EquipmentManager({
     const mergeLiveBaseItem = (item: CharacterItem): CharacterItem => {
         const live = item.baseItemId ? baseItemsById[item.baseItemId] : undefined;
         if (!live) return item;
-        return { ...item, name: liveName(item, live), description: live.description };
+        return { ...item, name: liveName(item, live), description: item.descriptionEdited ? item.description : live.description };
     };
 
     // Fetch base items lazily — only when the add panel is open and a non-custom category is selected
@@ -437,10 +438,13 @@ export default function EquipmentManager({
                             <textarea
                                 className="input"
                                 placeholder="Description (optional)"
+                                aria-label="Description"
+                                aria-describedby="equipmentmanager-markdown-hint"
                                 value={newCustomItem.description || ''}
                                 onChange={e => setNewCustomItem({ ...newCustomItem, description: e.target.value })}
                                 rows={3}
                             />
+                            <MarkdownHint id="equipmentmanager-markdown-hint" />
                             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                                 <button className="btn" onClick={handleAddCustomItem}>Add</button>
                                 <button className="btn btn-secondary" onClick={() => setIsAdding(false)}>Cancel</button>
@@ -482,11 +486,14 @@ export default function EquipmentManager({
                                                 onClick={() => handleAddBaseItem(item)}
                                             >
                                                 <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>{item.name}</div>
-                                                {item.description && (
-                                                    <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                                                        {item.description.substring(0, 100)}{item.description.length > 100 ? '...' : ''}
-                                                    </div>
-                                                )}
+                                                {item.description && (() => {
+                                                    const preview = stripMarkdown(item.description);
+                                                    return (
+                                                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                                                            {preview.substring(0, 100)}{preview.length > 100 ? '...' : ''}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         ))}
                                     </div>
@@ -620,11 +627,13 @@ export default function EquipmentManager({
 
                                                 {isItemExpanded && (
                                                     <div style={{ padding: '0.5rem', backgroundColor: 'var(--surface)', marginBottom: '0.5rem', borderRadius: '4px', fontSize: '0.875rem' }}>
-                                                        {itemObj.description && (
-                                                            <div style={{ marginBottom: '0.5rem', color: 'var(--text-muted)' }}>
-                                                                {itemObj.description}
-                                                            </div>
-                                                        )}
+                                                        <ItemDescription
+                                                            index={actualIndex}
+                                                            item={itemObj}
+                                                            fromList={!!itemObj.baseItemId && !!baseItemsById[itemObj.baseItemId]}
+                                                            readOnly={readOnly}
+                                                            onSave={(updates) => handleUpdateItem(actualIndex, updates)}
+                                                        />
                                                         <fieldset className="plain-fieldset" disabled={readOnly}>
                                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
                                                             <div>
@@ -998,6 +1007,67 @@ function WornBonusEditor({ index, item, onChange }: {
                 <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: '0.25rem' }} onClick={() => onChange(null)}>
                     Use the item&apos;s text{hasWornBonus(detected) ? ` (${describeWornBonus(detected)})` : ''}
                 </button>
+            )}
+        </div>
+    );
+}
+
+function MarkdownHint({ id }: { id: string }) {
+    return (
+        <p id={id} className="markdown-hint">
+            Markdown works: **bold**, *italic*, - lists, 1. numbered lists, # headings, | tables |.
+        </p>
+    );
+}
+
+/** An item's description, shown with its Markdown; the player can rewrite it (kept over the item list's text). */
+function ItemDescription({ index, item, fromList, readOnly, onSave }: {
+    index: number;
+    item: CharacterItem;
+    /** The item comes from the item list, whose text is shown until the player rewrites it */
+    fromList: boolean;
+    readOnly: boolean;
+    onSave: (updates: Partial<CharacterItem>) => void;
+}) {
+    const [draft, setDraft] = useState<string | null>(null);
+    const fieldId = `equipmentmanager-description-${index}`;
+    if (draft !== null) {
+        return (
+            <div className="item-description-edit">
+                <label htmlFor={fieldId} style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Description</label>
+                <textarea id={fieldId}
+                    className="input"
+                    rows={6}
+                    value={draft}
+                    aria-describedby={`${fieldId}-hint`}
+                    onChange={e => setDraft(e.target.value)}
+                    autoFocus
+                />
+                <MarkdownHint id={`${fieldId}-hint`} />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button type="button" className="btn btn-sm" onClick={() => {
+                        onSave({ description: draft, ...(fromList && { descriptionEdited: true }) });
+                        setDraft(null);
+                    }}>Save description</button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDraft(null)}>Cancel</button>
+                </div>
+            </div>
+        );
+    }
+    return (
+        <div style={{ marginBottom: '0.5rem' }}>
+            {item.description && <Markdown text={item.description} className="item-description" />}
+            {!readOnly && (
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDraft(item.description || '')}>
+                        {item.description ? 'Edit description' : 'Add description'}
+                    </button>
+                    {fromList && item.descriptionEdited && (
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => onSave({ descriptionEdited: false })}>
+                            Use the item list&apos;s text
+                        </button>
+                    )}
+                </div>
             )}
         </div>
     );

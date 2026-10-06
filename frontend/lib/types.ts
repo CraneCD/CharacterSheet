@@ -34,7 +34,10 @@ export interface CharacterItem {
     baseItemId?: string;
     name: string;
     quantity?: number;
+    /** Markdown: **bold**, *italic*, lists, tables (lib/markdown) */
     description?: string;
+    /** The player rewrote the description: keep it instead of the item list's live text */
+    descriptionEdited?: boolean;
     equipped?: boolean;
     category?: ItemCategory;
     type?: 'armor' | 'weapon' | 'shield' | 'other';

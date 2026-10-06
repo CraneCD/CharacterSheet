@@ -6085,3 +6085,91 @@ a.party-card-head:hover .party-card-name {
   grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
   gap: var(--space-2);
 }
+
+/* ---------- Markdown text (item descriptions, Actions card rows) ---------- */
+.markdown {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  overflow-wrap: break-word;
+}
+
+.markdown p,
+.markdown ul,
+.markdown ol {
+  margin: 0;
+  max-width: 65ch;
+}
+
+.markdown ul,
+.markdown ol {
+  padding-left: var(--space-5);
+}
+
+.markdown li + li {
+  margin-top: var(--space-1);
+}
+
+.markdown strong,
+.markdown .md-heading {
+  color: var(--text);
+}
+
+.markdown .md-heading {
+  margin-top: var(--space-1);
+  font-weight: 700;
+}
+
+.markdown .md-heading-1 {
+  font-size: var(--font-size-md);
+}
+
+.markdown code {
+  padding: 0 0.25em;
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-raised);
+  font-size: 0.9em;
+}
+
+.markdown a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.md-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.markdown table {
+  border-collapse: collapse;
+  font-size: var(--font-size-xs);
+}
+
+.markdown th,
+.markdown td {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown th {
+  color: var(--text);
+}
+
+.item-description {
+  margin-bottom: var(--space-2);
+}
+
+.item-description-edit {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.markdown-hint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
