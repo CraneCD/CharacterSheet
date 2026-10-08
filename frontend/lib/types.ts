@@ -57,6 +57,8 @@ export interface CharacterItem {
     value?: string;
     /** The item list's price ("1 GP"); often for a bundle, so only a hint */
     cost?: string;
+    /** Wands, staffs, ...: charges left, most it holds, what it regains at dawn; unset = read from the text, null = not tracked (lib/itemCharges) */
+    charges?: ItemCharges | null;
     weaponCategory?: 'simple' | 'martial';
     strengthRequirement?: number | null;
     stealthDisadvantage?: boolean;
@@ -74,6 +76,13 @@ export interface CharacterItem {
     wornBonus?: WornBonus | null;
     /** Weapons with the Ammunition property: name of the gear item they shoot ("Arrows"); unset or empty = found by kind, null = not tracked (lib/ammunition) */
     ammunition?: string | null;
+}
+
+export interface ItemCharges {
+    current: number;
+    max: number;
+    /** Regained at dawn (on a Long Rest): dice like "1d6+1", "all", or '' for none */
+    regain?: string;
 }
 
 /** What a worn magic item adds while equipped (Ring of Protection: { ac: 1, saves: 1 }). */
@@ -230,6 +239,10 @@ export interface CharacterAction {
     type: 'action' | 'bonus' | 'reaction' | 'other';
     /** For "Cast <spell>" actions: the spell they cast. */
     spellId?: string;
+    /** Magic item actions: the gear item they use (its charges show on the row) */
+    item?: string;
+    /** Charges one use spends (item actions on items with charges) */
+    charges?: number;
 }
 
 export interface CharacterFeature {

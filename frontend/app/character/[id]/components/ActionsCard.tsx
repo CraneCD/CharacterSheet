@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { CharacterAction, CharacterData, CharacterItem, ClassResources } from '@/lib/types';
 import { WeaponAttack } from '@/lib/attacks';
 import { WeaponAmmunition } from '@/lib/ammunition';
+import { itemCharges, withCharges } from '@/lib/itemCharges';
 import { formatBonus } from '@/lib/dice';
 import {
     ACTION_TIMINGS, ActionRow, ActionTiming, BASIC_ACTIONS, buildActionRows, CastableSummary, SpellcastingNumbers, SpellSource,
@@ -12,6 +13,8 @@ import {
 import { Button, describeError, Field, Markdown, SectionHeader, TextField, useOptimisticSave, useToast } from '@/app/components/ui';
 import { EffectRollButton, RollButton } from '@/app/components/dice/DiceTray';
 import { useSheetReadOnly } from '../SheetReadOnly';
+import ItemChargesCounter from './ItemChargesCounter';
+import { ItemChargesRef } from '@/lib/actionRows';
 
 interface ActionsCardProps {
     characterId: string;
@@ -71,7 +74,7 @@ function AmmoCounter({ ammo, onSet }: { ammo: WeaponAmmunition; onSet?: (count: 
     );
 }
 
-function ActionRowItem({ row, castable, open, onToggle, onRemove, onSetAmmo }: {
+function ActionRowItem({ row, castable, open, onToggle, onRemove, onSetAmmo, onSetCharges }: {
     row: ActionRow;
     castable: CastableSummary | null;
     open: boolean;
@@ -79,6 +82,8 @@ function ActionRowItem({ row, castable, open, onToggle, onRemove, onSetAmmo }: {
     onRemove?: () => void;
     /** Ranged weapons: change how much ammunition is left */
     onSetAmmo?: (ammo: WeaponAmmunition, count: number) => void;
+    /** Item actions: change the item's charges */
+    onSetCharges?: (charges: ItemChargesRef, current: number) => void;
 }) {
     const detailId = useId();
     const effect = row.effect;
@@ -99,9 +104,25 @@ function ActionRowItem({ row, castable, open, onToggle, onRemove, onSetAmmo }: {
                         <SlotPipsReadOnly row={row} castable={castable} />
                         {row.uses && <span className="action-uses">{row.uses}</span>}
                         {ammo && <AmmoCounter ammo={ammo} onSet={onSetAmmo ? (count) => onSetAmmo(ammo, count) : undefined} />}
+                        {row.charges && (
+                            <ItemChargesCounter
+                                item={row.charges.item}
+                                current={row.charges.current}
+                                max={row.charges.max}
+                                cost={row.charges.cost}
+                                onSet={onSetCharges ? (n) => onSetCharges(row.charges!, n) : undefined}
+                            />
+                        )}
                     </span>
                     {row.note && <span className="action-row-note">{row.note}</span>}
                     {ammo && ammo.count === 0 && <span className="action-row-note">Out of {ammo.name.toLowerCase()}.</span>}
+                    {row.charges && row.charges.cost > 0 && (
+                        <span className="action-row-note">
+                            {row.charges.current < row.charges.cost
+                                ? `Not enough charges (uses ${row.charges.cost}).`
+                                : `Uses ${row.charges.cost} charge${row.charges.cost === 1 ? '' : 's'}.`}
+                        </span>
+                    )}
                 </div>
                 <span className="action-row-nums">
                     {row.toHit !== undefined && (
@@ -187,7 +208,8 @@ export default function ActionsCard({
         castable: castable?.spells ?? [],
         spells, spellcasting, spellcastingBySource, characterLevel, resources, primaryClass,
         storedActions: actions,
-    }), [attacks, hasWeaponMastery, masteryWeapons, castable, spells, spellcasting, spellcastingBySource, characterLevel, resources, primaryClass, actions]);
+        equipment,
+    }), [attacks, hasWeaponMastery, masteryWeapons, castable, spells, spellcasting, spellcastingBySource, characterLevel, resources, primaryClass, actions, equipment]);
 
     const byTiming = (t: ActionTiming) => rows.filter((r) => r.timing === t);
 
@@ -246,19 +268,27 @@ export default function ActionsCard({
         }
     };
 
-    // Ammunition is a gear item ("Arrows", quantity 20): only its quantity changes
-    const setAmmo = (ammo: WeaponAmmunition, count: number) => {
+    // Ammunition and charges belong to gear items: only that item's field changes
+    const updateItem = (index: number, changes: Partial<CharacterItem>, errorMessage: string) => {
         const gear = Array.isArray(equipment) ? equipment : [];
-        const current = gear[ammo.index];
+        const current = gear[index];
         if (current === undefined) return;
-        const quantity = Math.max(0, count);
         const item = typeof current === 'string' ? { name: current } : current;
         optimisticSave({
-            apply: () => onUpdate({ equipment: gear.map((e, i) => (i === ammo.index ? { ...item, quantity } : e)) }),
+            apply: () => onUpdate({ equipment: gear.map((e, i) => (i === index ? { ...item, ...changes } : e)) }),
             rollback: () => onUpdate({ equipment: gear }),
-            request: () => api.patch(`/characters/${characterId}/equipment`, { index: ammo.index, item: { quantity } }),
-            errorMessage: `Couldn't update your ${ammo.name}`,
+            request: () => api.patch(`/characters/${characterId}/equipment`, { index, item: changes }),
+            errorMessage,
         });
+    };
+    const setAmmo = (ammo: WeaponAmmunition, count: number) =>
+        updateItem(ammo.index, { quantity: Math.max(0, count) }, `Couldn't update your ${ammo.name}`);
+    const setCharges = (ref: ItemChargesRef, current: number) => {
+        const gear = Array.isArray(equipment) ? equipment : [];
+        const item = gear[ref.index];
+        const charges = item && typeof item === 'object' ? itemCharges(item) : null;
+        if (!charges) return;
+        updateItem(ref.index, { charges: withCharges(charges, current) }, `Couldn't update ${ref.item}'s charges`);
     };
 
     return (
@@ -349,6 +379,7 @@ export default function ActionsCard({
                                         onToggle={() => setOpen((o) => ({ ...o, [row.key]: !o[row.key] }))}
                                         onRemove={row.storedIndex !== undefined && !readOnly ? () => removeAction(row.storedIndex!) : undefined}
                                         onSetAmmo={readOnly || !equipment ? undefined : setAmmo}
+                                        onSetCharges={readOnly || !equipment ? undefined : setCharges}
                                     />
                                 ))}
                             </ul>

@@ -3,7 +3,8 @@
  * spells, class resources) except custom and magic-item actions, which are stored in data.actions.
  * Copies the app used to store for spells, weapon attacks and weapon mastery are hidden.
  */
-import { CharacterAction, ClassResource, ClassResources } from './types';
+import { CharacterAction, CharacterItem, ClassResource, ClassResources } from './types';
+import { itemCharges } from './itemCharges';
 import { featureUsesTiming, freeCastCounter } from './featureUses';
 import { WeaponAttack } from './attacks';
 import { WeaponAmmunition } from './ammunition';
@@ -53,6 +54,16 @@ export interface ActionRow {
     storedIndex?: number;
     /** Ranged weapons: the ammunition it fires (one is spent per attack roll) */
     ammo?: WeaponAmmunition;
+    /** Item actions: the item's charges (index in the equipment list) and how many one use spends */
+    charges?: ItemChargesRef;
+}
+
+export interface ItemChargesRef {
+    index: number;
+    item: string;
+    current: number;
+    max: number;
+    cost: number;
 }
 
 export interface CastableSpell {
@@ -256,25 +267,47 @@ export function featureRows(resources: ClassResources | undefined, primaryClass:
 
 /** Stored actions the app generated (spell casts, weapon attacks, mastery); the live rows replace them. */
 export function isGeneratedAction(action: CharacterAction, spells: SpellActionSource[]): boolean {
+    // Item actions are the player's own, even when named like a spell ("Lightning Bolt")
+    if (action.item) return false;
     const name = action.name || '';
     if (name.endsWith(' Attack')) return true;
     if (action.spellId || findActionSpell(action, spells)) return true;
     return Object.values(MASTERY_INFO).some((m) => action.description === m.description && name.endsWith(`(${m.name})`));
 }
 
+/** The gear item an item action uses: `item`, or the name in older "Use Wand of Webs (Bonus)" actions. */
+export function actionItemName(action: CharacterAction): string | null {
+    if (action.item) return action.item;
+    return /^Use /.test(action.name || '') ? action.name.replace(/^Use /, '').replace(/ \((?:Bonus|Bonus Action|Reaction)\)$/, '') : null;
+}
+
+/** An item's charges as an action row shows them, if the item is in the gear and has charges. */
+function chargesFor(itemName: string, cost: number | undefined, equipment: (string | CharacterItem)[]): ItemChargesRef | undefined {
+    const index = equipment.findIndex((e) => e && typeof e === 'object' && e.name.trim().toLowerCase() === itemName.trim().toLowerCase());
+    if (index < 0) return undefined;
+    const charges = itemCharges(equipment[index] as CharacterItem);
+    if (!charges) return undefined;
+    return { index, item: (equipment[index] as CharacterItem).name, current: charges.current, max: charges.max, cost: Math.max(0, cost ?? 1) };
+}
+
 /** Custom and magic-item actions saved on the character ("Use Wand of Webs" is an item action). */
-export function storedRows(actions: CharacterAction[], spells: SpellActionSource[]): ActionRow[] {
+export function storedRows(actions: CharacterAction[], spells: SpellActionSource[], equipment: (string | CharacterItem)[] = []): ActionRow[] {
     return (Array.isArray(actions) ? actions : []).flatMap((action, index) => {
         if (!action || isGeneratedAction(action, spells)) return [];
-        const isItem = /^Use /.test(action.name || '');
+        const itemName = actionItemName(action);
+        const name = action.item ? action.name : itemName ?? action.name;
+        const charges = itemName ? chargesFor(itemName, action.charges, equipment) : undefined;
         return [{
             key: `stored:${index}:${action.name}`,
             timing: (['action', 'bonus', 'reaction', 'other'] as const).includes(action.type) ? action.type : 'other',
-            name: isItem ? action.name.replace(/^Use /, '').replace(/ \(Bonus\)$/, '') : action.name,
-            source: isItem ? 'item' as const : 'custom' as const,
-            sourceLabel: isItem ? 'Item' : 'Custom',
+            name,
+            source: itemName ? 'item' as const : 'custom' as const,
+            sourceLabel: itemName ? 'Item' : 'Custom',
+            // An action named for what it does ("Lightning Bolt") says which item it uses
+            ...(itemName && name.trim().toLowerCase() !== itemName.trim().toLowerCase() ? { note: itemName } : {}),
             description: action.description || '',
             storedIndex: index,
+            ...(charges && { charges }),
         }];
     });
 }
@@ -292,6 +325,8 @@ export interface BuildActionRowsInput {
     resources?: ClassResources;
     primaryClass: string;
     storedActions: CharacterAction[];
+    /** Gear, for item actions' charges */
+    equipment?: (string | CharacterItem)[];
 }
 
 const SOURCE_ORDER: ActionSource[] = ['weapon', 'basic', 'feature', 'spell', 'item', 'custom'];
@@ -314,7 +349,7 @@ export function buildActionRows(input: BuildActionRowsInput): ActionRow[] {
                 const free = freeCastCounter(input.resources, c.id);
                 return [free ? { ...row, uses: `${free[1].current} / ${free[1].max} free` } : row];
             }),
-        ...storedRows(input.storedActions, input.spells),
+        ...storedRows(input.storedActions, input.spells, input.equipment),
     ];
     return rows
         .map((row, i) => ({ row, i }))

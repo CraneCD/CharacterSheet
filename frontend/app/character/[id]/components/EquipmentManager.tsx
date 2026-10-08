@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
-import { CharacterItem, ItemCategory, WornBonus } from '@/lib/types';
+import { CharacterAction, CharacterItem, ItemCategory, ItemCharges, WornBonus } from '@/lib/types';
 import { armorMagicBonus, detectedMagicBonus, weaponMagicBonus } from '@/lib/magicBonus';
 import { hasStealthDisadvantage, strengthRequirement } from '@/lib/armorPenalties';
 import { baseCandidates, composeMagicItem, isMagicGear, liveName, needsBase, remakeFrom } from '@/lib/itemComposition';
@@ -11,6 +11,9 @@ import { ammunitionChoices, standardAmmunition, usesAmmunition, weaponAmmunition
 import { describeError, Markdown, Modal, useToast } from '@/app/components/ui';
 import { stripMarkdown } from '@/lib/markdown';
 import { formatValue, gearValue, itemValue } from '@/lib/itemValue';
+import { describeRegain, detectedCharges, itemCharges, normalizeRegain, withCharges } from '@/lib/itemCharges';
+import ItemActionDialog from './ItemActionDialog';
+import ItemChargesCounter from './ItemChargesCounter';
 import { useSheetReadOnly } from '../SheetReadOnly';
 
 interface EquipmentManagerProps {
@@ -277,61 +280,24 @@ export default function EquipmentManager({
         }
     };
 
-    const actionExists = (name: string) =>
-        existingActions.some((a: any) => String(a?.name ?? '').trim().toLowerCase() === name.trim().toLowerCase());
-
-    const handleCreateMagicItemAction = async (item: CharacterItem, index: number) => {
-        if (!item.name) return;
-        
+    // Adding an action (Action, Bonus Action, Reaction or Other) for a magic item
+    const [actionFor, setActionFor] = useState<CharacterItem | null>(null);
+    const existingActionNames = existingActions.map((a: any) => String(a?.name ?? '')).filter(Boolean);
+    const createItemAction = async (action: CharacterAction) => {
         if (!onCreateAction) {
             toast.error('Action creation is not available');
-            return;
+            throw new Error('Action creation is not available');
         }
-        
         try {
-            const action = {
-                name: `Use ${item.name}`,
-                description: item.description || `Use the ${item.name}.`,
-                type: 'action' as const
-            };
-            if (actionExists(action.name)) {
-                toast.error(`"${action.name}" is already in your actions.`);
-                return;
-            }
             await onCreateAction(action);
-            toast.success(`Action "${action.name}" created!`);
+            toast.success(`Added "${action.name}" to your actions.`);
         } catch (err) {
             console.error('Failed to create action', err);
-            toast.error(describeError("Couldn't create action", err));
+            toast.error(describeError("Couldn't add the action", err));
+            throw err;
         }
     };
-
-    const handleCreateMagicItemBonusAction = async (item: CharacterItem, index: number) => {
-        if (!item.name) return;
-        
-        if (!onCreateAction) {
-            toast.error('Action creation is not available');
-            return;
-        }
-        
-        try {
-            // Distinct name from the action version, so the two aren't mistaken for duplicates
-            const action = {
-                name: `Use ${item.name} (Bonus)`,
-                description: item.description || `Use the ${item.name}.`,
-                type: 'bonus' as const
-            };
-            if (actionExists(action.name)) {
-                toast.error(`"${action.name}" is already in your actions.`);
-                return;
-            }
-            await onCreateAction(action);
-            toast.success(`Bonus Action "${action.name}" created!`);
-        } catch (err) {
-            console.error('Failed to create bonus action', err);
-            toast.error(describeError("Couldn't create bonus action", err));
-        }
-    };
+    const canHaveActions = (i: CharacterItem) => i.category === 'magic-item' || !!itemCharges(i);
 
     const categories: ItemCategory[] = ['armor', 'weapon', 'shield', 'tool', 'magic-item', 'potion', 'scroll', 'miscellaneous'];
     const safeBaseItems = Array.isArray(baseItems) ? baseItems : [];
@@ -385,6 +351,15 @@ export default function EquipmentManager({
                     </button>
                 )}
             </h3>
+
+            {actionFor && (
+                <ItemActionDialog
+                    item={actionFor}
+                    existingNames={existingActionNames}
+                    onSave={createItemAction}
+                    onClose={() => setActionFor(null)}
+                />
+            )}
 
             {isAdding && (
                 <Modal onClose={() => {
@@ -601,25 +576,27 @@ export default function EquipmentManager({
                                                         </span>
                                                     </div>
                                                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                                        {itemObj.category === 'magic-item' && !readOnly && (
-                                                            <>
-                                                                <button
-                                                                    className="btn btn-secondary"
-                                                                    style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
-                                                                    onClick={() => handleCreateMagicItemAction(itemObj, actualIndex)}
-                                                                    title="Create Action"
-                                                                >
-                                                                    + Action
-                                                                </button>
-                                                                <button
-                                                                    className="btn btn-secondary"
-                                                                    style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
-                                                                    onClick={() => handleCreateMagicItemBonusAction(itemObj, actualIndex)}
-                                                                    title="Create Bonus Action"
-                                                                >
-                                                                    + Bonus
-                                                                </button>
-                                                            </>
+                                                        {(() => {
+                                                            const charges = itemCharges(itemObj);
+                                                            return charges ? (
+                                                                <ItemChargesCounter
+                                                                    item={itemObj.name}
+                                                                    current={charges.current}
+                                                                    max={charges.max}
+                                                                    onSet={readOnly ? undefined : (n) => handleUpdateItem(actualIndex, { charges: withCharges(charges, n) })}
+                                                                />
+                                                            ) : null;
+                                                        })()}
+                                                        {canHaveActions(itemObj) && !readOnly && (
+                                                            <button
+                                                                className="btn btn-secondary"
+                                                                style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
+                                                                onClick={() => setActionFor(itemObj)}
+                                                                aria-label={`Add an action for ${itemObj.name}`}
+                                                                title="Add an Action, Bonus Action or Reaction for this item"
+                                                            >
+                                                                + Action
+                                                            </button>
                                                         )}
                                                         <button
                                                             className="btn btn-ghost"
@@ -851,6 +828,13 @@ export default function EquipmentManager({
                                                                 </div>
                                                             );
                                                         })()}
+                                                        {(canHaveActions(itemObj) || itemObj.charges) && (
+                                                            <ChargesEditor
+                                                                index={actualIndex}
+                                                                item={itemObj}
+                                                                onChange={(charges) => handleUpdateItem(actualIndex, { charges })}
+                                                            />
+                                                        )}
                                                         {isWearable(itemObj) && (
                                                             <WornBonusEditor
                                                                 index={actualIndex}
@@ -1110,6 +1094,83 @@ function ItemDescription({ index, item, fromList, readOnly, onSave }: {
                     )}
                 </div>
             )}
+        </div>
+    );
+}
+
+/** A magic item's charges: how many it holds, has left and regains at dawn (Long Rest); read from its text until set. */
+function ChargesEditor({ index, item, onChange }: {
+    index: number;
+    item: CharacterItem;
+    onChange: (charges: ItemCharges | null) => void;
+}) {
+    const charges = itemCharges(item);
+    const detected = detectedCharges(item);
+    const idBase = `equipmentmanager-charges-${index}`;
+    const labelStyle = { display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' } as const;
+    if (!charges) {
+        return (
+            <div style={{ marginTop: '0.5rem' }}>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange(detected
+                    ? { current: detected.max, max: detected.max, regain: detected.regain }
+                    : { current: 1, max: 1, regain: '' })}>
+                    + Track charges
+                </button>
+            </div>
+        );
+    }
+    const save = (changes: Partial<ItemCharges>) => {
+        const max = Math.max(1, Math.min(999, Math.floor(changes.max ?? charges.max)));
+        onChange(withCharges({ ...charges, ...changes, max }, changes.current ?? (changes.max !== undefined && charges.current === charges.max ? max : charges.current)));
+    };
+    const number = (key: 'current' | 'max', label: string) => (
+        <div>
+            <label htmlFor={`${idBase}-${key}`} style={labelStyle}>{label}</label>
+            <input id={`${idBase}-${key}`}
+                key={charges[key]}
+                type="text"
+                inputMode="numeric"
+                className="input"
+                defaultValue={charges[key]}
+                onBlur={e => {
+                    const n = parseInt(e.target.value, 10);
+                    if (Number.isFinite(n) && n !== charges[key]) save({ [key]: n });
+                    else e.target.value = String(charges[key]);
+                }}
+                onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+            />
+        </div>
+    );
+    return (
+        <div style={{ marginTop: '0.5rem' }}>
+            <div className="item-charges-fields">
+                {number('current', 'Charges left')}
+                {number('max', 'Most it holds')}
+                <div>
+                    <label htmlFor={`${idBase}-regain`} style={labelStyle}>Regains at dawn</label>
+                    <input id={`${idBase}-regain`}
+                        key={charges.regain}
+                        type="text"
+                        className="input"
+                        placeholder="e.g. 1d6+1 or all"
+                        defaultValue={charges.regain}
+                        aria-describedby={`${idBase}-hint`}
+                        onBlur={e => {
+                            const regain = normalizeRegain(e.target.value);
+                            if (regain !== charges.regain) save({ regain });
+                            else e.target.value = charges.regain || '';
+                        }}
+                        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                    />
+                </div>
+            </div>
+            <p id={`${idBase}-hint`} className="markdown-hint" style={{ marginTop: '0.25rem' }}>
+                {charges.regain
+                    ? `A Long Rest (dawn) gives back ${describeRegain(charges.regain)}.`
+                    : 'Leave “Regains at dawn” empty if it doesn’t recharge.'}
+                {!item.charges && detected ? ' Read from the item’s text.' : ''}
+            </p>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange(null)}>Stop tracking charges</button>
         </div>
     );
 }

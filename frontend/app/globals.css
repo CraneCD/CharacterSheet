@@ -6191,3 +6191,41 @@ a.party-card-head:hover .party-card-name {
 .gear-value-total strong {
   color: var(--text);
 }
+
+/* ---------- Item charges (Actions card item rows, Gear tab) ---------- */
+.item-charges {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.item-charges.is-empty {
+  color: var(--error);
+  font-weight: 700;
+}
+
+.item-charges-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
+  gap: var(--space-2);
+}
+
+.item-action-form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.item-action-timings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin-top: var(--space-1);
+}
+
+.item-action-timings .checkbox-row {
+  margin: 0;
+}
