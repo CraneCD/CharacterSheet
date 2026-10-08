@@ -521,7 +521,7 @@ export default function CharacterSheet() {
 
     const handleRest = async (kind: 'short' | 'long', hitDiceRolls: number[] = []) => {
         const plan = kind === 'long'
-            ? planLongRest(data, restContext)
+            ? planLongRest(data, restContext, Math.random)
             : planShortRest(data, restContext, hitDiceRolls, effectiveModifiers.con);
         const label = kind === 'long' ? 'Long Rest' : 'Short Rest';
         setResting(true);

@@ -1,5 +1,7 @@
 import { CharacterData, ClassResources, HitDice, HP } from './types';
 import { applyHealing } from './hp';
+import { rechargeAtDawn } from './itemCharges';
+import type { Random } from './dice';
 
 /**
  * Short and Long Rest (2024 rules), as pure functions so the sheet's single rest flow
@@ -69,9 +71,10 @@ function resetsAny(resources: ClassResources, kind: 'short' | 'long'): boolean {
 
 /**
  * Long Rest: full HP (temporary HP ends), all Hit Dice back, all spell slots back,
- * death saves cleared, and every short- or long-rest resource restored.
+ * death saves cleared, every short- or long-rest resource restored, and magic items
+ * regain charges (dawn): pass `random` to roll them, leave it out for the preview.
  */
-export function planLongRest(data: Partial<CharacterData>, ctx: RestContext): RestPlan {
+export function planLongRest(data: Partial<CharacterData>, ctx: RestContext, random?: Random): RestPlan {
     const hp = { ...DEFAULT_HP, ...(data.hp || {}) };
     const summary: string[] = [];
     const updates: Partial<CharacterData> = {
@@ -90,6 +93,11 @@ export function planLongRest(data: Partial<CharacterData>, ctx: RestContext): Re
     }
 
     if (anySlotsUsed(data.spellSlotsUsed) || Number(data.pactSlotsUsed) > 0) summary.push('Spell slots restored');
+
+    // Magic items regain charges at dawn: described in the preview, rolled when the rest is taken (`random`)
+    const recharge = rechargeAtDawn(Array.isArray(data.equipment) ? data.equipment : [], random);
+    if (recharge.changed) updates.equipment = recharge.equipment;
+    summary.push(...recharge.summary);
 
     // Mage Armor lasts 8 hours
     if (data.mageArmor) {

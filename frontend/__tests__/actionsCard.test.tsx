@@ -122,6 +122,20 @@ describe('ActionsCard', () => {
         expect(screen.getByText(/attack rolls against you have Disadvantage/)).toBeInTheDocument();
     });
 
+    it("spends an item action's charges", async () => {
+        const equipment = [{ name: 'Wand of Webs', category: 'magic-item', charges: { current: 3, max: 7, regain: '1d6+1' } } as any];
+        const { onUpdate } = renderCard({
+            equipment,
+            storedActions: [{ name: 'Web', type: 'action', description: 'Cast Web.', item: 'Wand of Webs', charges: 2 }],
+        });
+        await screen.findByText('Cure Wounds');
+        expect(screen.getByText('3/7 charges')).toBeInTheDocument();
+        expect(screen.getByText('Uses 2 charges.')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Spend 2 charges of Wand of Webs' }));
+        expect(onUpdate).toHaveBeenLastCalledWith({ equipment: [{ ...equipment[0], charges: { current: 1, max: 7, regain: '1d6+1' } }] });
+        await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/characters/c1/equipment', { index: 0, item: { charges: { current: 1, max: 7, regain: '1d6+1' } } }));
+    });
+
     it('shows Markdown in item and spell text', async () => {
         renderCard({
             storedActions: [{ name: 'Use Javelin of Lightning', type: 'action', description: 'Weapon (Javelin)\n**Lightning Bolt.** Turn the weapon into a bolt of lightning.\n- 4d6 Lightning damage' }],
