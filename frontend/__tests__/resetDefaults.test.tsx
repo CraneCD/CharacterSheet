@@ -78,7 +78,7 @@ describe('class resource maximum reset', () => {
         await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/characters/c1/class-resources', {
             resourceName: 'Second Wind',
             resource: { name: 'Second Wind', current: 2, max: defaults['Second Wind'], resetType: 'long' },
-        }));
+        }, { offline: true }));
         expect(screen.queryByRole('button', { name: /Reset Second Wind/ })).not.toBeInTheDocument();
     });
 

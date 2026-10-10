@@ -356,7 +356,7 @@ describe('loot on the sheet', () => {
         const input = screen.getByDisplayValue('10');
         fireEvent.change(input, { target: { value: '5' } });
         fireEvent.blur(input);
-        await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith('/characters/char-1/currency', { change: { gp: -5 } }));
+        await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith('/characters/char-1/currency', { change: { gp: -5 } }, { offline: true }));
         expect(await screen.findByText('180')).toBeInTheDocument();
         expect(onUpdate).toHaveBeenCalledWith({ pp: 0, gp: 180, ep: 0, sp: 0, cp: 0 });
     });

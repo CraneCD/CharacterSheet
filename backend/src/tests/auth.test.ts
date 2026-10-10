@@ -97,3 +97,58 @@ describe('POST /auth/change-password', () => {
         expect(prisma.user.update).not.toHaveBeenCalled();
     });
 });
+
+describe('app tokens that never expire', () => {
+    const jwt = require('jsonwebtoken');
+    const bcrypt = require('bcryptjs');
+    const secret = 'test-secret';
+    let prisma: any;
+    const user = { id: 'user-1', email: 'u@example.com', name: 'U', isAdmin: false, tokenVersion: 3 };
+
+    beforeAll(() => {
+        process.env.JWT_SECRET = secret;
+    });
+
+    beforeEach(async () => {
+        prisma = new PrismaClient();
+        prisma.user.update = jest.fn().mockResolvedValue({ ...user, tokenVersion: 4 });
+        (prisma.user.findUnique as jest.Mock).mockResolvedValue({ ...user, passwordHash: await bcrypt.hash('pw-123456', 4) });
+    });
+
+    it('gives the app a token that never expires; browsers still get a day; both carry the account version', async () => {
+        const app1 = await request(app).post('/auth/login').send({ email: user.email, password: 'pw-123456', device: true });
+        const appClaims = jwt.decode(app1.body.token);
+        expect(appClaims.tv).toBe(3);
+        expect(appClaims.exp).toBeUndefined();
+
+        const web = await request(app).post('/auth/login').send({ email: user.email, password: 'pw-123456' });
+        const webClaims = jwt.decode(web.body.token);
+        expect(webClaims.tv).toBe(3);
+        expect(webClaims.exp - webClaims.iat).toBe(24 * 60 * 60);
+    });
+
+    it('signs every device out by bumping the account version', async () => {
+        const token = jwt.sign({ id: user.id, email: user.email, tv: 3 }, secret);
+        const res = await request(app).post('/auth/logout-all').set('Authorization', `Bearer ${token}`);
+        expect(res.status).toBe(200);
+        expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: user.id }, data: { tokenVersion: { increment: 1 } } });
+    });
+
+    it('rejects an app token from before the last sign-out', async () => {
+        const stale = jwt.sign({ id: user.id, email: user.email, tv: 2 }, secret);
+        const res = await request(app).post('/auth/logout-all').set('Authorization', `Bearer ${stale}`);
+        expect(res.status).toBe(401);
+        expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('hands the app a fresh token when its password changes', async () => {
+        const token = jwt.sign({ id: user.id, email: user.email, tv: 3 }, secret);
+        const res = await request(app).post('/auth/change-password').set('Authorization', `Bearer ${token}`)
+            .send({ currentPassword: 'pw-123456', newPassword: 'new-pw-123' });
+        expect(res.status).toBe(200);
+        expect(prisma.user.update.mock.calls[0][0].data.tokenVersion).toEqual({ increment: 1 });
+        const claims = jwt.decode(res.body.token);
+        expect(claims.tv).toBe(4);
+        expect(claims.exp).toBeUndefined();
+    });
+});

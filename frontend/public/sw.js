@@ -2,9 +2,10 @@
  * Grulla D&D service worker: makes the app installable and lets it open offline.
  *
  * - Built assets (/_next/static, hashed): cache first.
- * - Pages: network first; offline, the copy saved the last time this device opened
- *   that page, else offline.html.
- * - API reads (GET .../api/...): network first; offline, the last response saved.
+ * - Pages: network first; offline (or after 4s, while the server wakes up), the copy
+ *   saved the last time this device opened that page, else offline.html.
+ * - API reads (GET .../api/...): network first; offline or after 4s, the last response
+ *   saved (the sheet also saves its own copy, edits made offline included).
  *   The page clears this cache on log in and log out (lib/offline.ts), since
  *   responses belong to the signed-in user.
  * - Everything else (API writes, Next's client navigation requests) goes straight
@@ -12,12 +13,14 @@
  *
  * Bump VERSION to drop old caches when this file's strategy changes.
  */
-const VERSION = 'v1';
+const VERSION = 'v2';
 const STATIC_CACHE = `grulla-static-${VERSION}`;
 const PAGE_CACHE = `grulla-pages-${VERSION}`;
 // Must match API_CACHE in lib/offline.ts
 const API_CACHE = 'grulla-api-v1';
 const OFFLINE_PAGE = '/offline.html';
+// How long to wait for the network before showing a saved copy
+const NETWORK_TIMEOUT_MS = 4000;
 const PRECACHE = [OFFLINE_PAGE, '/dashboard', '/campaigns', '/icons/icon-192.png'];
 
 self.addEventListener('install', (event) => {
@@ -48,16 +51,28 @@ async function cacheFirst(request) {
     return response;
 }
 
-async function networkFirst(request, cacheName, fallback) {
-    try {
-        const response = await fetch(request);
+/**
+ * Network first. When the network is slow (a sleeping server waking up) and a saved copy
+ * exists, the saved copy is shown after NETWORK_TIMEOUT_MS while the request finishes
+ * and refreshes the cache for next time.
+ */
+async function networkFirst(event, cacheName, fallback) {
+    const { request } = event;
+    const network = fetch(request).then(async (response) => {
         if (response.ok) {
             const cache = await caches.open(cacheName);
             await cache.put(request, response.clone());
         }
         return response;
+    });
+    // Let the request finish (and refresh the cache) even after a saved copy was shown
+    event.waitUntil(network.catch(() => undefined));
+    const fromCache = () => caches.match(request, { cacheName });
+    const slow = new Promise((resolve) => setTimeout(resolve, NETWORK_TIMEOUT_MS)).then(fromCache);
+    try {
+        return await Promise.race([network, slow.then((cached) => cached || network)]);
     } catch (err) {
-        const cached = await caches.match(request, { cacheName });
+        const cached = await fromCache();
         if (cached) return cached;
         if (fallback) {
             const page = await caches.match(fallback);
@@ -81,13 +96,13 @@ self.addEventListener('fetch', (event) => {
         // which the navigate branch below answers from the cache
         if (request.headers.get('RSC') || url.searchParams.has('_rsc')) return;
         if (request.mode === 'navigate') {
-            event.respondWith(networkFirst(request, PAGE_CACHE, OFFLINE_PAGE));
+            event.respondWith(networkFirst(event, PAGE_CACHE, OFFLINE_PAGE));
         }
         return;
     }
 
     // The API lives on another origin (Render); only its reads are cached
     if (url.pathname.includes('/api/')) {
-        event.respondWith(networkFirst(request, API_CACHE));
+        event.respondWith(networkFirst(event, API_CACHE));
     }
 });

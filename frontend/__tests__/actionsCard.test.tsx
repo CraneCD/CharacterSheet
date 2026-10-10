@@ -69,10 +69,10 @@ describe('ActionsCard', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Roll Shortbow attack, +5' }));
         expect(onUpdate).toHaveBeenLastCalledWith({ equipment: [shortbow, { name: 'Arrows', category: 'miscellaneous', quantity: 1 }] });
-        await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/characters/c1/equipment', { index: 1, item: { quantity: 1 } }));
+        await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/characters/c1/equipment', { index: 1, item: { quantity: 1 } }, { offline: true }));
 
         fireEvent.click(screen.getByRole('button', { name: 'Add one to your Arrows' }));
-        expect(api.patch).toHaveBeenLastCalledWith('/characters/c1/equipment', { index: 1, item: { quantity: 3 } });
+        expect(api.patch).toHaveBeenLastCalledWith('/characters/c1/equipment', { index: 1, item: { quantity: 3 } }, { offline: true });
         expect(await axe(container)).toHaveNoViolations();
     });
 
@@ -133,7 +133,7 @@ describe('ActionsCard', () => {
         expect(screen.getByText('Uses 2 charges.')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Spend 2 charges of Wand of Webs' }));
         expect(onUpdate).toHaveBeenLastCalledWith({ equipment: [{ ...equipment[0], charges: { current: 1, max: 7, regain: '1d6+1' } }] });
-        await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/characters/c1/equipment', { index: 0, item: { charges: { current: 1, max: 7, regain: '1d6+1' } } }));
+        await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/characters/c1/equipment', { index: 0, item: { charges: { current: 1, max: 7, regain: '1d6+1' } } }, { offline: true }));
     });
 
     it('shows Markdown in item and spell text', async () => {

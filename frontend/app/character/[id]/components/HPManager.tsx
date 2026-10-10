@@ -74,7 +74,7 @@ function HPManager({ characterId, initialHP, onUpdate, conditions }: HPManagerPr
                 max: next.max,
                 temp: next.temp,
                 deathSaves: next.deathSaves ?? { successes: 0, failures: 0 },
-            }),
+            }, { offline: true }),
             errorMessage: "Couldn't update HP",
         });
     };

@@ -299,7 +299,7 @@ export default function SpellManager({ characterId, classId, level, initialSpell
 
             await api.patch(`/characters/${characterId}/spells/${spellId}/prepare`, {
                 prepared: !currentStatus
-            });
+            }, { offline: true });
             const updated = safeMySpells.map(s => s.id === spellId ? { ...s, prepared: !currentStatus } : s);
             setMySpells(updated);
             updateParent(updated, slotsUsed);

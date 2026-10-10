@@ -92,7 +92,7 @@ export default function SpellcastingSection({
                 magicInitiate={hasMagicInitiateFeat ? data.magicInitiate : undefined}
                 onMagicInitiateUpdate={(magicInitiate) => {
                     onUpdate({ magicInitiate });
-                    api.patch(`/characters/${character.id}/data`, { magicInitiate })
+                    api.patch(`/characters/${character.id}/data`, { magicInitiate }, { offline: true })
                         .catch((err) => {
                             console.error('Failed to persist Magic Initiate', err);
                             toast.error(describeError("Couldn't save Magic Initiate choices", err));
@@ -118,7 +118,7 @@ export default function SpellcastingSection({
                     if (updates.spellSlotsUsed !== undefined) slotUpdates.spellSlotsUsed = updates.spellSlotsUsed;
                     if (updates.pactSlotsUsed !== undefined) slotUpdates.pactSlotsUsed = updates.pactSlotsUsed;
                     if (Object.keys(slotUpdates).length > 0) {
-                        api.patch(`/characters/${character.id}/data`, slotUpdates)
+                        api.patch(`/characters/${character.id}/data`, slotUpdates, { offline: true })
                             .catch((err) => {
                                 console.error('Failed to save spell slots', err);
                                 toast.error(describeError("Couldn't save spell slot usage", err));

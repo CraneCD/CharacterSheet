@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api, ApiError } from '@/lib/api';
-import { clearOfflineData } from '@/lib/offline';
+import { clearOfflineData, isInstalledApp } from '@/lib/offline';
 import { Button, TextField } from '@/app/components/ui';
 
 export default function LoginPage() {
@@ -19,7 +19,8 @@ export default function LoginPage() {
         setError('');
         setSubmitting(true);
         try {
-            const res = await api.post('/auth/login', { email, password });
+            // The installed app stays signed in (until "Sign out everywhere"); a browser tab for a day
+            const res = await api.post('/auth/login', { email, password, device: isInstalledApp() });
             clearOfflineData();
             localStorage.setItem('token', res.token);
             localStorage.setItem('user', JSON.stringify(res.user));

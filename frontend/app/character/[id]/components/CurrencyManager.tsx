@@ -2,6 +2,7 @@
 
 import { useState, useEffect, memo } from 'react';
 import { api } from '@/lib/api';
+import { isQueued } from '@/lib/offlineQueue';
 import { Currency } from '@/lib/types';
 import { describeError, useToast } from '@/app/components/ui';
 
@@ -44,9 +45,11 @@ function CurrencyManager({ characterId, initialCurrency, onUpdate }: CurrencyMan
         }
         setCurrency({ ...currency, [type]: numValue });
         try {
-            const result: { currency: Currency } = await api.post(`/characters/${characterId}/currency`, { change: { [type]: change } });
-            setCurrency({ ...result.currency });
-            onUpdate(result.currency);
+            const result = await api.post(`/characters/${characterId}/currency`, { change: { [type]: change } }, { offline: true });
+            // Offline the change is queued: keep the local purse until the server's comes back
+            const purse: Currency = isQueued(result) ? { ...(initialCurrency ?? {}), [type]: numValue } : result.currency;
+            setCurrency({ ...purse });
+            onUpdate(purse);
         } catch (err) {
             setCurrency(initialCurrency ? { ...initialCurrency } : { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 });
             toast.error(describeError("Couldn't save your currency", err));

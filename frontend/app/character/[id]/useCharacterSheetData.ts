@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '@/lib/api';
+import { api, flushPendingWrites, saveOfflineCopy } from '@/lib/api';
+import { characterIdOf, FlushResult, pendingWrites, QUEUE_FLUSHED } from '@/lib/offlineQueue';
 import { CharacterData } from '@/lib/types';
 import { getCharacterSubclasses, getClassLevels, getSubclassMap } from '@/lib/subclasses';
 import { describeError, useOptimisticSave } from '@/app/components/ui/useOptimisticSave';
@@ -69,7 +70,7 @@ export function useCharacterSheetData(id: string | string[] | undefined) {
                 }
                 return { ...prev, data: restored };
             }),
-            request: () => api.patch(`/characters/${character?.id}/data`, updates),
+            request: () => api.patch(`/characters/${character?.id}/data`, updates, { offline: true }),
             errorMessage,
         });
     }, [optimisticSave, character?.id]);
@@ -84,6 +85,10 @@ export function useCharacterSheetData(id: string | string[] | undefined) {
         if (!charId) return;
         const loadData = async () => {
             try {
+                // Saves made offline go first, so the sheet loads with them merged in
+                if (navigator.onLine !== false && pendingWrites().some((w) => characterIdOf(w.endpoint) === charId)) {
+                    await flushPendingWrites();
+                }
                 if (referenceDataCache) {
                     const char = await api.get(`/characters/${charId}`);
                     setCharacter(char);
@@ -115,6 +120,24 @@ export function useCharacterSheetData(id: string | string[] | undefined) {
         };
         loadData();
     }, [id, reloadCount]);
+
+    // Reload once queued offline saves for this character reach the server
+    useEffect(() => {
+        const charId = Array.isArray(id) ? id?.[0] : id;
+        if (!charId) return;
+        const onFlushed = (e: Event) => {
+            if ((e as CustomEvent<FlushResult>).detail?.characterIds.includes(charId)) reload();
+        };
+        window.addEventListener(QUEUE_FLUSHED, onFlushed);
+        return () => window.removeEventListener(QUEUE_FLUSHED, onFlushed);
+    }, [id, reload]);
+
+    // Keep the offline copy in step with what the sheet shows (edits included)
+    useEffect(() => {
+        if (!character?.id) return;
+        const timer = setTimeout(() => void saveOfflineCopy(`/characters/${character.id}`, character), 1000);
+        return () => clearTimeout(timer);
+    }, [character]);
 
     // Load class and subclass features when character data is available
     useEffect(() => {
