@@ -13,6 +13,8 @@ const bodyFont = Alegreya_Sans({ subsets: ['latin'], weight: ['400', '500', '700
 export const metadata: Metadata = {
     title: 'D&D 5.5e Character Sheet',
     description: 'Manage your One D&D characters',
+    applicationName: 'Grulla D&D',
+    appleWebApp: { capable: true, title: 'Grulla D&D', statusBarStyle: 'black-translucent' },
 }
 
 export const viewport: Viewport = {

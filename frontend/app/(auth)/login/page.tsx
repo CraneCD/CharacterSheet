@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api, ApiError } from '@/lib/api';
+import { clearOfflineData } from '@/lib/offline';
 import { Button, TextField } from '@/app/components/ui';
 
 export default function LoginPage() {
@@ -19,6 +20,7 @@ export default function LoginPage() {
         setSubmitting(true);
         try {
             const res = await api.post('/auth/login', { email, password });
+            clearOfflineData();
             localStorage.setItem('token', res.token);
             localStorage.setItem('user', JSON.stringify(res.user));
             router.push('/dashboard');

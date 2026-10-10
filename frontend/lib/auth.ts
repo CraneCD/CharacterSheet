@@ -1,3 +1,5 @@
+import { clearOfflineData } from './offline';
+
 /** Client-side JWT payload parse (exp check only; not cryptographic verification). */
 function parseJwtPayload(token: string): { exp?: number } | null {
     try {
@@ -25,6 +27,7 @@ export function clearAuthStorage(): void {
     if (typeof window === 'undefined') return;
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    clearOfflineData();
 }
 
 /** True if the locally stored user (set at login) has admin access. Client-side only, for UI gating — the server enforces this independently on every /api/admin request. */
