@@ -618,9 +618,9 @@ export default function CharacterSheet() {
                     />
                     <div style={{ flex: 1, minWidth: 0 }}>
                         {readOnly && campaign ? (
-                            <Link href={`/campaigns/${campaign.id}`} className="no-print" style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'inline-block' }}>&larr; {campaign.name}</Link>
+                            <Link href={`/campaigns/${campaign.id}`} className="back-link no-print">&larr; {campaign.name}</Link>
                         ) : (
-                            <Link href="/dashboard" className="no-print" style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'inline-block' }}>&larr; My Characters</Link>
+                            <Link href="/dashboard" className="back-link no-print">&larr; My Characters</Link>
                         )}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                             <CharacterName name={characterName} onRename={renameCharacter} />

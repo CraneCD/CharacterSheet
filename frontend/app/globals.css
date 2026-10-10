@@ -573,6 +573,56 @@ button {
   margin: 0 var(--space-1);
 }
 
+.nav-toggle {
+  display: none;
+}
+
+/* Phones: brand + Menu button on one line; the links open below it */
+@media screen and (max-width: 767px) {
+  .nav {
+    padding: var(--space-2) 0;
+    gap: var(--space-2);
+  }
+
+  .nav-brand {
+    font-size: var(--font-size-xl);
+  }
+
+  .nav-toggle {
+    display: inline-flex;
+  }
+
+  .nav-links {
+    display: none;
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+    padding-bottom: var(--space-2);
+  }
+
+  .nav[data-open] .nav-links {
+    display: flex;
+  }
+
+  .nav-links .nav-link,
+  .nav-links .btn {
+    justify-content: flex-start;
+    font-size: var(--font-size-md);
+    font-weight: 500;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .nav-divider {
+    width: auto;
+    height: 1px;
+    margin: var(--space-1) 0;
+  }
+}
+
 @media (max-width: 640px) {
   .nav {
     margin-bottom: var(--space-4);
@@ -6228,4 +6278,122 @@ a.party-card-head:hover .party-card-name {
 
 .item-action-timings .checkbox-row {
   margin: 0;
+}
+
+/* ---------- Phones: touch targets, sheet-style dialogs, thumb-reach tracker ---------- */
+/* Touch screens: buttons and menu items at least 44px tall (40px for small buttons) */
+@media screen and (pointer: coarse) {
+  .btn {
+    min-height: 44px;
+  }
+
+  .btn-sm {
+    min-height: 40px;
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+
+  .menu-item {
+    min-height: 44px;
+  }
+
+  .modal-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .back-link,
+  .actions-basic-chip,
+  .spell-level-toggle,
+  .condition-badge-button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+  }
+
+  .spell-level-toggle {
+    display: flex;
+  }
+
+  /* Dense controls keep their size; an invisible margin widens what a finger can hit */
+  .roll-button,
+  .slot-pip {
+    position: relative;
+  }
+
+  .roll-button::before,
+  .slot-pip::before {
+    content: "";
+    position: absolute;
+    inset: -5px -3px;
+  }
+
+  .slot-pip::before {
+    inset: -6px;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  /* Dialogs: the title and the footer buttons stay in view while the body scrolls */
+  .modal-header {
+    position: sticky;
+    top: calc(-1 * var(--space-4));
+    z-index: 1;
+    margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) var(--space-4);
+    padding: var(--space-4) var(--space-4) var(--space-2);
+    background-color: var(--surface);
+    align-items: center;
+  }
+
+  .modal-footer {
+    position: sticky;
+    bottom: calc(-1 * var(--space-4));
+    z-index: 1;
+    margin: var(--space-4) calc(-1 * var(--space-4)) calc(-1 * var(--space-4));
+    padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background-color: var(--surface);
+  }
+
+  /* Sheet header: rest, level up and the menu stay on one row */
+  .sheet-actions {
+    flex-wrap: nowrap;
+    gap: var(--space-1);
+  }
+
+  .sheet-actions .btn-sm {
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+  }
+
+  /* Encounter tracker: turn controls pinned to the bottom, within thumb reach */
+  .encounter-page {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .tracker-bar {
+    position: sticky;
+    top: auto;
+    bottom: 0;
+    order: 99;
+    margin: var(--space-4) calc(-1 * var(--space-2)) 0;
+    padding: var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom));
+    gap: var(--space-2);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .tracker-round {
+    flex-basis: 100%;
+    font-size: var(--font-size-md);
+  }
+
+  .tracker-actions {
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+
+  .tracker-actions .btn {
+    flex: 1 1 auto;
+  }
 }
