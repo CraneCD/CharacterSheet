@@ -1,0 +1,8 @@
+{
+    "appId": "com.grulla.charactersheet",
+    "appName": "Grulla D&D",
+    "webDir": "out",
+    "android": {
+        "backgroundColor": "#1d1627"
+    }
+}

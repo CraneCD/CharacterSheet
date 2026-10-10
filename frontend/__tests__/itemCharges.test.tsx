@@ -4,7 +4,7 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 import { detectedCharges, itemCharges, normalizeRegain, rechargeAtDawn, withCharges } from '@/lib/itemCharges';
 import { actionItemName, buildActionRows, storedRows } from '@/lib/actionRows';
 import { planLongRest } from '@/lib/rest';
-import ItemActionDialog, { defaultActionName } from '@/app/character/[id]/components/ItemActionDialog';
+import ItemActionDialog, { defaultActionName } from '@/app/character/components/ItemActionDialog';
 import { ToastProvider } from '@/app/components/ui';
 import type { CharacterItem } from '@/lib/types';
 

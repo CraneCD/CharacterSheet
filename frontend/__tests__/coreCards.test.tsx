@@ -4,10 +4,10 @@ import { useState } from 'react';
 import { DiceProvider, RollButton } from '@/app/components/dice/DiceTray';
 import { ToastProvider } from '@/app/components/ui/Toast';
 import { ActiveConditions } from '@/lib/conditions';
-import ConditionsCard from '@/app/character/[id]/components/sections/ConditionsCard';
-import NotesCard from '@/app/character/[id]/components/sections/NotesCard';
-import SensesCard from '@/app/character/[id]/components/sections/SensesCard';
-import { CoreCardId, useCoreColumnFit } from '@/app/character/[id]/useCoreColumnFit';
+import ConditionsCard from '@/app/character/components/sections/ConditionsCard';
+import NotesCard from '@/app/character/components/sections/NotesCard';
+import SensesCard from '@/app/character/components/sections/SensesCard';
+import { CoreCardId, useCoreColumnFit } from '@/app/character/useCoreColumnFit';
 
 const collapse = { collapsed: false, onToggle: () => {} };
 

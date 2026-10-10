@@ -1,6 +1,9 @@
 import type { MetadataRoute } from 'next'
 
 /** Web app manifest: lets Chrome install the app to the home screen as Grulla D&D. */
+// Generated at build time (the Android app's static build needs it fixed)
+export const dynamic = 'force-static';
+
 export default function manifest(): MetadataRoute.Manifest {
     return {
         id: '/',

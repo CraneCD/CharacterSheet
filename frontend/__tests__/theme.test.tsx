@@ -3,8 +3,8 @@ import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import { classColorStyle, classColorVar } from '@/lib/classColors';
 import CharacterToken from '@/app/components/ui/CharacterToken';
-import PortraitUpload from '@/app/character/[id]/components/PortraitUpload';
-import AbilityScoresCard from '@/app/character/[id]/components/sections/AbilityScoresCard';
+import PortraitUpload from '@/app/character/components/PortraitUpload';
+import AbilityScoresCard from '@/app/character/components/sections/AbilityScoresCard';
 
 expect.extend(toHaveNoViolations);
 

@@ -7,15 +7,22 @@
         "build": "next build",
         "start": "next start",
         "lint": "eslint .",
-        "test": "jest"
+        "test": "jest",
+        "build:app": "NEXT_PUBLIC_APP_BUILD=1 next build && cap sync android"
     },
     "dependencies": {
+        "@capacitor/android": "^8.5.3",
+        "@capacitor/app": "^8.1.2",
+        "@capacitor/core": "^8.5.3",
+        "@capacitor/filesystem": "^8.1.4",
+        "@capacitor/share": "^8.0.3",
         "next": "16.2.1",
         "react": "18.3.1",
         "react-dom": "18.3.1",
         "react-hook-form": "^7.49.2"
     },
     "devDependencies": {
+        "@capacitor/cli": "^8.5.3",
         "@testing-library/jest-dom": "^6.9.1",
         "@testing-library/react": "^16.3.0",
         "@types/jest-axe": "^3.5.9",

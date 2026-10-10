@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
-import ActionsCard from '@/app/character/[id]/components/ActionsCard';
+import ActionsCard from '@/app/character/components/ActionsCard';
 import { DiceProvider } from '@/app/components/dice/DiceTray';
 import { getWeaponAttacks } from '@/lib/attacks';
 import { api } from '@/lib/api';

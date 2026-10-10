@@ -2,10 +2,10 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { calculateArmorClass } from '@/lib/armorClass';
 import { getSpellcastingSetup } from '@/lib/spellcastingSetup';
-import { resolveClassResources } from '@/app/character/[id]/components/sections/ClassResourcesSection';
-import SkillsCard from '@/app/character/[id]/components/sections/SkillsCard';
-import SavingThrowsCard from '@/app/character/[id]/components/sections/SavingThrowsCard';
-import LanguagesCard from '@/app/character/[id]/components/sections/LanguagesCard';
+import { resolveClassResources } from '@/app/character/components/sections/ClassResourcesSection';
+import SkillsCard from '@/app/character/components/sections/SkillsCard';
+import SavingThrowsCard from '@/app/character/components/sections/SavingThrowsCard';
+import LanguagesCard from '@/app/character/components/sections/LanguagesCard';
 import { RESOURCE_RULES_VERSION } from '@/lib/classResources';
 
 jest.mock('@/lib/api', () => ({ api: { patch: jest.fn().mockResolvedValue({}) } }));

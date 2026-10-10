@@ -5,6 +5,7 @@ import AuthGuard from './components/AuthGuard'
 import AppShell from './components/AppShell'
 import { ToastProvider } from './components/ui/Toast'
 import { THEME_INIT_SCRIPT } from '@/lib/theme'
+import { APP_ROUTING_SCRIPT } from '@/lib/nativeApp'
 
 // Alegreya SC for names and titles, Alegreya Sans for everything else (see --font-* in globals.css)
 const displayFont = Alegreya_SC({ subsets: ['latin'], weight: ['700', '800'], variable: '--font-display-face', display: 'swap' })
@@ -35,6 +36,8 @@ export default function RootLayout({
         // data-theme is set before hydration by THEME_INIT_SCRIPT
         <html lang="en" className={`${displayFont.variable} ${bodyFont.variable}`} suppressHydrationWarning>
             <head>
+                {/* The Android app's static build only (npm run build:app) */}
+                {process.env.NEXT_PUBLIC_APP_BUILD === '1' && <script dangerouslySetInnerHTML={{ __html: APP_ROUTING_SCRIPT }} />}
                 <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
             </head>
             <body>

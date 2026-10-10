@@ -47,7 +47,7 @@ describe('Dashboard', () => {
         expect(within(card).getByText('Level 3 Dwarf Fighter')).toBeInTheDocument();
         expect(within(card).getByText('12/31 HP')).toBeInTheDocument();
         expect(within(card).getByText('Edited 2 days ago')).toBeInTheDocument();
-        expect(within(card).getByRole('link')).toHaveAttribute('href', '/character/1');
+        expect(within(card).getByRole('link')).toHaveAttribute('href', '/character?id=1');
     });
 
     it('asks before deleting and confirms with a toast', async () => {

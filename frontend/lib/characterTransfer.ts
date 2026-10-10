@@ -1,4 +1,5 @@
 /** Export a character as a JSON file, and parse/validate one for import (preview before saving). */
+import { saveJsonFile } from './nativeApp';
 
 export interface ImportPayload {
     name: string;
@@ -63,15 +64,9 @@ export function exportFileName(name: string | undefined): string {
     return `${base || 'character'}.json`;
 }
 
-/** Download a character as JSON (the format parseCharacterImport accepts). */
-export function downloadCharacterJson(character: { name?: string }): void {
-    const blob = new Blob([JSON.stringify(character, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = exportFileName(character.name);
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+/** Download a character as JSON (the format parseCharacterImport accepts); the share sheet in the Android app. */
+export function downloadCharacterJson(character: { name?: string }): Promise<void> {
+    return saveJsonFile(exportFileName(character.name), character);
 }
 
 /** "half-elf" → "Half-Elf", "fighter" → "Fighter" (stored ids shown as names). */

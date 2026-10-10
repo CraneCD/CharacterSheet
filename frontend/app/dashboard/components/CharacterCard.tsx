@@ -6,6 +6,7 @@ import { classColorStyle } from '@/lib/classColors';
 import { getHpStatus } from '@/lib/hp';
 import { displayName } from '@/lib/characterTransfer';
 import { formatRelativeTime } from '@/lib/relativeTime';
+import { characterHref } from '@/lib/routes';
 
 export interface CharacterSummary {
     id: string;
@@ -32,7 +33,7 @@ export default function CharacterCard({ character, onExport, onDelete }: Charact
 
     return (
         <article className={`card character-card hp-${status}`} style={classColorStyle(character.class)}>
-            <Link href={`/character/${character.id}`} className="character-card-link">
+            <Link href={characterHref(character.id)} className="character-card-link">
                 <CharacterToken
                     name={character.name || '?'}
                     portrait={character.data?.portrait}

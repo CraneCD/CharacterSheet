@@ -2,6 +2,7 @@
  * Offline support: the service worker (public/sw.js) caches pages, built assets and
  * API reads so a sheet opened before can be opened again without a connection.
  */
+import { isNativeApp } from './nativeApp';
 import { clearQueue } from './offlineQueue';
 
 /** Cache holding API responses; must match API_CACHE in public/sw.js. */
@@ -27,7 +28,6 @@ export function clearOfflineData(): void {
 /** True in the installed app (home-screen web app now, the Android APK later), not a browser tab. */
 export function isInstalledApp(): boolean {
     if (typeof window === 'undefined') return false;
-    const native = (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
-    if (native?.isNativePlatform?.()) return true;
+    if (isNativeApp()) return true;
     return typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches;
 }

@@ -107,7 +107,7 @@ export default function Dashboard() {
     const exportCharacter = async (char: CharacterSummary) => {
         try {
             // The list only carries a summary; export the full sheet
-            downloadCharacterJson(await api.get(`/characters/${char.id}`));
+            await downloadCharacterJson(await api.get(`/characters/${char.id}`));
         } catch (err) {
             console.error('Failed to export character', err);
             toast.error(describeError(`Couldn't export "${char.name}"`, err));

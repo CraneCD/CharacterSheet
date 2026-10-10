@@ -4,6 +4,7 @@
  * is the source of truth and validates on import). This reads a file in the
  * browser to preview it and catch obvious mistakes before uploading.
  */
+import { saveJsonFile } from './nativeApp';
 
 export const PREP_FORMAT = 'dnd55e-campaign-prep';
 export const PREP_VERSION = 1;
@@ -88,14 +89,9 @@ export function prepFileName(name: string): string {
     return `${base || 'campaign'}.prep.json`;
 }
 
-export function downloadPrep(prep: { campaign?: { name?: string } }): void {
-    const blob = new Blob([JSON.stringify(prep, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = prepFileName(prep.campaign?.name ?? 'campaign');
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+/** Download the prep file (the share sheet in the Android app). */
+export function downloadPrep(prep: { campaign?: { name?: string } }): Promise<void> {
+    return saveJsonFile(prepFileName(prep.campaign?.name ?? 'campaign'), prep);
 }
 
 /** Loot rarities offered in the item form (free text is allowed too). */

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { REFERENCE_TYPES, TYPE_LABELS, ReferenceType } from '@/lib/adminReference';
+import { adminTypeHref } from '@/lib/routes';
 
 export default function AdminHome() {
     const [counts, setCounts] = useState<Record<string, number>>({});
@@ -34,7 +35,7 @@ export default function AdminHome() {
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
                     {REFERENCE_TYPES.map(type => (
-                        <Link key={type} href={`/admin/${type}`} className="card" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
+                        <Link key={type} href={adminTypeHref(type)} className="card" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
                             <div style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '0.25rem' }}>{TYPE_LABELS[type]}</div>
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{counts[type] ?? 0} entries</div>
                         </Link>

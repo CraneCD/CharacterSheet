@@ -11,39 +11,43 @@ import Dashboard from '@/app/dashboard/page';
 import { ToastProvider } from '@/app/components/ui/Toast';
 import ConfirmDialog from '@/app/components/ui/ConfirmDialog';
 import Menu from '@/app/components/ui/Menu';
-import HPManager from '@/app/character/[id]/components/HPManager';
-import AbilityScoresCard from '@/app/character/[id]/components/sections/AbilityScoresCard';
-import SkillsCard from '@/app/character/[id]/components/sections/SkillsCard';
-import SavingThrowsCard from '@/app/character/[id]/components/sections/SavingThrowsCard';
-import LanguagesCard from '@/app/character/[id]/components/sections/LanguagesCard';
-import SensesCard from '@/app/character/[id]/components/sections/SensesCard';
-import ProficienciesCard from '@/app/character/[id]/components/sections/ProficienciesCard';
-import ConditionsCard from '@/app/character/[id]/components/sections/ConditionsCard';
-import NotesCard from '@/app/character/[id]/components/sections/NotesCard';
-import SpellFilterBar from '@/app/character/[id]/components/SpellFilterBar';
-import SlotPips from '@/app/character/[id]/components/SlotPips';
-import { ShortRestDialog } from '@/app/character/[id]/components/RestDialogs';
+import HPManager from '@/app/character/components/HPManager';
+import AbilityScoresCard from '@/app/character/components/sections/AbilityScoresCard';
+import SkillsCard from '@/app/character/components/sections/SkillsCard';
+import SavingThrowsCard from '@/app/character/components/sections/SavingThrowsCard';
+import LanguagesCard from '@/app/character/components/sections/LanguagesCard';
+import SensesCard from '@/app/character/components/sections/SensesCard';
+import ProficienciesCard from '@/app/character/components/sections/ProficienciesCard';
+import ConditionsCard from '@/app/character/components/sections/ConditionsCard';
+import NotesCard from '@/app/character/components/sections/NotesCard';
+import SpellFilterBar from '@/app/character/components/SpellFilterBar';
+import SlotPips from '@/app/character/components/SlotPips';
+import { ShortRestDialog } from '@/app/character/components/RestDialogs';
 import WizardStepper from '@/app/create/components/WizardStepper';
 import StepAbilities from '@/app/create/components/StepAbilities';
 import { EMPTY_SPELL_FILTERS } from '@/lib/spellFilters';
 import { api } from '@/lib/api';
 import CampaignsPage from '@/app/campaigns/page';
-import CampaignPage from '@/app/campaigns/[id]/page';
-import EncounterPage from '@/app/campaigns/[id]/encounters/[encounterId]/page';
+import CampaignPage from '@/app/campaigns/view/page';
+import EncounterPage from '@/app/campaigns/encounter/page';
 import JoinCampaignDialog from '@/app/campaigns/components/JoinCampaignDialog';
 import MonsterForm from '@/app/campaigns/components/MonsterForm';
-import BestiaryPanel from '@/app/campaigns/[id]/components/BestiaryPanel';
-import SessionsPanel from '@/app/campaigns/[id]/components/SessionsPanel';
-import LootPanel from '@/app/campaigns/[id]/components/LootPanel';
+import BestiaryPanel from '@/app/campaigns/view/components/BestiaryPanel';
+import SessionsPanel from '@/app/campaigns/view/components/SessionsPanel';
+import LootPanel from '@/app/campaigns/view/components/LootPanel';
 import ImportPrepDialog from '@/app/campaigns/components/ImportPrepDialog';
-import GiveLootDialog from '@/app/campaigns/[id]/components/GiveLootDialog';
+import GiveLootDialog from '@/app/campaigns/view/components/GiveLootDialog';
 
 expect.extend(toHaveNoViolations);
 
+// The page's query string: the hub reads ?id=, the tracker ?campaign=&id=
+const mockQuery = { value: 'id=camp-1' };
+const hubQuery = 'id=camp-1';
+const trackerQuery = 'campaign=camp-1&id=enc-1';
 jest.mock('next/navigation', () => ({
     useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
     usePathname: () => '/dashboard',
-    useParams: () => ({ id: 'camp-1', encounterId: 'enc-1' }),
+    useSearchParams: () => new URLSearchParams(mockQuery.value),
 }));
 jest.mock('@/lib/api', () => ({
     api: { get: jest.fn(), post: jest.fn(), put: jest.fn(), patch: jest.fn(), delete: jest.fn() },
@@ -55,6 +59,7 @@ async function expectNoViolations(container: Element = document.body) {
 }
 
 describe('accessibility (axe)', () => {
+    afterEach(() => { mockQuery.value = hubQuery; });
     it('login and register forms', async () => {
         const { container, unmount } = render(<ToastProvider><LoginPage /></ToastProvider>);
         await expectNoViolations(container);
@@ -210,6 +215,7 @@ describe('accessibility (axe)', () => {
         });
 
         it('combat tracker with a stat block', async () => {
+            mockQuery.value = trackerQuery;
             const { container } = render(<ToastProvider><main><EncounterPage /></main></ToastProvider>);
             await screen.findByRole('button', { name: /Roll Zombie: Slam/ });
             await expectNoViolations(container);
