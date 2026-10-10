@@ -3,9 +3,9 @@ import { useState } from 'react';
 import '@testing-library/jest-dom';
 import Menu from '@/app/components/ui/Menu';
 import { ToastProvider } from '@/app/components/ui/Toast';
-import HPManager from '@/app/character/[id]/components/HPManager';
-import { LongRestDialog, ShortRestDialog } from '@/app/character/[id]/components/RestDialogs';
-import SheetTabs, { SheetTabId } from '@/app/character/[id]/components/SheetTabs';
+import HPManager from '@/app/character/components/HPManager';
+import { LongRestDialog, ShortRestDialog } from '@/app/character/components/RestDialogs';
+import SheetTabs, { SheetTabId } from '@/app/character/components/SheetTabs';
 import { api } from '@/lib/api';
 
 jest.mock('@/lib/api', () => ({

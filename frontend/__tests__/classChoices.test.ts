@@ -12,7 +12,7 @@ import {
 } from '@/lib/classChoices';
 import { getPactMagic } from '@/lib/spellSlots';
 import { getSpellcastingClasses, calculateMulticlassSpellcasterLevel } from '@/lib/multiclassSpellcasting';
-import { choicesComplete, getChoiceCandidates } from '@/app/character/[id]/components/ClassChoicesPicker';
+import { choicesComplete, getChoiceCandidates } from '@/app/character/components/ClassChoicesPicker';
 import { ClassInfo } from '@/lib/types';
 
 const kinds = (classId: string, level: number, sub?: string) => getClassChoices(classId, level, sub).map(c => `${c.key}x${c.count}`);

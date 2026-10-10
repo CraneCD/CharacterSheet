@@ -46,6 +46,8 @@ if (!isProduction) {
 const allowedOrigins = [
     'http://localhost:3000',
     'https://character-sheet-frontend.vercel.app',
+    // The Android app (Capacitor serves its bundled pages from this origin)
+    'https://localhost',
     process.env.FRONTEND_URL
 ].filter(Boolean); // Remove undefined values
 

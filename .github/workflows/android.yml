@@ -1,0 +1,90 @@
+name: Android app
+
+# Builds the Grulla D&D APK (frontend/android, Capacitor).
+# - Pull requests: a debug APK, to check the app still builds.
+# - main and manual runs: a release APK signed with Edo's key, when the signing secrets are set.
+#
+# Repository settings (Settings → Secrets and variables → Actions):
+#   Variable  APP_API_URL                 the Render backend, e.g. https://<service>.onrender.com/api
+#   Secret    ANDROID_KEYSTORE_BASE64     the release keystore (.jks), base64-encoded
+#   Secret    ANDROID_KEYSTORE_PASSWORD
+#   Secret    ANDROID_KEY_ALIAS
+#   Secret    ANDROID_KEY_PASSWORD
+# Keep using the same keystore: Android only installs an update signed with the same key.
+
+on:
+  push:
+    branches: [main]
+    paths: ['frontend/**', '.github/workflows/android.yml', 'package-lock.json']
+  pull_request:
+    paths: ['frontend/**', '.github/workflows/android.yml', 'package-lock.json']
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      APP_VERSION_CODE: ${{ github.run_number }}
+      APP_VERSION_NAME: 1.0.${{ github.run_number }}
+      SIGN: ${{ github.event_name != 'pull_request' && secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # The Capacitor CLI needs Node 22+
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - run: npm ci
+
+      - name: Build the app's pages and copy them into the Android project
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.APP_API_URL }}
+        run: |
+          if [ -z "$NEXT_PUBLIC_API_URL" ]; then
+            if [ "$SIGN" = "true" ]; then
+              echo "::error::Set the APP_API_URL repository variable to the Render backend URL (ending in /api)."
+              exit 1
+            fi
+            echo "::warning::APP_API_URL isn't set; this test build talks to http://localhost:3001/api."
+          fi
+          npm run build:app
+
+      - name: Build a debug APK
+        if: env.SIGN != 'true'
+        working-directory: frontend/android
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Build a signed release APK
+        if: env.SIGN == 'true'
+        working-directory: frontend/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/release.jks"
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          ./gradlew --no-daemon assembleRelease
+          rm -f "$ANDROID_KEYSTORE_PATH"
+
+      - name: Name the APK
+        run: |
+          mkdir -p dist
+          if [ "$SIGN" = "true" ]; then
+            cp frontend/android/app/build/outputs/apk/release/app-release.apk "dist/grulla-dnd-$APP_VERSION_NAME.apk"
+          else
+            cp frontend/android/app/build/outputs/apk/debug/app-debug.apk "dist/grulla-dnd-$APP_VERSION_NAME-debug.apk"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grulla-dnd-${{ env.APP_VERSION_NAME }}
+          path: dist/*.apk
+          retention-days: 30

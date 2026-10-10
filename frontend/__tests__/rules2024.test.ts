@@ -6,7 +6,7 @@ import { itemNameToCharacterItem, optionsFromLine, parseCurrency, splitEquipment
 import { getSkillProficienciesFromTraits, hasKeenSensesChoice } from '@/lib/racialTraitBonuses';
 import { getAbilityScoreIncreasesFromFeatures, getSavingThrowProficienciesFromFeatures, calculateSpeedBonusFromFeatures, getACCalculationFromFeatures } from '@/lib/featureStatModifiers';
 import { getMasteryForWeapon } from '@/lib/weaponMastery';
-import { isFeatAvailable, getFightingStyleForLevel } from '@/app/character/[id]/components/LevelUpWizard';
+import { isFeatAvailable, getFightingStyleForLevel } from '@/app/character/components/LevelUpWizard';
 
 const lv = (fn: (level: number) => number) => Array.from({ length: 20 }, (_, i) => fn(i + 1));
 

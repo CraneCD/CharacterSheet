@@ -7,6 +7,7 @@ import { isAdminPath, isProtectedPath } from './AuthGuard';
 import ThemeToggle from './ui/ThemeToggle';
 import D20Icon from './ui/D20Icon';
 import OfflineSupport from './OfflineSupport';
+import { listenForBackButton } from '@/lib/nativeApp';
 
 /** Character pages (list, creation, sheets) all live under "My Characters". */
 function isCharactersPath(pathname: string): boolean {
@@ -89,6 +90,9 @@ export function AppNav() {
 export default function AppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const showNav = isProtectedPath(pathname);
+
+    // Android's back button closes dialogs first, then goes back (the app only)
+    useEffect(() => listenForBackButton(), []);
 
     return (
         <main className="container">

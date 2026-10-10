@@ -4,8 +4,8 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 import { defaultSpeed, overrideToStore, resolveOverride } from '@/lib/sheetDefaults';
 import { EditableStat } from '@/app/components/ui';
 import { useState } from 'react';
-import LimitedUsesCard from '@/app/character/[id]/components/LimitedUsesCard';
-import { defaultResourceMaximums, LimitedUsesProvider } from '@/app/character/[id]/components/sections/ClassResourcesSection';
+import LimitedUsesCard from '@/app/character/components/LimitedUsesCard';
+import { defaultResourceMaximums, LimitedUsesProvider } from '@/app/character/components/sections/ClassResourcesSection';
 import { RESOURCE_RULES_VERSION } from '@/lib/classResources';
 import { api } from '@/lib/api';
 

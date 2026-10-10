@@ -1,24 +1,28 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import CampaignsPage from '@/app/campaigns/page';
-import CampaignPage from '@/app/campaigns/[id]/page';
-import EncounterPage from '@/app/campaigns/[id]/encounters/[encounterId]/page';
-import HPManager from '@/app/character/[id]/components/HPManager';
-import SkillsCard from '@/app/character/[id]/components/sections/SkillsCard';
-import { SheetReadOnlyProvider } from '@/app/character/[id]/SheetReadOnly';
+import CampaignPage from '@/app/campaigns/view/page';
+import EncounterPage from '@/app/campaigns/encounter/page';
+import HPManager from '@/app/character/components/HPManager';
+import SkillsCard from '@/app/character/components/sections/SkillsCard';
+import { SheetReadOnlyProvider } from '@/app/character/SheetReadOnly';
 import { ToastProvider } from '@/app/components/ui/Toast';
 import { api } from '@/lib/api';
-import LootPanel from '@/app/campaigns/[id]/components/LootPanel';
-import SessionsPanel from '@/app/campaigns/[id]/components/SessionsPanel';
+import LootPanel from '@/app/campaigns/view/components/LootPanel';
+import SessionsPanel from '@/app/campaigns/view/components/SessionsPanel';
 import ImportPrepDialog from '@/app/campaigns/components/ImportPrepDialog';
-import CurrencyManager from '@/app/character/[id]/components/CurrencyManager';
-import LootSync from '@/app/character/[id]/LootSync';
+import CurrencyManager from '@/app/character/components/CurrencyManager';
+import LootSync from '@/app/character/LootSync';
 
 const push = jest.fn();
+// The page's query string: the hub reads ?id=, the tracker ?campaign=&id=
+const mockQuery = { value: 'id=camp-1' };
+const hubQuery = 'id=camp-1';
+const trackerQuery = 'campaign=camp-1&id=enc-1';
 jest.mock('next/navigation', () => ({
     useRouter: () => ({ push, replace: jest.fn() }),
     usePathname: () => '/campaigns',
-    useParams: () => ({ id: 'camp-1', encounterId: 'enc-1' }),
+    useSearchParams: () => new URLSearchParams(mockQuery.value),
 }));
 jest.mock('@/lib/api', () => ({
     api: { get: jest.fn(), post: jest.fn(), put: jest.fn(), patch: jest.fn(), delete: jest.fn() },
@@ -107,7 +111,7 @@ describe('campaign list', () => {
         expect(screen.getByText('Tordek will leave Old Game.')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Join' }));
         await waitFor(() => expect(mockApi.post).toHaveBeenCalledWith('/campaigns/join', { joinCode: 'ABC234', characterId: 'c1' }));
-        expect(push).toHaveBeenCalledWith('/campaigns/camp-9');
+        expect(push).toHaveBeenCalledWith('/campaigns/view?id=camp-9');
     });
 });
 
@@ -119,7 +123,7 @@ describe('campaign hub', () => {
         expect(screen.getByText('9/28 HP')).toBeInTheDocument();
         expect(screen.getByText('Poisoned')).toBeInTheDocument();
         expect(screen.getByText('ABC-234')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /Open Ireena's sheet/ })).toHaveAttribute('href', '/character/char-1');
+        expect(screen.getByRole('link', { name: /Open Ireena's sheet/ })).toHaveAttribute('href', '/character?id=char-1');
         expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Party', 'Sessions', 'Encounters', 'Loot', 'Bestiary', 'Notes']);
     });
 
@@ -148,6 +152,8 @@ describe('campaign hub', () => {
 });
 
 describe('combat tracker', () => {
+    beforeEach(() => { mockQuery.value = trackerQuery; });
+    afterEach(() => { mockQuery.value = hubQuery; });
     beforeEach(() => {
         routeGets({
             '/campaigns/camp-1/encounters/enc-1': encounter,

@@ -10,11 +10,12 @@ import CreateCampaignDialog from './components/CreateCampaignDialog';
 import JoinCampaignDialog from './components/JoinCampaignDialog';
 import ImportPrepDialog from './components/ImportPrepDialog';
 import { describePrepCounts } from '@/lib/campaignPrep';
+import { campaignHref } from '@/lib/routes';
 
 function CampaignCard({ campaign }: { campaign: CampaignSummary }) {
     const players = campaign.memberCount === 1 ? '1 player' : `${campaign.memberCount} players`;
     return (
-        <Link href={`/campaigns/${campaign.id}`} className="card campaign-card">
+        <Link href={campaignHref(campaign.id)} className="card campaign-card">
             <div className="campaign-card-top">
                 <span className={`role-badge role-${campaign.role}`}>{campaign.role === 'dm' ? 'Dungeon Master' : 'Player'}</span>
                 {campaign.activeEncounter && <span className="live-badge">In combat</span>}
@@ -117,7 +118,7 @@ export default function CampaignsPage() {
                     onClose={() => setDialog(null)}
                     onCreated={(campaign) => {
                         toast.success(`Created "${campaign.name}". Share the join code with your players.`);
-                        router.push(`/campaigns/${campaign.id}`);
+                        router.push(campaignHref(campaign.id));
                     }}
                 />
             )}
@@ -127,7 +128,7 @@ export default function CampaignsPage() {
                     onImported={({ campaign, counts }) => {
                         if (!campaign) return;
                         toast.success(`Created "${campaign.name}" with ${describePrepCounts(counts)}.`);
-                        router.push(`/campaigns/${campaign.id}`);
+                        router.push(campaignHref(campaign.id));
                     }}
                 />
             )}
@@ -136,7 +137,7 @@ export default function CampaignsPage() {
                     onClose={() => setDialog(null)}
                     onJoined={(campaign) => {
                         toast.success(`Joined "${campaign.name}".`);
-                        router.push(`/campaigns/${campaign.id}`);
+                        router.push(campaignHref(campaign.id));
                     }}
                 />
             )}

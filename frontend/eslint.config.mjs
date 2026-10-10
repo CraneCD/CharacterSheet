@@ -5,6 +5,8 @@ const require = createRequire(import.meta.url);
 const nextConfigs = require('eslint-config-next/core-web-vitals');
 
 const eslintConfig = [
+    // The Android app's static build and native project (npm run build:app)
+    { ignores: ['out/**', 'android/**'] },
     ...nextConfigs,
     {
         rules: {

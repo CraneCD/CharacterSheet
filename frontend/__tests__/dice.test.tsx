@@ -3,7 +3,7 @@ import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import { announceRoll, describeRoll, formatBonus, parseDice, rollD20, rollDamage, rollDie } from '@/lib/dice';
 import { DiceProvider, RollButton } from '@/app/components/dice/DiceTray';
-import SkillsCard from '@/app/character/[id]/components/sections/SkillsCard';
+import SkillsCard from '@/app/character/components/sections/SkillsCard';
 
 expect.extend(toHaveNoViolations);
 

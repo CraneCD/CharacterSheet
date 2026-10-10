@@ -2,8 +2,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import '@testing-library/jest-dom';
 import { EMPTY_SPELL_FILTERS, hasActiveSpellFilters, isConcentration, schoolsOf, SpellFilters, spellMatches } from '@/lib/spellFilters';
-import SpellFilterBar from '@/app/character/[id]/components/SpellFilterBar';
-import SlotPips from '@/app/character/[id]/components/SlotPips';
+import SpellFilterBar from '@/app/character/components/SpellFilterBar';
+import SlotPips from '@/app/character/components/SlotPips';
 
 const bless = { name: 'Bless', level: 1, school: 'Enchantment', prepared: true };
 const blessDetails = { duration: 'Concentration, up to 1 minute', description: 'You bless up to three creatures.', castingTime: 'Action', range: '30 feet', components: 'V, S, M' };

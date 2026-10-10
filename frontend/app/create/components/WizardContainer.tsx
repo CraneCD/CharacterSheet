@@ -14,10 +14,11 @@ import { hasDwarvenToughness, hasResourceful, hasSkillful, hasVersatile, hasKeen
 import { getRaceTraits, getBackgroundSkills, getBackgroundAbilityOptions, isValidBackgroundAsi, getRaceLanguages, getRaceLanguageChoices, getSpeciesSpellEntries, KOBOLD_SORCERY, speciesSpellAbility } from '@/lib/wizardReference';
 import { splitEquipmentChoice, itemNameToCharacterItem, parseCurrency } from '@/lib/equipmentMapping';
 import { buildChoicePayload, getClassChoices } from '@/lib/classChoices';
-import ClassChoicesPicker, { choicesComplete } from '@/app/character/[id]/components/ClassChoicesPicker';
+import ClassChoicesPicker, { choicesComplete } from '@/app/character/components/ClassChoicesPicker';
 import { Button, ConfirmDialog, describeError, Skeleton, useToast } from '@/app/components/ui';
 import { clearDraft, hasDraftProgress, loadDraft, saveDraft } from '@/lib/characterDraft';
 import { formatRelativeTime } from '@/lib/relativeTime';
+import { characterHref } from '@/lib/routes';
 
 type Currency = { cp?: number; sp?: number; ep?: number; gp?: number; pp?: number };
 
@@ -314,7 +315,7 @@ export default function WizardContainer() {
             const created = await api.post('/characters', payload);
             clearDraft();
             toast.success(`Created ${formData.name || 'your character'}.`);
-            router.push(created?.id ? `/character/${created.id}` : '/dashboard');
+            router.push(created?.id ? characterHref(created.id) : '/dashboard');
         } catch (err) {
             console.error('Failed to create character', err);
             toast.error(describeError("Couldn't create character. Please check your choices", err));
