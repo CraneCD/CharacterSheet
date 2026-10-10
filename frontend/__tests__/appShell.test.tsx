@@ -41,6 +41,20 @@ describe('AppShell', () => {
         expect(screen.getByRole('link', { name: 'My Characters' })).not.toHaveAttribute('aria-current');
     });
 
+    it('opens and closes the phone menu with its toggle', () => {
+        render(<AppShell><p>Page</p></AppShell>);
+        const nav = screen.getByRole('navigation', { name: 'Main' });
+        const toggle = screen.getByRole('button', { name: 'Menu' });
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        expect(toggle).toHaveAttribute('aria-controls', 'main-nav-links');
+        expect(nav).not.toHaveAttribute('data-open');
+        fireEvent.click(toggle);
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(nav).toHaveAttribute('data-open', 'true');
+        fireEvent.click(toggle);
+        expect(nav).not.toHaveAttribute('data-open');
+    });
+
     it('hides the nav on public pages', () => {
         pathname = '/login';
         render(<AppShell><p>Login</p></AppShell>);
