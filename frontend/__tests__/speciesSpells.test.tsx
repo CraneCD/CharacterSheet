@@ -116,7 +116,7 @@ describe('Spells tab free casts', () => {
 
         fireEvent.click(within(pips).getByRole('button', { name: 'Use 1' }));
         await waitFor(() => expect(screen.getByRole('group', { name: 'Faerie Fire uses: 0 of 1 left' })).toBeInTheDocument());
-        expect(api.patch).toHaveBeenCalledWith('/characters/c1/class-resources', { resourceName: 'Faerie Fire', current: 0 });
+        expect(api.patch).toHaveBeenCalledWith('/characters/c1/class-resources', { resourceName: 'Faerie Fire', current: 0 }, { offline: true });
         expect(await axe(container)).toHaveNoViolations();
     });
 });

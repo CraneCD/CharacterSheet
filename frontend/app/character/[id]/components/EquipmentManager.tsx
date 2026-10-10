@@ -141,7 +141,7 @@ export default function EquipmentManager({
             };
             await api.post(`/characters/${characterId}/equipment`, {
                 item: itemToAdd
-            });
+            }, { offline: true });
             const newEquipment = [...equipment, itemToAdd];
             setEquipment(newEquipment);
             onUpdate(newEquipment);
@@ -174,7 +174,7 @@ export default function EquipmentManager({
             };
             await api.post(`/characters/${characterId}/equipment`, {
                 item: itemToAdd
-            });
+            }, { offline: true });
             const newEquipment = [...equipment, itemToAdd];
             setEquipment(newEquipment);
             onUpdate(newEquipment);
@@ -189,7 +189,8 @@ export default function EquipmentManager({
     const handleRemove = async (index: number) => {
         try {
             await api.delete(`/characters/${characterId}/equipment`, {
-                data: { index }
+                data: { index },
+                offline: true,
             });
             const newEquipment = [...equipment];
             newEquipment.splice(index, 1);
@@ -216,7 +217,7 @@ export default function EquipmentManager({
             ? { ...rest, baseItemId: base.id, equipped: false, quantity: bundle }
             : { name, category: 'miscellaneous', type: 'other', equipped: false, isBaseItem: false, quantity: bundle };
         try {
-            await api.post(`/characters/${characterId}/equipment`, { item: itemToAdd });
+            await api.post(`/characters/${characterId}/equipment`, { item: itemToAdd }, { offline: true });
             const newEquipment = [...equipment, itemToAdd];
             setEquipment(newEquipment);
             onUpdate(newEquipment);
@@ -249,7 +250,7 @@ export default function EquipmentManager({
             await api.patch(`/characters/${characterId}/equipment`, {
                 index,
                 item: { equipped: newEquipped }
-            });
+            }, { offline: true });
             const newEquipment = [...equipment];
             const current = newEquipment[index];
             const currentObj = typeof current === 'string' ? { name: current } : current;
@@ -267,7 +268,7 @@ export default function EquipmentManager({
             await api.patch(`/characters/${characterId}/equipment`, {
                 index,
                 item: updates
-            });
+            }, { offline: true });
             const newEquipment = [...equipment];
             const current = newEquipment[index];
             const currentObj = typeof current === 'string' ? { name: current } : current;

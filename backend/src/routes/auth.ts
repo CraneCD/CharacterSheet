@@ -23,7 +23,27 @@ const changePasswordSchema = z.object({
 const loginSchema = z.object({
     email: z.string().email(),
     password: z.string().min(1),
+    /** The installed app asks for a token that doesn't expire (revoked through tokenVersion) */
+    device: z.boolean().optional(),
 });
+
+type TokenUser = { id: string; email: string; isAdmin: boolean; tokenVersion: number };
+
+/**
+ * Browser sessions last a day; app tokens don't expire. Both carry the account's
+ * tokenVersion (`tv`), so bumping it ("Sign out everywhere", a new password) ends them all.
+ */
+function signToken(user: TokenUser, device: boolean): string {
+    const claims = { id: user.id, email: user.email, isAdmin: user.isAdmin, tv: user.tokenVersion };
+    return device ? jwt.sign(claims, getJwtSecret()) : jwt.sign(claims, getJwtSecret(), { expiresIn: '1d' });
+}
+
+/** True when the request was made with an app (non-expiring) token. */
+function usesDeviceToken(req: AuthRequest): boolean {
+    const token = String(req.headers['authorization'] || '').split(' ')[1];
+    const payload = token ? jwt.decode(token) : null;
+    return !!payload && typeof payload === 'object' && payload.exp === undefined;
+}
 
 router.post('/register', async (req, res) => {
     try {
@@ -61,7 +81,7 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
     try {
-        const { email, password } = loginSchema.parse(req.body);
+        const { email, password, device } = loginSchema.parse(req.body);
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
@@ -73,11 +93,7 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ error: 'Invalid email or password.' });
         }
 
-        const token = jwt.sign(
-            { id: user.id, email: user.email, isAdmin: user.isAdmin },
-            getJwtSecret(),
-            { expiresIn: '1d' }
-        );
+        const token = signToken(user, device === true);
 
         res.json({ token, user: { id: user.id, name: user.name, email: user.email, isAdmin: user.isAdmin } });
     } catch (error) {
@@ -110,11 +126,26 @@ router.post('/change-password', authenticateToken, async (req: AuthRequest, res)
             return res.status(400).json({ error: 'The new password must be different from your current one.' });
         }
 
+        // A new password signs the app out on every other device; this one gets a fresh token
         const passwordHash = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
-        await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
-        res.json({ message: 'Password changed.' });
+        const updated = await prisma.user.update({
+            where: { id: user.id },
+            data: { passwordHash, tokenVersion: { increment: 1 } },
+        });
+        res.json({ message: 'Password changed.', token: signToken(updated, usesDeviceToken(req)) });
     } catch (error) {
         console.error('Change password error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Sign out every device, including app installs whose tokens don't expire
+router.post('/logout-all', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+        await prisma.user.update({ where: { id: req.user!.id }, data: { tokenVersion: { increment: 1 } } });
+        res.json({ message: 'Signed out everywhere.' });
+    } catch (error) {
+        console.error('Sign out everywhere error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

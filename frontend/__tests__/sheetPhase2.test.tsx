@@ -89,7 +89,7 @@ describe('HPManager', () => {
         expect(screen.getByRole('progressbar', { name: 'Hit points' })).toHaveAttribute('aria-valuenow', '17');
         expect(screen.getByText('Took 8 damage · 5 absorbed by temp HP')).toBeInTheDocument();
         expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ current: 17, temp: 0 }));
-        expect(mockedApi.patch).toHaveBeenCalledWith('/characters/c1/hp', expect.objectContaining({ current: 17, temp: 0 }));
+        expect(mockedApi.patch).toHaveBeenCalledWith('/characters/c1/hp', expect.objectContaining({ current: 17, temp: 0 }), { offline: true });
         expect(screen.getByLabelText('Amount')).toHaveValue('');
     });
 

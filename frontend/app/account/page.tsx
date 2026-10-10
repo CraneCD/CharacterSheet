@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
-import { getStoredUserEmail } from '@/lib/auth';
-import { Button, SectionHeader, TextField, useToast } from '@/app/components/ui';
+import { clearAuthStorage, getStoredUserEmail } from '@/lib/auth';
+import { Button, ConfirmDialog, SectionHeader, TextField, describeError, useToast } from '@/app/components/ui';
 
 const MIN_LENGTH = 6;
 const MAX_LENGTH = 72;
@@ -20,6 +21,7 @@ export default function AccountPage() {
             </div>
             {email && <p className="account-email">Signed in as <strong>{email}</strong></p>}
             <ChangePasswordForm />
+            <SignOutEverywhere />
         </div>
     );
 }
@@ -41,7 +43,9 @@ function ChangePasswordForm() {
         setError('');
         setSaving(true);
         try {
-            await api.post('/auth/change-password', { currentPassword: current, newPassword: next });
+            const res = await api.post('/auth/change-password', { currentPassword: current, newPassword: next });
+            // Changing the password signs out other devices; this one keeps going with a new token
+            if (res?.token) localStorage.setItem('token', res.token);
             setCurrent('');
             setNext('');
             setConfirm('');
@@ -76,6 +80,49 @@ function ChangePasswordForm() {
                     {saving ? 'Changing…' : 'Change password'}
                 </Button>
             </form>
+        </section>
+    );
+}
+
+/** Signs out every device, including installed apps that otherwise stay signed in. */
+function SignOutEverywhere() {
+    const toast = useToast();
+    const router = useRouter();
+    const [confirming, setConfirming] = useState(false);
+    const [busy, setBusy] = useState(false);
+
+    const signOut = async () => {
+        setBusy(true);
+        try {
+            await api.post('/auth/logout-all', {});
+            clearAuthStorage();
+            router.replace('/login');
+        } catch (err) {
+            toast.error(describeError("Couldn't sign out everywhere", err));
+            setBusy(false);
+            setConfirming(false);
+        }
+    };
+
+    return (
+        <section className="card account-card" aria-labelledby="sign-out-everywhere-title">
+            <SectionHeader title="Devices" id="sign-out-everywhere-title" as="h2" />
+            <p className="field-hint" style={{ marginTop: 0 }}>
+                The installed app stays signed in until you sign out. Lost a phone? Sign out everywhere, including here.
+            </p>
+            <Button variant="danger" onClick={() => setConfirming(true)}>Sign out everywhere</Button>
+            {confirming && (
+                <ConfirmDialog
+                    title="Sign out on every device?"
+                    confirmLabel="Sign out everywhere"
+                    danger
+                    busy={busy}
+                    onConfirm={signOut}
+                    onCancel={() => setConfirming(false)}
+                >
+                    Every phone and browser signed in to your account will need your password again, this one too.
+                </ConfirmDialog>
+            )}
         </section>
     );
 }

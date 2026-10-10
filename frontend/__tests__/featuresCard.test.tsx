@@ -92,7 +92,7 @@ describe('Features & Traits card', () => {
         const pips = within(card).getByRole('group', { name: 'Breath Weapon uses: 2 of 2 left' });
         fireEvent.click(within(pips).getByRole('button', { name: 'Use 1' }));
         await waitFor(() => expect(screen.getAllByRole('group', { name: 'Breath Weapon uses: 1 of 2 left' })).toHaveLength(2));
-        expect(api.patch).toHaveBeenCalledWith('/characters/c1/class-resources', { resourceName: 'Breath Weapon', current: 1 });
+        expect(api.patch).toHaveBeenCalledWith('/characters/c1/class-resources', { resourceName: 'Breath Weapon', current: 1 }, { offline: true });
 
         expect(await axe(container)).toHaveNoViolations();
     });
@@ -129,7 +129,7 @@ describe('Features & Traits card', () => {
         expect(api.patch).toHaveBeenCalledWith('/characters/c1/class-resources', {
             resourceName: 'Wand of Sparks',
             resource: { name: 'Wand of Sparks', current: 3, max: 3, resetType: 'short', source: 'custom', feature: 'Wand of Sparks', description: 'Shoot sparks.' },
-        });
+        }, { offline: true });
         expect(within(featuresCard()).getByRole('group', { name: 'Wand of Sparks uses: 3 of 3 left' })).toBeInTheDocument();
     });
 
@@ -147,7 +147,7 @@ describe('Features & Traits card', () => {
         expect(api.put).toHaveBeenCalledWith('/characters/c1/features', {
             index: 1, name: 'Lucky Charm', feature: { name: 'Rabbit Foot', source: 'Custom', description: 'Reroll a 1 once a day.', custom: true },
         });
-        expect(api.patch).toHaveBeenCalledWith('/characters/c1/class-resources', { resourceName: 'Lucky Charm', remove: true });
+        expect(api.patch).toHaveBeenCalledWith('/characters/c1/class-resources', { resourceName: 'Lucky Charm', remove: true }, { offline: true });
         const card = featuresCard();
         expect(within(card).getByRole('group', { name: 'Rabbit Foot uses: 0 of 2 left' })).toBeInTheDocument();
         expect(within(card).queryByRole('group', { name: /Lucky Charm uses/ })).not.toBeInTheDocument();

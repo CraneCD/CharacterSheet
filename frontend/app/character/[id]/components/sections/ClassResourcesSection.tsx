@@ -165,7 +165,7 @@ export function useLimitedUses({ characterId, onUpdate, readOnly = false, ...inp
         const updates: Partial<CharacterData> = { classResources: toSave, classResourcesRules: RESOURCE_RULES_VERSION };
         if (clearLegacyMagicInitiate) updates.magicInitiateSpell1Used = null;
         onUpdate(updates);
-        api.patch(`/characters/${characterId}/data`, updates)
+        api.patch(`/characters/${characterId}/data`, updates, { offline: true })
             .catch((err) => console.error('Failed to persist class resources', err));
         // Save once per distinct change
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -188,7 +188,7 @@ export function useLimitedUses({ characterId, onUpdate, readOnly = false, ...inp
         const value = Math.max(0, Math.min(res.max, Math.round(current)));
         if (value === res.current) return;
         const next = { ...latest.current, [name]: { ...res, current: value } };
-        change(next, () => api.patch(`/characters/${characterId}/class-resources`, { resourceName: name, current: value }),
+        change(next, () => api.patch(`/characters/${characterId}/class-resources`, { resourceName: name, current: value }, { offline: true }),
             `Couldn't update ${res.name}`);
     }, [change, characterId]);
 
@@ -199,20 +199,20 @@ export function useLimitedUses({ characterId, onUpdate, readOnly = false, ...inp
         const updated: ClassResource = { ...res, max: value, current: Math.min(res.current, value) };
         if (reset) delete updated.maxEdited; else updated.maxEdited = true;
         const next = { ...latest.current, [name]: updated };
-        change(next, () => api.patch(`/characters/${characterId}/class-resources`, { resourceName: name, resource: storable(updated) }),
+        change(next, () => api.patch(`/characters/${characterId}/class-resources`, { resourceName: name, resource: storable(updated) }, { offline: true }),
             reset ? "Couldn't reset maximum uses" : "Couldn't update maximum uses");
     }, [change, characterId]);
 
     const upsert = useCallback((resource: ClassResource) => {
         const next = { ...latest.current, [resource.name]: resource };
-        return change(next, () => api.patch(`/characters/${characterId}/class-resources`, { resourceName: resource.name, resource: storable(resource) }),
+        return change(next, () => api.patch(`/characters/${characterId}/class-resources`, { resourceName: resource.name, resource: storable(resource) }, { offline: true }),
             `Couldn't save uses for ${resource.name}`);
     }, [change, characterId]);
 
     const remove = useCallback((name: string) => {
         if (!latest.current[name]) return Promise.resolve(undefined);
         const { [name]: _removed, ...next } = latest.current;
-        return change(next, () => api.patch(`/characters/${characterId}/class-resources`, { resourceName: name, remove: true }),
+        return change(next, () => api.patch(`/characters/${characterId}/class-resources`, { resourceName: name, remove: true }, { offline: true }),
             `Couldn't remove uses for ${name}`);
     }, [change, characterId]);
 

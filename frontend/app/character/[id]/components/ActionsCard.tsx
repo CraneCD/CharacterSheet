@@ -277,7 +277,7 @@ export default function ActionsCard({
         optimisticSave({
             apply: () => onUpdate({ equipment: gear.map((e, i) => (i === index ? { ...item, ...changes } : e)) }),
             rollback: () => onUpdate({ equipment: gear }),
-            request: () => api.patch(`/characters/${characterId}/equipment`, { index, item: changes }),
+            request: () => api.patch(`/characters/${characterId}/equipment`, { index, item: changes }, { offline: true }),
             errorMessage,
         });
     };

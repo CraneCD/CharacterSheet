@@ -1,4 +1,6 @@
 import { clearAuthStorage } from './auth';
+import { API_CACHE } from './offline';
+import { enqueueWrite, flushQueue, pendingWrites, QUEUED, QueuedMethod, QueuedWrite, SendOutcome } from './offlineQueue';
 
 function redirectIfUnauthorized(res: Response): void {
     if (res.status !== 401 || typeof window === 'undefined') return;
@@ -72,6 +74,113 @@ async function getJson(endpoint: string) {
     return res.json();
 }
 
+export interface WriteOptions {
+    /**
+     * In-play sheet saves: without a connection the save is queued and sent when the
+     * server can be reached again (lib/offlineQueue.ts), resolving to QUEUED instead of
+     * the server's response. Saves made while others are queued join the queue, so
+     * they reach the server in the order they were made.
+     */
+    offline?: boolean;
+}
+
+async function sendRequest(method: QueuedMethod, endpoint: string, data?: unknown): Promise<Response> {
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = { 'Authorization': `Bearer ${token}` };
+    if (data !== undefined) headers['Content-Type'] = 'application/json';
+    return fetch(`${API_URL}${endpoint}`, {
+        method,
+        headers,
+        body: data !== undefined ? JSON.stringify(data) : undefined,
+    });
+}
+
+async function readBody(res: Response) {
+    // Handle empty responses (204 No Content)
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) return res.json();
+    return {};
+}
+
+async function write(method: QueuedMethod, endpoint: string, data: unknown, options?: WriteOptions) {
+    if (options?.offline) {
+        const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+        if (offline || pendingWrites().length > 0) {
+            enqueueWrite(method, endpoint, data);
+            if (!offline) void flushPendingWrites();
+            return QUEUED;
+        }
+    }
+    let res: Response;
+    try {
+        res = await sendRequest(method, endpoint, data);
+    } catch (err) {
+        // fetch() rejects with a TypeError when the server can't be reached at all
+        if (options?.offline && err instanceof TypeError) {
+            enqueueWrite(method, endpoint, data);
+            return QUEUED;
+        }
+        throw err;
+    }
+    redirectIfUnauthorized(res);
+    if (!res.ok) throw await toApiError(res);
+    return readBody(res);
+}
+
+/** Send one queued save, sorting the answer into sent / try later / refused. */
+export async function sendQueuedWrite(entry: QueuedWrite): Promise<SendOutcome> {
+    let res: Response;
+    try {
+        res = await sendRequest(entry.method, entry.endpoint, entry.body);
+    } catch {
+        return { ok: false, retry: true };
+    }
+    if (res.ok) return { ok: true };
+    // A server error or rate limit: try again later. Signed out (401): signing out
+    // clears this device's offline data, unsent saves included
+    if (res.status === 401 || res.status === 403 || res.status === 429 || res.status >= 500) {
+        redirectIfUnauthorized(res);
+        return { ok: false, retry: true };
+    }
+    return { ok: false, retry: false, message: (await toApiError(res)).message };
+}
+
+/**
+ * Store the sheet as the app last showed it where the service worker keeps API reads,
+ * so reopening it offline shows saves still waiting in the queue.
+ */
+export async function saveOfflineCopy(endpoint: string, body: unknown): Promise<void> {
+    if (typeof window === 'undefined' || !('caches' in window)) return;
+    try {
+        const cache = await window.caches.open(API_CACHE);
+        await cache.put(`${API_URL}${endpoint}`, new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } }));
+    } catch {
+        // Storage full or unavailable: the copy is a convenience
+    }
+}
+
+/**
+ * Ping the server so a sleeping Render instance starts booting while the app opens.
+ * Resolves true once it answers (any status), false if it can't be reached.
+ */
+export async function warmUpServer(timeoutMs = 60_000): Promise<boolean> {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    try {
+        await fetch(`${API_URL.replace(/\/api\/?$/, '')}/health`, { cache: 'no-store', signal: controller?.signal });
+        return true;
+    } catch {
+        return false;
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
+}
+
+/** Send any queued offline saves now. */
+export function flushPendingWrites() {
+    return flushQueue(sendQueuedWrite);
+}
+
 // In-memory cache for reference data (spells, classes, races, …). The
 // character page requests several of these on every mount (the spell list
 // alone is large), and caching the promise also dedupes concurrent requests
@@ -97,75 +206,19 @@ export const api = {
         return getJson(endpoint);
     },
 
-    async post(endpoint: string, data: any) {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}${endpoint}`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-        });
-        redirectIfUnauthorized(res);
-        if (!res.ok) throw await toApiError(res);
-        return res.json();
+    async post(endpoint: string, data: any, options?: WriteOptions) {
+        return write('POST', endpoint, data, options);
     },
 
-    async put(endpoint: string, data: any) {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}${endpoint}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-        });
-        redirectIfUnauthorized(res);
-        if (!res.ok) throw await toApiError(res);
-        return res.json();
+    async put(endpoint: string, data: any, options?: WriteOptions) {
+        return write('PUT', endpoint, data, options);
     },
 
-    async patch(endpoint: string, data: any) {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}${endpoint}`, {
-            method: 'PATCH',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-        });
-        redirectIfUnauthorized(res);
-        if (!res.ok) throw await toApiError(res);
-        return res.json();
+    async patch(endpoint: string, data: any, options?: WriteOptions) {
+        return write('PATCH', endpoint, data, options);
     },
 
-    async delete(endpoint: string, options?: { data?: any }) {
-        const token = localStorage.getItem('token');
-        const headers: HeadersInit = {
-            'Authorization': `Bearer ${token}`,
-        };
-        
-        if (options?.data) {
-            headers['Content-Type'] = 'application/json';
-        }
-        
-        const res = await fetch(`${API_URL}${endpoint}`, {
-            method: 'DELETE',
-            headers,
-            body: options?.data ? JSON.stringify(options.data) : undefined,
-        });
-
-        redirectIfUnauthorized(res);
-        if (!res.ok) throw await toApiError(res);
-        // Handle empty responses (204 No Content)
-        const contentType = res.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-            return res.json();
-        }
-        // Return empty object for successful DELETE with no body
-        return {};
+    async delete(endpoint: string, options?: { data?: any } & WriteOptions) {
+        return write('DELETE', endpoint, options?.data, options);
     }
 };
