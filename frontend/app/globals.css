@@ -506,6 +506,22 @@ button {
   }
 }
 
+/* Shown while offline (OfflineSupport) */
+.offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: calc(var(--z-nav) + 1);
+  margin: 0 calc(-1 * var(--space-2)) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  border: 1px solid var(--warning);
+  border-top: none;
+  background: linear-gradient(var(--warning-soft), var(--warning-soft)), var(--surface);
+  color: var(--text);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
 /* App navigation (AppShell) */
 .nav {
   display: flex;

@@ -6,6 +6,7 @@ import { clearAuthStorage, isStoredUserAdmin } from '@/lib/auth';
 import { isAdminPath, isProtectedPath } from './AuthGuard';
 import ThemeToggle from './ui/ThemeToggle';
 import D20Icon from './ui/D20Icon';
+import OfflineSupport from './OfflineSupport';
 
 /** Character pages (list, creation, sheets) all live under "My Characters". */
 function isCharactersPath(pathname: string): boolean {
@@ -91,6 +92,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
     return (
         <main className="container">
+            <OfflineSupport />
             {showNav && <AppNav />}
             {children}
         </main>

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1d1627">
+<title>Offline · Grulla D&amp;D</title>
+<style>
+  /* Standalone page served by sw.js when offline: globals.css isn't available here */
+  :root { color-scheme: dark light; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: system-ui, sans-serif; background: #1d1627; color: #f1ecf7; text-align: center; padding: 1.5rem; box-sizing: border-box; }
+  @media (prefers-color-scheme: light) { body { background: #f6f3fa; color: #241c2f; } }
+  img { width: 96px; height: 96px; border-radius: 22px; }
+  h1 { font-size: 1.4rem; margin: 1rem 0 .5rem; }
+  p { margin: 0 auto 1.25rem; max-width: 22rem; line-height: 1.5; opacity: .85; }
+  a { display: inline-block; padding: .75rem 1.25rem; border-radius: .5rem; background: #e9b04f; color: #1d1627; font-weight: 600; text-decoration: none; }
+</style>
+</head>
+<body>
+<main>
+  <img src="/icons/icon-192.png" alt="">
+  <h1>You're offline</h1>
+  <p>This page hasn't been opened on this device yet, so there's no saved copy. Sheets you've opened before still work.</p>
+  <a href="/dashboard">Go to my characters</a>
+</main>
+</body>
+</html>
