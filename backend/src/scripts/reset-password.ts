@@ -21,13 +21,13 @@ async function main() {
 
         const user = await prisma.user.update({
             where: { email },
-            data: { passwordHash },
+            // A new password also signs the account out everywhere (app tokens never expire)
+            data: { passwordHash, tokenVersion: { increment: 1 } },
         });
 
         console.log('--- PASSWORD RESET SUCCESSFUL ---');
         console.log(`User: ${user.email}`);
-        console.log(`New Password: ${newPassword}`);
-        console.log(`New Hash: ${user.passwordHash}`);
+        console.log('Every device signed in to this account has been signed out.');
         console.log('-------------------------------');
 
     } catch (error) {

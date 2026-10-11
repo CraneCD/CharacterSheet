@@ -1,4 +1,5 @@
 import express from 'express';
+import { asyncRouter } from '../utils/asyncRouter';
 import { z } from 'zod';
 import { Character } from '@prisma/client';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
@@ -26,7 +27,7 @@ async function getClassFeaturesMap(): Promise<Record<string, any[]>> {
     return map;
 }
 
-const router = express.Router();
+const router = asyncRouter();
 
 const stringList = (v: unknown): string[] =>
     Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && x.trim() !== '').map(x => x.trim()) : [];

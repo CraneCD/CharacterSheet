@@ -1,4 +1,5 @@
 import express from 'express';
+import { asyncRouter } from '../utils/asyncRouter';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
@@ -7,7 +8,7 @@ import { loadCampaign } from '../lib/campaignAccess';
 // Mounted at /api/campaigns/:id/sessions (after authenticateToken). Everyone in
 // the campaign reads the shared sessions; only the DM writes them, sees
 // dmNotes, or sees sessions with `shared: false`.
-const router = express.Router({ mergeParams: true });
+const router = asyncRouter({ mergeParams: true });
 
 const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a date like 2026-09-25');
 

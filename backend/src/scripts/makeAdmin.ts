@@ -27,7 +27,7 @@ async function main() {
     });
 
     console.log(`${updated.email} isAdmin=${updated.isAdmin}`);
-    console.log('They must log out and back in for the change to take effect (isAdmin is baked into the JWT).');
+    console.log('The change applies on their next request.');
 }
 
 main()

@@ -1,4 +1,5 @@
 import express from 'express';
+import { asyncRouter } from '../utils/asyncRouter';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
@@ -6,7 +7,7 @@ import { loadCampaign } from '../lib/campaignAccess';
 
 // Mounted at /api/campaigns/:id/encounters (after authenticateToken). DM only:
 // players see the active encounter through GET /api/campaigns/:id.
-const router = express.Router({ mergeParams: true });
+const router = asyncRouter({ mergeParams: true });
 
 const STATUSES = ['planned', 'active', 'completed'] as const;
 

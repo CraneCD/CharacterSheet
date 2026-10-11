@@ -1,6 +1,8 @@
 import express from 'express';
+import { asyncRouter } from '../utils/asyncRouter';
 import { z } from 'zod';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { joinCodeLimiter } from '../middleware/rateLimit';
 import { prisma } from '../lib/prisma';
 import { displayUserName, getCampaignRole, loadCampaign, normalizeJoinCode, withUniqueJoinCode } from '../lib/campaignAccess';
 import { basicCharacterView, dmCharacterView, playerEncounterView } from '../lib/campaignViews';
@@ -9,7 +11,7 @@ import sessionRoutes from './sessions';
 import itemRoutes from './items';
 import { exportPrep, importAsNewCampaign, importIntoCampaign, prepSchema } from '../lib/campaignPrep';
 
-const router = express.Router();
+const router = asyncRouter();
 
 router.use(authenticateToken);
 
@@ -102,7 +104,7 @@ async function assignCharacter(userId: string, characterId: string, campaignId: 
 }
 
 // Join with a code, optionally bringing a character
-router.post('/join', async (req: AuthRequest, res) => {
+router.post('/join', joinCodeLimiter, async (req: AuthRequest, res) => {
     const parsed = joinSchema.safeParse(req.body);
     if (!parsed.success) return sendValidationError(res, parsed.error);
     try {

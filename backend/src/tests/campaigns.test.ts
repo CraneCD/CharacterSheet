@@ -7,7 +7,8 @@ jest.mock('../lib/prisma', () => ({
         campaign: { findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
         campaignMember: { findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn(), delete: jest.fn() },
         character: { findUnique: jest.fn(), findMany: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
-        user: { findUnique: jest.fn() },
+        // The auth middleware's account lookup: every test account is on tokenVersion 0
+        user: { findUnique: jest.fn(async () => ({ tokenVersion: 0, isAdmin: false })) },
         encounter: { findFirst: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn(), delete: jest.fn() },
         campaignSession: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
         referenceItem: { findMany: jest.fn() },
@@ -27,7 +28,7 @@ app.use(express.json());
 app.use('/campaigns', campaignRoutes);
 app.use('/characters', characterRoutes);
 
-const tokenFor = (id: string) => `Bearer ${jwt.sign({ id, email: `${id}@example.com` }, 'test-secret')}`;
+const tokenFor = (id: string) => `Bearer ${jwt.sign({ id, email: `${id}@example.com`, tv: 0 }, 'test-secret')}`;
 const DM = tokenFor('dm-1');
 const PLAYER = tokenFor('player-1');
 const STRANGER = tokenFor('stranger');
@@ -110,7 +111,7 @@ describe('GET /campaigns/:id', () => {
         data: { portrait: 'data:x', hp: { current: 9, max: 28, temp: 0 }, conditions: ['Poisoned'], derivedStats: { ac: 16 }, notepad: { pages: ['secret'] } },
     };
     beforeEach(() => {
-        mock(prisma.user.findUnique).mockResolvedValue({ id: 'dm-1', name: 'Dana', email: 'dm-1@example.com' });
+        mock(prisma.user.findUnique).mockResolvedValue({ id: 'dm-1', name: 'Dana', email: 'dm-1@example.com', tokenVersion: 0, isAdmin: false });
         mock(prisma.campaignMember.findMany).mockResolvedValue([{ userId: 'player-1', joinedAt: new Date(), user: { id: 'player-1', name: null, email: 'pat@example.com' } }]);
         mock(prisma.character.findMany).mockResolvedValue([partyCharacter]);
         mock(prisma.encounter.findFirst).mockResolvedValue({

@@ -1,4 +1,5 @@
 import express from 'express';
+import { asyncRouter } from '../utils/asyncRouter';
 import { z } from 'zod';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
@@ -6,7 +7,7 @@ import { monsterSchema } from '../lib/monsterSchema';
 
 // A DM's custom monsters, usable in any campaign they run. SRD monsters are
 // reference data (/api/reference/monsters).
-const router = express.Router();
+const router = asyncRouter();
 
 router.use(authenticateToken);
 

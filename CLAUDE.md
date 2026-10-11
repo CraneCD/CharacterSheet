@@ -58,7 +58,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001/api
 
 ### Authentication Flow
 
-JWT-based. The backend signs tokens with `JWT_SECRET`: a day for a browser tab, no expiry for the installed app (login sends `device: true` when `isInstalledApp()`). Tokens carry the account's `tokenVersion` (`tv`), checked by `authenticateToken`; `POST /auth/logout-all` (Account → Sign out everywhere) and password changes bump it, ending every session (a password change returns a fresh token for the device that made it). The frontend stores the token in `localStorage`, and the API client at `frontend/lib/api.ts` injects it as `Authorization: Bearer <token>` on every request. On a 401 response, the client calls `logout()` and redirects to `/login`. Token expiration is also checked client-side by parsing the JWT payload (see `frontend/lib/auth.ts`).
+JWT-based. The backend signs tokens with `JWT_SECRET`: a day for a browser tab, no expiry for the installed app (login sends `device: true` when `isInstalledApp()`). Tokens carry the account's `tokenVersion` (`tv`), checked by `authenticateToken` (tokens without one are refused; every signed-out case answers 401, 403 is for signed-in users who aren't allowed); `POST /auth/logout-all` (Account → Sign out everywhere) and password changes bump it, ending every session (a password change returns a fresh token for the device that made it). The frontend stores the token in `localStorage`, and the API client at `frontend/lib/api.ts` injects it as `Authorization: Bearer <token>` on every request. On a 401 response, the client calls `logout()` and redirects to `/login`. Token expiration is also checked client-side by parsing the JWT payload (see `frontend/lib/auth.ts`).
 
 ### Frontend Data Fetching
 
@@ -97,10 +97,10 @@ API errors are thrown as `ApiError` (`status` + the server's `error` text as `me
 
 ### Backend API Structure
 
-Routes are mounted in `backend/src/index.ts`:
+Routes are mounted in `backend/src/index.ts`. Routers are made with `asyncRouter()` (`backend/src/utils/asyncRouter.ts`), which sends a failed async handler to the error handler (Express 4 would leave the rejection unhandled and Node would exit):
 - `/api/auth` — register, login (`device: true` for a non-expiring app token), `POST /change-password` (signed in; needs the current password), `POST /logout-all`. All rate-limited (`authLimiter`). The frontend's `/account` page (nav: Account) uses it
 - `/api/characters` — CRUD; protected by `authenticateToken` middleware
-- `/api/campaigns` — CRUD, join by code, leave/remove members, `PUT /assign-character`; nested `/:id/encounters` (DM only), `/:id/sessions` and `/:id/items` (loot, `POST /:itemId/distribute` to hand it out). Prep files: `POST /import` (new campaign), `GET|POST /:id/prep` (export / import into), one transaction each, in `backend/src/lib/campaignPrep.ts`. Access checks go through `loadCampaign` in `backend/src/lib/campaignAccess.ts` (404 for campaigns you aren't in)
+- `/api/campaigns` — CRUD, join by code (`joinCodeLimiter`: 10 wrong codes per user per 15 minutes), leave/remove members, `PUT /assign-character`; nested `/:id/encounters` (DM only), `/:id/sessions` and `/:id/items` (loot, `POST /:itemId/distribute` to hand it out). Prep files: `POST /import` (new campaign), `GET|POST /:id/prep` (export / import into), one transaction each, in `backend/src/lib/campaignPrep.ts`. Access checks go through `loadCampaign` in `backend/src/lib/campaignAccess.ts` (404 for campaigns you aren't in)
 - `/api/monsters` — a DM's custom monsters (same shape as SRD monsters, `backend/src/lib/monsterSchema.ts`)
 - `/api/reference` — D&D reference data (classes, races, spells, feats, monsters, ...) served from the `ReferenceItem` table (admin-editable). `backend/src/data/*.ts` is the seed/sync source: `prisma db seed` fills an empty DB, `npm run sync-reference` pushes later rules updates.
 
