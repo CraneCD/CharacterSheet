@@ -1,8 +1,9 @@
 import express from 'express';
+import { asyncRouter } from '../utils/asyncRouter';
 import { getReferenceRows } from '../lib/referenceCache';
 import { withCanonicalId } from '../lib/referenceTypes';
 
-const router = express.Router();
+const router = asyncRouter();
 
 // Reference data is admin-editable now, so cache it for a short window only
 // (the referenceCache module already dedupes DB hits for longer than this).

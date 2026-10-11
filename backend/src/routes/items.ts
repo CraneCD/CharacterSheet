@@ -1,4 +1,5 @@
 import express from 'express';
+import { asyncRouter } from '../utils/asyncRouter';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
@@ -12,7 +13,7 @@ import { distributeItem, distributeSchema, LootError, normalizeCoins } from '../
 // without the DM's notes. POST /:itemId/distribute puts loot on character
 // sheets: the DM gives or splits anything, players take found loot for their
 // own characters.
-const router = express.Router({ mergeParams: true });
+const router = asyncRouter({ mergeParams: true });
 
 const itemSchema = z.object({
     ...itemFields,

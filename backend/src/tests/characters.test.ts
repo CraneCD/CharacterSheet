@@ -4,6 +4,8 @@ import jwt from 'jsonwebtoken';
 
 jest.mock('../lib/prisma', () => ({
     prisma: {
+        // The auth middleware's account lookup: every test account is on tokenVersion 0
+        user: { findUnique: jest.fn(async () => ({ tokenVersion: 0, isAdmin: false })) },
         character: {
             findUnique: jest.fn(),
             findMany: jest.fn(),
@@ -25,7 +27,7 @@ const app = express();
 app.use(express.json());
 app.use('/characters', characterRoutes);
 
-const token = jwt.sign({ id: 'user-1', email: 'u@example.com' }, 'test-secret');
+const token = jwt.sign({ id: 'user-1', email: 'u@example.com', tv: 0 }, 'test-secret');
 
 const ownedCharacter = (data: object) => ({
     id: 'char-1',

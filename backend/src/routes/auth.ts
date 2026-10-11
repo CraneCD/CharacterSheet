@@ -1,4 +1,5 @@
 import express from 'express';
+import { asyncRouter } from '../utils/asyncRouter';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
@@ -6,7 +7,7 @@ import { getJwtSecret } from '../config/jwt';
 import { prisma } from '../lib/prisma';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 
-const router = express.Router();
+const router = asyncRouter();
 
 const registerSchema = z.object({
     email: z.string().email(),

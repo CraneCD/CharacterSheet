@@ -1,4 +1,5 @@
 import express from 'express';
+import { asyncRouter } from '../utils/asyncRouter';
 import { z } from 'zod';
 import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
@@ -7,7 +8,7 @@ import { REFERENCE_TYPES, ReferenceType, isReferenceType, withCanonicalId } from
 import { uniqueSlug } from '../utils/slug';
 import { monsterSchema } from '../lib/monsterSchema';
 
-const router = express.Router();
+const router = asyncRouter();
 
 router.use(authenticateToken, requireAdmin);
 

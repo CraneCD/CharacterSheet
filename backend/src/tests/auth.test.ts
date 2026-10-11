@@ -67,13 +67,13 @@ describe('POST /auth/change-password', () => {
 
     beforeAll(() => {
         process.env.JWT_SECRET = secret;
-        token = jwt.sign({ id: 'user-1', email: 'u@example.com' }, secret);
+        token = jwt.sign({ id: 'user-1', email: 'u@example.com', tv: 0 }, secret);
     });
 
     beforeEach(async () => {
         prisma = new PrismaClient();
         prisma.user.update = jest.fn().mockResolvedValue({});
-        (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-1', email: 'u@example.com', passwordHash: await bcrypt.hash('old-password', 4) });
+        (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-1', email: 'u@example.com', tokenVersion: 0, isAdmin: false, passwordHash: await bcrypt.hash('old-password', 4) });
     });
 
     const send = (body: object, auth = true) => {
