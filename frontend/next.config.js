@@ -22,14 +22,16 @@ const nextConfig = appBuild
                 },
             ]
         },
-        // Ids moved from the path to the query string (lib/routes.ts); keep old links and bookmarks working
+        // Ids moved from the path to the query string (lib/routes.ts); keep old links and bookmarks working.
+        // The new pages must never match (or they redirect to themselves): `type$` only excludes a last
+        // segment, so the two-segment admin rules exclude `type/` too.
         async redirects() {
             return [
                 { source: '/character/:id', destination: '/character?id=:id', permanent: true },
                 { source: '/campaigns/:campaign/encounters/:id', destination: '/campaigns/encounter?campaign=:campaign&id=:id', permanent: true },
                 { source: '/campaigns/:id((?!view$|encounter$)[^/]+)', destination: '/campaigns/view?id=:id', permanent: true },
-                { source: '/admin/:type((?!type$)[^/]+)/new', destination: '/admin/type/new?type=:type', permanent: true },
-                { source: '/admin/:type((?!type$)[^/]+)/:key', destination: '/admin/type/edit?type=:type&key=:key', permanent: true },
+                { source: '/admin/:type((?!type(?:/|$))[^/]+)/new', destination: '/admin/type/new?type=:type', permanent: true },
+                { source: '/admin/:type((?!type(?:/|$))[^/]+)/:key', destination: '/admin/type/edit?type=:type&key=:key', permanent: true },
                 { source: '/admin/:type((?!type$)[^/]+)', destination: '/admin/type?type=:type', permanent: true },
             ]
         },
