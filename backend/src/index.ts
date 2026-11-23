@@ -12,6 +12,7 @@ import referenceRoutes from './routes/reference';
 import adminRoutes from './routes/admin';
 import { getJwtSecret } from './config/jwt';
 import { authLimiter } from './middleware/rateLimit';
+import { allowedOrigins, isAllowedOrigin } from './config/cors';
 
 dotenv.config();
 // Validate JWT configuration after env is loaded
@@ -42,18 +43,12 @@ if (!isProduction) {
     }
 }
 
-// CORS configuration
-const allowedOrigins = [
-    'http://localhost:3000',
-    'https://character-sheet-frontend.vercel.app',
-    // The Android app (Capacitor serves its bundled pages from this origin)
-    'https://localhost',
-    process.env.FRONTEND_URL
-].filter(Boolean); // Remove undefined values
+// CORS configuration (origins in config/cors.ts; FRONTEND_URL adds more)
+const corsOrigins = allowedOrigins();
 
 // Log allowed origins once at startup for debugging
 if (!isProduction) {
-    console.log('Allowed CORS origins:', allowedOrigins);
+    console.log('Allowed CORS origins:', corsOrigins);
 }
 
 app.use(cors({
@@ -63,21 +58,13 @@ app.use(cors({
             return callback(null, true);
         }
 
-        // Normalize origin (remove trailing slash)
-        const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
-
-        // Check exact match or if origin starts with any allowed origin
-        // Exact match only — prefix matching would allow e.g. https://trusted.example.evil.com
-        const isAllowed = allowedOrigins.some(allowed => {
-            const normalizedAllowed = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
-            return normalizedOrigin === normalizedAllowed;
-        });
+        const isAllowed = isAllowedOrigin(origin, corsOrigins);
 
         if (isAllowed) {
             callback(null, true);
         } else {
             if (!isProduction) {
-                console.log('CORS: Origin blocked:', normalizedOrigin, 'Allowed origins:', allowedOrigins);
+                console.log('CORS: Origin blocked:', origin, 'Allowed origins:', corsOrigins);
             }
             // For OPTIONS preflight, we still need to send CORS headers
             callback(null, false);
