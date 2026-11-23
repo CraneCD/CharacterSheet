@@ -121,7 +121,7 @@ Routes are mounted in `backend/src/index.ts`. Routers are made with `asyncRouter
 
 ### CORS
 
-The backend uses exact-match CORS validation (prevents subdomain bypass). Allowed origins: `localhost:3000`, `https://character-sheet-frontend.vercel.app`, `https://localhost` (the Android app), and the `FRONTEND_URL` env var.
+The backend uses exact-match CORS validation (prevents subdomain bypass). Allowed origins live in `backend/src/config/cors.ts`: `localhost:3000`, `https://rollsheet.party` and `https://www.rollsheet.party` (the website), `https://character-sheet-frontend.vercel.app`, `https://localhost` (the Android app), plus any in the `FRONTEND_URL` env var (comma-separated). A disallowed origin's preflight gets Express's default OPTIONS reply with no CORS headers, which browsers report as "CORS Missing Allow Origin".
 
 ## Deployment
 
